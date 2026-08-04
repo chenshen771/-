@@ -1,1 +1,1130 @@
-PLACEHOLDER_WILL_BE_REPLACED
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>市场快照 · 实时版</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #151b24;
+      --card-hover: #1c2430;
+      --border: #2a3544;
+      --text: #e8eef5;
+      --muted: #8b9cb3;
+      --green: #00c853;
+      --green-bg: rgba(0, 200, 83, 0.12);
+      --red: #ff5252;
+      --red-bg: rgba(255, 82, 82, 0.12);
+      --orange: #ff9100;
+      --orange-bg: rgba(255, 145, 0, 0.12);
+      --blue: #2979ff;
+      --blue-bg: rgba(41, 121, 255, 0.12);
+      --gold: #ffd600;
+      --radius: 14px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      min-height: 100vh;
+      padding-bottom: 72px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(11, 15, 20, 0.94);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 16px 12px;
+    }
+    .app-header h1 { font-size: 1.15rem; font-weight: 700; }
+    .app-header .sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+    .page { display: none; padding: 16px; animation: fadeIn 0.25s ease; }
+    .page.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--muted);
+    }
+
+    .up { color: var(--green); }
+    .down { color: var(--red); }
+    .flat { color: var(--muted); }
+
+    /* ===== 估值快照 ===== */
+    .val-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .val-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .val-card.full { grid-column: 1 / -1; }
+    .val-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 6px; }
+    .val-value { font-size: 1.45rem; font-weight: 700; }
+    .val-sub { font-size: 0.78rem; margin-top: 4px; }
+
+    .index-list { display: flex; flex-direction: column; gap: 8px; }
+    .index-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 13px 14px;
+    }
+    .index-name { font-weight: 500; font-size: 0.92rem; }
+    .index-right { text-align: right; }
+    .index-price { font-weight: 600; font-size: 0.95rem; }
+    .index-chg { font-size: 0.78rem; }
+
+    /* ===== 资产 ===== */
+    .asset-cards { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+    .asset-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .asset-left .name { font-size: 1rem; font-weight: 600; }
+    .asset-left .unit { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+    .asset-price { font-size: 1.25rem; font-weight: 700; }
+    .asset-chg { font-size: 0.82rem; margin-top: 2px; }
+
+    .theme-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .theme-box h3 { font-size: 0.85rem; color: var(--muted); margin-bottom: 8px; }
+    .theme-box p { font-size: 0.9rem; line-height: 1.55; }
+
+    /* ===== 宏观 ===== */
+    .macro-list { display: flex; flex-direction: column; gap: 10px; }
+    .macro-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .macro-item .label { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+    .macro-item .value-row { display: flex; justify-content: space-between; align-items: baseline; }
+    .macro-item .value { font-size: 1.5rem; font-weight: 700; }
+    .macro-item .change { font-size: 0.85rem; }
+    .macro-item .desc { font-size: 0.78rem; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+
+    /* ===== 热点 ===== */
+    .hot-cards { display: flex; flex-direction: column; gap: 12px; }
+    .hot-card {
+      border-radius: var(--radius);
+      padding: 16px;
+      border: 1px solid transparent;
+    }
+    .hot-card.red { background: var(--red-bg); border-color: rgba(255,82,82,0.25); }
+    .hot-card.orange { background: var(--orange-bg); border-color: rgba(255,145,0,0.25); }
+    .hot-card.blue { background: var(--blue-bg); border-color: rgba(41,121,255,0.25); }
+    .hot-card .tag { font-size: 0.72rem; font-weight: 600; margin-bottom: 6px; letter-spacing: 0.04em; }
+    .hot-card.red .tag { color: var(--red); }
+    .hot-card.orange .tag { color: var(--orange); }
+    .hot-card.blue .tag { color: #82b1ff; }
+    .hot-card .title { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+    .hot-card .summary { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+
+    /* ===== 日历 ===== */
+    .cal-list { display: flex; flex-direction: column; gap: 10px; }
+    .cal-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      gap: 14px;
+    }
+    .cal-date { flex-shrink: 0; width: 48px; text-align: center; }
+    .cal-date .day { font-size: 1.25rem; font-weight: 700; line-height: 1.1; }
+    .cal-date .week { font-size: 0.7rem; color: var(--muted); }
+    .cal-content .event { font-size: 0.92rem; font-weight: 500; margin-bottom: 3px; }
+    .cal-content .note { font-size: 0.78rem; color: var(--muted); }
+    .importance {
+      display: inline-block;
+      font-size: 0.65rem;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-top: 4px;
+    }
+    .imp-high { background: var(--red-bg); color: var(--red); }
+    .imp-mid { background: var(--orange-bg); color: var(--orange); }
+
+    /* ===== 板块 ===== */
+    .sector-group { margin-bottom: 16px; }
+    .sector-group h3 {
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sector-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .sector-card {
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+    .sector-card.up {
+      background: var(--green-bg);
+      border: 1px solid rgba(0,200,83,0.2);
+    }
+    .sector-card.down {
+      background: var(--red-bg);
+      border: 1px solid rgba(255,82,82,0.2);
+    }
+    .sector-card .s-name { font-size: 0.85rem; font-weight: 500; margin-bottom: 4px; }
+    .sector-card .s-chg { font-size: 1.05rem; font-weight: 700; }
+    .sector-card.up .s-chg { color: var(--green); }
+    .sector-card.down .s-chg { color: var(--red); }
+
+    .signal-box {
+      background: rgba(255,82,82,0.08);
+      border: 1.5px solid rgba(255,82,82,0.35);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-top: 8px;
+    }
+    .signal-box .label { font-size: 0.75rem; color: var(--red); font-weight: 600; margin-bottom: 6px; }
+    .signal-box p { font-size: 0.88rem; line-height: 1.5; }
+
+    /* ===== 观察列表 ===== */
+    .watch-add {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .watch-add input {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+    }
+    .watch-add input::placeholder { color: var(--muted); }
+    .watch-add button {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 0 18px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .watch-add button:active { opacity: 0.85; }
+
+    .watch-status {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .watch-status .refresh-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    .watch-list { display: flex; flex-direction: column; gap: 8px; }
+    .watch-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 13px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .watch-item .left .symbol {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .watch-item .left .name {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .watch-item .right {
+      text-align: right;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .watch-item .price-block .price {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .watch-item .price-block .chg {
+      font-size: 0.78rem;
+    }
+    .watch-item .del-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+    }
+    .watch-item .del-btn:active { color: var(--red); }
+
+    .watch-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+
+    /* ===== 股票详情抽屉 ===== */
+    .detail-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 80;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.25s;
+    }
+    .detail-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+    .detail-drawer {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      background: var(--card);
+      border-radius: 18px 18px 0 0;
+      z-index: 81;
+      max-height: 85vh;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      overflow-y: auto;
+      padding: 12px 16px 28px;
+    }
+    .detail-drawer.show { transform: translateY(0); }
+    .detail-handle {
+      width: 36px; height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 0 auto 14px;
+    }
+    .detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    .detail-symbol {
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+    .detail-price {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .detail-chg {
+      font-size: 0.95rem;
+      margin-top: 2px;
+    }
+    .detail-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.6rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px;
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .detail-stat {
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .detail-stat .label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+    .detail-stat .val {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    .chart-wrap {
+      background: var(--bg);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .chart-title {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    #tvChart {
+      width: 100%;
+      background: #131722;
+    }
+    .watch-item { cursor: pointer; }
+    .watch-item .del-btn { z-index: 2; position: relative; }
+
+
+    .news-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 0;
+    }
+    .news-item .news-time {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .news-item .news-title {
+      font-size: 0.92rem;
+      font-weight: 600;
+      line-height: 1.4;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .news-item .news-summary {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .news-item a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    /* Bottom Tab */
+    .tab-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(15, 20, 28, 0.96);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+      z-index: 50;
+    }
+    .tab-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.62rem;
+      cursor: pointer;
+      padding: 4px 0;
+    }
+    .tab-item.active { color: var(--blue); }
+    .tab-item .icon { font-size: 1.2rem; line-height: 1; }
+
+    .page-note {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 24px;
+      padding-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1 id="pageTitle">观察列表</h1>
+    <div class="sub" id="pageSub">实时美股自选 · Finnhub</div>
+  </header>
+
+  <!-- ========== 观察列表（新增，默认打开） ========== -->
+  <div class="page active" id="page-watch">
+    <div class="watch-add">
+      <input type="text" id="symbolInput" placeholder="输入代码，如 AAPL、NVDA、TSLA" maxlength="10" />
+      <button onclick="addSymbol()">添加</button>
+    </div>
+    <div class="watch-status">
+      <span id="updateTime">准备就绪</span>
+      <button class="refresh-btn" onclick="refreshQuotes()">刷新</button>
+    </div>
+    <div class="watch-list" id="watchList">
+      <div class="watch-empty">添加股票代码开始观察</div>
+    </div>
+    <div class="page-note">数据来自 Finnhub · 仅供学习参考 · Key 已写入前端（注意安全）</div>
+  </div>
+
+  <!-- ========== 估值快照 ========== -->
+  <div class="page" id="page-val">
+    <div class="section-title">核心估值指标（模拟）</div>
+    <div class="val-grid">
+      <div class="val-card">
+        <div class="val-label">标普500 市盈率 (TTM)</div>
+        <div class="val-value">22.4x</div>
+        <div class="val-sub down">高于5年均值 18.9x</div>
+      </div>
+      <div class="val-card">
+        <div class="val-label">纳斯达克 市盈率</div>
+        <div class="val-value">28.7x</div>
+        <div class="val-sub down">高于5年均值 24.1x</div>
+      </div>
+      <div class="val-card full">
+        <div class="val-label">标普500 远期市盈率</div>
+        <div class="val-value">19.8x</div>
+        <div class="val-sub">市场对盈利增长预期约11%</div>
+      </div>
+    </div>
+    <div class="section-title">热门美股实时价格</div>
+    <div class="index-list" id="indexList"></div>
+    <div class="page-note">以下为热门股实时价格演示</div>
+  </div>
+
+  <!-- ========== 全球大类资产 ========== -->
+  <div class="page" id="page-asset">
+    <div class="section-title">热门资产/股票实时价格</div>
+    <div class="asset-cards" id="assetCards"></div>
+    <div class="theme-box">
+      <h3>本周主线总结</h3>
+      <p>
+        风险偏好整体回升，科技与成长股领涨。黄金受避险与降息预期支撑，
+        美元指数震荡，原油受供应预期影响。市场继续围绕软着陆与降息路径交易。
+      </p>
+    </div>
+    <div class="page-note">部分价格来自实时接口</div>
+  </div>
+
+  <!-- ========== 宏观快照 ========== -->
+  <div class="page" id="page-macro">
+    <div class="section-title">核心宏观数据（参考）</div>
+    <div class="macro-list">
+      <div class="macro-item">
+        <div class="label">10年期美债收益率</div>
+        <div class="value-row">
+          <div class="value">4.28%</div>
+          <div class="change down">-0.06%</div>
+        </div>
+        <div class="desc">收益率回落反映市场对经济放缓与降息的定价增强。</div>
+      </div>
+      <div class="macro-item">
+        <div class="label">美联储基准利率</div>
+        <div class="value-row">
+          <div class="value">5.25–5.50%</div>
+          <div class="change flat">持平</div>
+        </div>
+        <div class="desc">当前联邦基金利率目标区间。市场关注后续降息路径。</div>
+      </div>
+      <div class="macro-item">
+        <div class="label">PCE通胀率（同比）</div>
+        <div class="value-row">
+          <div class="value">2.6%</div>
+          <div class="change down">-0.1pp</div>
+        </div>
+        <div class="desc">核心PCE是美联储关注的关键通胀指标。</div>
+      </div>
+    </div>
+    <div class="page-note">宏观数据为参考值，非实时</div>
+  </div>
+
+  <!-- ========== 本周热点 ========== -->
+  <div class="page" id="page-hot">
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>实时市场新闻</span>
+      <button class="refresh-btn" onclick="loadNews()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
+    </div>
+    <div id="newsList" class="hot-cards">
+      <div style="text-align:center;color:var(--muted);padding:30px 0;">加载新闻中...</div>
+    </div>
+    <div class="page-note">数据来自 Finnhub · 点击标题可打开原文</div>
+  </div>
+
+  <!-- ========== 下周日历 ========== -->
+  <div class="page" id="page-cal">
+    <div class="section-title">下周重要财经事件</div>
+    <div class="cal-list">
+      <div class="cal-item">
+        <div class="cal-date"><div class="day">05</div><div class="week">周二</div></div>
+        <div class="cal-content">
+          <div class="event">JOLTs职位空缺 + 科技财报</div>
+          <div class="note">劳动力市场关键指标</div>
+          <span class="importance imp-high">高重要</span>
+        </div>
+      </div>
+      <div class="cal-item">
+        <div class="cal-date"><div class="day">06</div><div class="week">周三</div></div>
+        <div class="cal-content">
+          <div class="event">ADP就业 + 服务业PMI</div>
+          <div class="note">非农前瞻数据</div>
+          <span class="importance imp-mid">中等重要</span>
+        </div>
+      </div>
+      <div class="cal-item">
+        <div class="cal-date"><div class="day">07</div><div class="week">周四</div></div>
+        <div class="cal-content">
+          <div class="event">初请失业金 + 欧央行</div>
+          <div class="note">关注欧央行表态</div>
+          <span class="importance imp-high">高重要</span>
+        </div>
+      </div>
+      <div class="cal-item">
+        <div class="cal-date"><div class="day">08</div><div class="week">周五</div></div>
+        <div class="cal-content">
+          <div class="event">美国非农就业报告</div>
+          <div class="note">本周最重要数据</div>
+          <span class="importance imp-high">高重要</span>
+        </div>
+      </div>
+    </div>
+    <div class="page-note">日历为示意</div>
+  </div>
+
+  <!-- ========== 板块动态 ========== -->
+  <div class="page" id="page-sector">
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>A股行业板块（尽量实时）</span>
+      <button class="refresh-btn" onclick="loadSectors()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
+    </div>
+    <div id="sectorContent">
+      <div style="text-align:center;color:var(--muted);padding:30px 0;">加载板块数据中...</div>
+    </div>
+    <div class="page-note">数据尝试来自东方财富 · 失败时显示参考数据</div>
+  </div>
+
+
+  <!-- 股票详情抽屉 -->
+  <div class="detail-overlay" id="detailOverlay" onclick="closeDetail()"></div>
+  <div class="detail-drawer" id="detailDrawer">
+    <div class="detail-handle"></div>
+    <div class="detail-header">
+      <div>
+        <div class="detail-symbol" id="detailSymbol">--</div>
+        <div class="detail-price" id="detailPrice">--</div>
+        <div class="detail-chg" id="detailChg">--</div>
+      </div>
+      <button class="detail-close" onclick="closeDetail()">×</button>
+    </div>
+    <div class="detail-grid" id="detailGrid"></div>
+    <div class="chart-wrap">
+      <div class="chart-title">走势图（TradingView）</div>
+      <div id="tvChart" style="height:260px; border-radius:10px; overflow:hidden;"></div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <nav class="tab-bar">
+    <button class="tab-item active" data-page="watch">
+      <span class="icon">⭐</span>
+      <span>观察</span>
+    </button>
+    <button class="tab-item" data-page="val">
+      <span class="icon">📊</span>
+      <span>估值</span>
+    </button>
+    <button class="tab-item" data-page="asset">
+      <span class="icon">🌍</span>
+      <span>资产</span>
+    </button>
+    <button class="tab-item" data-page="macro">
+      <span class="icon">📈</span>
+      <span>宏观</span>
+    </button>
+    <button class="tab-item" data-page="hot">
+      <span class="icon">🔥</span>
+      <span>热点</span>
+    </button>
+    <button class="tab-item" data-page="cal">
+      <span class="icon">📅</span>
+      <span>日历</span>
+    </button>
+    <button class="tab-item" data-page="sector">
+      <span class="icon">📉</span>
+      <span>板块</span>
+    </button>
+  </nav>
+
+  <script>
+    // ==================== 配置 ====================
+    // 你的 Finnhub API Key（已填入）
+    const FINNHUB_KEY = 'd9os0vhr01qou11on900d9os0vhr01qou11on90g';
+
+    // 默认观察列表
+    const DEFAULT_WATCH = ['AAPL', 'NVDA', 'TSLA', 'MSFT', 'GOOGL', 'META', 'AMZN'];
+
+    // ==================== 状态 ====================
+    let watchlist = JSON.parse(localStorage.getItem('watchlist') || 'null') || DEFAULT_WATCH.slice();
+    let quoteCache = {};
+
+    // ==================== Finnhub 请求 ====================
+    async function fetchQuote(symbol) {
+      try {
+        const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${FINNHUB_KEY}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('网络错误 ' + res.status);
+        const data = await res.json();
+        if (data && typeof data.c === 'number') return data;
+        return null;
+      } catch (e) {
+        console.error('fetchQuote error', symbol, e);
+        return null;
+      }
+    }
+
+    async function fetchQuotes(symbols) {
+      const results = {};
+      for (const sym of symbols) {
+        const data = await fetchQuote(sym);
+        if (data) results[sym] = data;
+        await new Promise(r => setTimeout(r, 180)); // 保护免费额度
+      }
+      return results;
+    }
+
+    // ==================== 观察列表逻辑 ====================
+    function saveWatchlist() {
+      localStorage.setItem('watchlist', JSON.stringify(watchlist));
+    }
+
+    function addSymbol() {
+      const input = document.getElementById('symbolInput');
+      let sym = input.value.trim().toUpperCase();
+      if (!sym) return;
+      sym = sym.replace(/[^A-Z0-9.\-^]/g, '');
+      if (!sym) return;
+      if (watchlist.includes(sym)) {
+        alert(sym + ' 已在观察列表中');
+        return;
+      }
+      watchlist.unshift(sym);
+      saveWatchlist();
+      input.value = '';
+      renderWatchlist();
+      refreshQuotes();
+    }
+
+    function removeSymbol(sym) {
+      watchlist = watchlist.filter(s => s !== sym);
+      saveWatchlist();
+      renderWatchlist();
+    }
+
+    function formatChg(val) {
+      if (val === null || val === undefined || isNaN(val)) return '--';
+      const sign = val > 0 ? '+' : '';
+      return sign + Number(val).toFixed(2) + '%';
+    }
+
+    function chgClass(val) {
+      if (val > 0) return 'up';
+      if (val < 0) return 'down';
+      return 'flat';
+    }
+
+    function renderWatchlist() {
+      const container = document.getElementById('watchList');
+      if (watchlist.length === 0) {
+        container.innerHTML = '<div class="watch-empty">添加股票代码开始观察</div>';
+        return;
+      }
+      container.innerHTML = watchlist.map(sym => {
+        const q = quoteCache[sym];
+        const price = q && q.c ? Number(q.c).toFixed(2) : '--';
+        const dp = q ? q.dp : null;
+        return `
+          <div class="watch-item" onclick="openDetail('${sym}')">
+            <div class="left">
+              <div class="symbol">${sym}</div>
+              <div class="name">${q ? '实时 · 点击查看详情' : '加载中...'}</div>
+            </div>
+            <div class="right">
+              <div class="price-block">
+                <div class="price">${price}</div>
+                <div class="chg ${chgClass(dp)}">${formatChg(dp)}</div>
+              </div>
+              <button class="del-btn" onclick="event.stopPropagation(); removeSymbol('${sym}')">×</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function refreshQuotes() {
+      const timeEl = document.getElementById('updateTime');
+      timeEl.textContent = '更新中...';
+      renderWatchlist();
+
+      const data = await fetchQuotes(watchlist);
+      Object.assign(quoteCache, data);
+      renderWatchlist();
+
+      const now = new Date();
+      timeEl.textContent = '更新于 ' + now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    document.getElementById('symbolInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addSymbol();
+    });
+
+    // ==================== 其他页面简单刷新 ====================
+    async function refreshIndexes() {
+      const container = document.getElementById('indexList');
+      if (!container) return;
+      const symbols = ['AAPL', 'MSFT', 'NVDA', 'TSLA'];
+      const names = { AAPL: '苹果', MSFT: '微软', NVDA: '英伟达', TSLA: '特斯拉' };
+      let html = '';
+      for (const sym of symbols) {
+        const q = quoteCache[sym] || await fetchQuote(sym);
+        if (q) quoteCache[sym] = q;
+        const price = q && q.c ? Number(q.c).toFixed(2) : '--';
+        const dp = q ? q.dp : null;
+        html += `
+          <div class="index-row">
+            <div class="index-name">${names[sym] || sym}</div>
+            <div class="index-right">
+              <div class="index-price">${price}</div>
+              <div class="index-chg ${chgClass(dp)}">${formatChg(dp)}</div>
+            </div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }
+
+    async function refreshAssets() {
+      const container = document.getElementById('assetCards');
+      if (!container) return;
+      const items = [
+        { symbol: 'AAPL', name: '苹果', unit: '实时价格' },
+        { symbol: 'NVDA', name: '英伟达', unit: '实时价格' },
+        { symbol: 'TSLA', name: '特斯拉', unit: '实时价格' },
+      ];
+      let html = '';
+      for (const item of items) {
+        const q = quoteCache[item.symbol] || await fetchQuote(item.symbol);
+        if (q) quoteCache[item.symbol] = q;
+        const price = q && q.c ? Number(q.c).toFixed(2) : '--';
+        const dp = q ? q.dp : null;
+        html += `
+          <div class="asset-card">
+            <div class="asset-left">
+              <div class="name">${item.name}</div>
+              <div class="unit">${item.unit}</div>
+            </div>
+            <div class="asset-right">
+              <div class="asset-price">${price}</div>
+              <div class="asset-chg ${chgClass(dp)}">${formatChg(dp)}</div>
+            </div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }
+
+
+    // ==================== 股票详情 ====================
+    async function openDetail(symbol) {
+      document.getElementById('detailSymbol').textContent = symbol;
+      document.getElementById('detailPrice').textContent = '加载中...';
+      document.getElementById('detailChg').textContent = '';
+      document.getElementById('detailGrid').innerHTML = '';
+      document.getElementById('detailOverlay').classList.add('show');
+      document.getElementById('detailDrawer').classList.add('show');
+
+      // 报价
+      let q = quoteCache[symbol];
+      if (!q) {
+        q = await fetchQuote(symbol);
+        if (q) quoteCache[symbol] = q;
+      }
+      if (q && q.c) {
+        document.getElementById('detailPrice').textContent = Number(q.c).toFixed(2);
+        const dp = q.dp;
+        const d = q.d;
+        const chgEl = document.getElementById('detailChg');
+        chgEl.textContent = (d >= 0 ? '+' : '') + Number(d).toFixed(2) + '  (' + formatChg(dp) + ')';
+        chgEl.className = 'detail-chg ' + chgClass(dp);
+
+        document.getElementById('detailGrid').innerHTML = `
+          <div class="detail-stat"><div class="label">今开</div><div class="val">${q.o ? Number(q.o).toFixed(2) : '--'}</div></div>
+          <div class="detail-stat"><div class="label">最高</div><div class="val">${q.h ? Number(q.h).toFixed(2) : '--'}</div></div>
+          <div class="detail-stat"><div class="label">最低</div><div class="val">${q.l ? Number(q.l).toFixed(2) : '--'}</div></div>
+          <div class="detail-stat"><div class="label">昨收</div><div class="val">${q.pc ? Number(q.pc).toFixed(2) : '--'}</div></div>
+        `;
+      } else {
+        document.getElementById('detailPrice').textContent = '--';
+        document.getElementById('detailChg').textContent = '暂无报价';
+      }
+
+      // 日线数据
+      loadTVChart(symbol);
+    }
+
+    function closeDetail() {
+      document.getElementById('detailOverlay').classList.remove('show');
+      document.getElementById('detailDrawer').classList.remove('show');
+    }
+
+    function loadTVChart(symbol) {
+      const container = document.getElementById('tvChart');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const createWidget = () => {
+        new TradingView.widget({
+          width: '100%',
+          height: 260,
+          symbol: symbol,           // 让 TradingView 自动识别交易所
+          interval: 'D',
+          timezone: 'America/New_York',
+          theme: 'dark',
+          style: '1',
+          locale: 'zh_CN',
+          toolbar_bg: '#131722',
+          enable_publishing: false,
+          hide_top_toolbar: true,
+          hide_legend: true,
+          save_image: false,
+          container_id: 'tvChart',
+          hide_volume: true
+        });
+      };
+
+      if (window.TradingView) {
+        createWidget();
+      } else {
+        const script = document.createElement('script');
+        script.src = 'https://s3.tradingview.com/tv.js';
+        script.onload = createWidget;
+        document.head.appendChild(script);
+      }
+    }
+
+
+    // ==================== 实时新闻 ====================
+    async function loadNews() {
+      const container = document.getElementById('newsList');
+      if (!container) return;
+      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载新闻中...</div>';
+
+      try {
+        // Finnhub 综合新闻（general 分类）
+        const url = `https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_KEY}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+          container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">暂无新闻数据</div>';
+          return;
+        }
+
+        // 只取前 12 条
+        const list = data.slice(0, 12);
+        container.innerHTML = list.map(item => {
+          const time = item.datetime ? new Date(item.datetime * 1000).toLocaleString('zh-CN', {
+            month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
+          }) : '';
+          const source = item.source || '';
+          const headline = item.headline || '无标题';
+          const summary = item.summary || '';
+          const link = item.url || '#';
+          return `
+            <div class="news-item">
+              <a href="${link}" target="_blank" rel="noopener">
+                <div class="news-time">${time} · ${source}</div>
+                <div class="news-title">${headline}</div>
+                <div class="news-summary">${summary}</div>
+              </a>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error(e);
+        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">新闻加载失败，请稍后重试</div>';
+      }
+    }
+
+
+    // ==================== 板块（东方财富优先） ====================
+    const FALLBACK_SECTORS = {
+      up: [
+        { name: '半导体', chg: 3.8 },
+        { name: '科技软件', chg: 2.1 },
+        { name: '通信服务', chg: 1.6 },
+        { name: '可选消费', chg: 0.9 }
+      ],
+      down: [
+        { name: '能源', chg: -1.9 },
+        { name: '公用事业', chg: -1.2 },
+        { name: '房地产', chg: -0.8 },
+        { name: '原材料', chg: -0.6 }
+      ]
+    };
+
+    function renderSectors(upList, downList, sourceNote) {
+      const container = document.getElementById('sectorContent');
+      if (!container) return;
+      const upHtml = (upList || []).slice(0, 8).map(s => `
+        <div class="sector-card up"><div class="s-name">${s.name}</div><div class="s-chg">+${Number(s.chg).toFixed(2)}%</div></div>
+      `).join('');
+      const downHtml = (downList || []).slice(0, 8).map(s => `
+        <div class="sector-card down"><div class="s-name">${s.name}</div><div class="s-chg">${Number(s.chg).toFixed(2)}%</div></div>
+      `).join('');
+      container.innerHTML = `
+        <div class="sector-group">
+          <h3><span style="color:var(--green)">●</span> 上涨板块</h3>
+          <div class="sector-cards">${upHtml || '<div style="color:var(--muted);font-size:0.85rem;">暂无</div>'}</div>
+        </div>
+        <div class="sector-group">
+          <h3><span style="color:var(--red)">●</span> 下跌板块</h3>
+          <div class="sector-cards">${downHtml || '<div style="color:var(--muted);font-size:0.85rem;">暂无</div>'}</div>
+        </div>
+        <div class="signal-box">
+          <div class="label">数据说明</div>
+          <p>${sourceNote || '行业板块涨跌幅（当日）'}</p>
+        </div>
+      `;
+    }
+
+    async function loadSectors() {
+      const container = document.getElementById('sectorContent');
+      if (container) container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载板块数据中...</div>';
+
+      // 东方财富行业板块接口
+      const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=100&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:90+t:2&fields=f12,f14,f3,f104,f105&_=' + Date.now();
+      const proxies = [
+        url,
+        'https://corsproxy.io/?' + encodeURIComponent(url),
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
+      ];
+
+      let items = null;
+      for (const u of proxies) {
+        try {
+          const res = await fetch(u);
+          if (!res.ok) continue;
+          let data = await res.json();
+          // allorigins 可能包一层
+          if (data && data.contents) data = JSON.parse(data.contents);
+          const diff = data && data.data && data.data.diff;
+          if (Array.isArray(diff) && diff.length > 0) {
+            items = diff;
+            break;
+          }
+        } catch (e) {
+          console.warn('sector proxy fail', e);
+        }
+      }
+
+      if (!items) {
+        renderSectors(FALLBACK_SECTORS.up, FALLBACK_SECTORS.down, '实时接口暂不可用，当前为参考数据');
+        return;
+      }
+
+      const list = items.map(it => ({
+        name: it.f14 || it.f12 || '--',
+        chg: Number(it.f3) || 0
+      })).filter(x => x.name !== '--');
+
+      const up = list.filter(x => x.chg > 0).sort((a,b) => b.chg - a.chg);
+      const down = list.filter(x => x.chg < 0).sort((a,b) => a.chg - b.chg);
+      renderSectors(up, down, '数据来自东方财富行业板块（当日涨跌幅）');
+    }
+
+    // ==================== 页面切换 ====================
+    const titles = {
+      watch:  { title: '观察列表', sub: '实时美股自选 · Finnhub' },
+      val:    { title: '估值快照', sub: '美股主要指数估值与表现' },
+      asset:  { title: '全球大类资产', sub: '黄金 · 美元 · 原油本周表现' },
+      macro:  { title: '宏观快照', sub: '美债 · 利率 · 通胀核心数据' },
+      hot:    { title: '本周热点', sub: '政策 · 财报 · 通胀三大主线' },
+      cal:    { title: '下周关键日历', sub: '重要数据与事件预告' },
+      sector: { title: '板块动态', sub: '本周涨跌板块与核心信号' },
+    };
+
+    document.querySelectorAll('.tab-item').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.page;
+        document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page-' + target).classList.add('active');
+        document.getElementById('pageTitle').textContent = titles[target].title;
+        document.getElementById('pageSub').textContent = titles[target].sub;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        if (target === 'watch') refreshQuotes();
+        if (target === 'val') refreshIndexes();
+        if (target === 'asset') refreshAssets();
+        if (target === 'hot') loadNews();
+        if (target === 'sector') loadSectors();
+      });
+    });
+
+    // ==================== 初始化 ====================
+    renderWatchlist();
+    refreshQuotes();
+
+    // 每 60 秒自动刷新观察列表
+    setInterval(() => {
+      if (document.getElementById('page-watch').classList.contains('active')) {
+        refreshQuotes();
+      }
+    }, 60000);
+  </script>
+</body>
+</html>
