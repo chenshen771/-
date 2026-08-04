@@ -591,7 +591,7 @@
     <div id="newsList" class="hot-cards">
       <div style="text-align:center;color:var(--muted);padding:30px 0;">加载新闻中...</div>
     </div>
-    <div class="page-note">数据来自 Finnhub · 点击标题可打开原文</div>
+    <div class="page-note">优先中文（东方财富）· 失败时回退英文 · 点击标题打开原文</div>
   </div>
 
   <!-- ========== 下周日历 ========== -->
@@ -959,22 +959,64 @@
     async function loadNews() {
       const container = document.getElementById('newsList');
       if (!container) return;
-      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载新闻中...</div>';
+      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载中文新闻中...</div>';
 
+      // 优先：东方财富中文财经新闻
+      const emUrl = 'https://np-listapi.eastmoney.com/comm/web/getNewsByColumns?client=web&biz=web_news_col&column=350&order=1&needInteractData=0&page_index=1&page_size=15&req_trace=1&fields=code,showTime,title,mediaName,summary,url,uniqueUrl';
+      const proxies = [
+        emUrl,
+        'https://corsproxy.io/?' + encodeURIComponent(emUrl),
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(emUrl)
+      ];
+
+      let list = null;
+      for (const u of proxies) {
+        try {
+          const res = await fetch(u);
+          if (!res.ok) continue;
+          let data = await res.json();
+          if (data && data.contents) {
+            try { data = JSON.parse(data.contents); } catch(e) {}
+          }
+          if (data && data.data && Array.isArray(data.data.list) && data.data.list.length > 0) {
+            list = data.data.list;
+            break;
+          }
+        } catch (e) {
+          console.warn('em news fail', e);
+        }
+      }
+
+      if (list && list.length) {
+        container.innerHTML = list.slice(0, 12).map(item => {
+          const time = item.showTime || '';
+          const source = item.mediaName || '东方财富';
+          const headline = item.title || '无标题';
+          const summary = item.summary || '';
+          const link = item.uniqueUrl || item.url || '#';
+          return `
+            <div class="news-item">
+              <a href="${link}" target="_blank" rel="noopener">
+                <div class="news-time">${time} · ${source}</div>
+                <div class="news-title">${headline}</div>
+                <div class="news-summary">${summary}</div>
+              </a>
+            </div>
+          `;
+        }).join('');
+        return;
+      }
+
+      // 回退：Finnhub 英文新闻
       try {
-        // Finnhub 综合新闻（general 分类）
         const url = `https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_KEY}`;
         const res = await fetch(url);
         const data = await res.json();
-
         if (!Array.isArray(data) || data.length === 0) {
           container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">暂无新闻数据</div>';
           return;
         }
-
-        // 只取前 12 条
-        const list = data.slice(0, 12);
-        container.innerHTML = list.map(item => {
+        container.innerHTML = data.slice(0, 12).map(item => {
           const time = item.datetime ? new Date(item.datetime * 1000).toLocaleString('zh-CN', {
             month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
           }) : '';
