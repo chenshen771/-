@@ -180,6 +180,7 @@
     }
     .imp-high { background: var(--red-bg); color: var(--red); }
     .imp-mid { background: var(--orange-bg); color: var(--orange); }
+    .imp-low { background: var(--blue-bg); color: #82b1ff; }
 
     /* ===== 板块 ===== */
     .sector-group { margin-bottom: 16px; }
@@ -450,6 +451,49 @@
       color: inherit;
     }
 
+
+    .sector-card { cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
+    .sector-card:active { transform: scale(0.97); opacity: 0.9; }
+    .sector-detail {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-top: 12px;
+      margin-bottom: 12px;
+    }
+    .sector-detail .sd-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .sector-detail .sd-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    .sector-detail .sd-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.3rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .sector-stock {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .sector-stock:last-child { border-bottom: none; }
+    .sector-stock .ss-left .ss-sym { font-weight: 600; font-size: 0.9rem; }
+    .sector-stock .ss-left .ss-name { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+    .sector-stock .ss-right { text-align: right; }
+    .sector-stock .ss-price { font-weight: 600; font-size: 0.9rem; }
+    .sector-stock .ss-chg { font-size: 0.75rem; }
+
     /* Bottom Tab */
     .tab-bar {
       position: fixed;
@@ -538,7 +582,7 @@
 
   <!-- ========== 全球大类资产 ========== -->
   <div class="page" id="page-asset">
-    <div class="section-title">热门资产/股票实时价格</div>
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;"><span>大类资产实时行情</span><button class="refresh-btn" onclick="refreshAssets()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button></div>
     <div class="asset-cards" id="assetCards"></div>
     <div class="theme-box">
       <h3>本周主线总结</h3>
@@ -547,103 +591,67 @@
         美元指数震荡，原油受供应预期影响。市场继续围绕软着陆与降息路径交易。
       </p>
     </div>
-    <div class="page-note">部分价格来自实时接口</div>
+    <div class="page-note">热门大类 · Finnhub主源 · Yahoo备用 · 谷歌无公开API</div>
   </div>
 
   <!-- ========== 宏观快照 ========== -->
   <div class="page" id="page-macro">
-    <div class="section-title">核心宏观数据（参考）</div>
-    <div class="macro-list">
-      <div class="macro-item">
-        <div class="label">10年期美债收益率</div>
-        <div class="value-row">
-          <div class="value">4.28%</div>
-          <div class="change down">-0.06%</div>
-        </div>
-        <div class="desc">收益率回落反映市场对经济放缓与降息的定价增强。</div>
-      </div>
-      <div class="macro-item">
-        <div class="label">美联储基准利率</div>
-        <div class="value-row">
-          <div class="value">5.25–5.50%</div>
-          <div class="change flat">持平</div>
-        </div>
-        <div class="desc">当前联邦基金利率目标区间。市场关注后续降息路径。</div>
-      </div>
-      <div class="macro-item">
-        <div class="label">PCE通胀率（同比）</div>
-        <div class="value-row">
-          <div class="value">2.6%</div>
-          <div class="change down">-0.1pp</div>
-        </div>
-        <div class="desc">核心PCE是美联储关注的关键通胀指标。</div>
-      </div>
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>核心宏观数据</span>
+      <button class="refresh-btn" onclick="loadMacro()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
     </div>
-    <div class="page-note">宏观数据为参考值，非实时</div>
+    <div class="macro-list" id="macroList">
+      <div style="text-align:center;color:var(--muted);padding:30px 0;">加载宏观数据中...</div>
+    </div>
+    <div class="theme-box" style="margin-top:14px;" id="macroImpact">
+      <h3>利率变动影响简析</h3>
+      <p>加载中...</p>
+    </div>
+    <div class="page-note">收益率/汇率尽量实时 · 利率与通胀为官方参考值</div>
   </div>
 
   <!-- ========== 本周热点 ========== -->
   <div class="page" id="page-hot">
-    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
       <span>实时市场新闻</span>
-      <button class="refresh-btn" onclick="loadNews()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button id="newsTabCN" onclick="switchNewsLang('cn')" style="background:var(--blue);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.75rem;cursor:pointer;">中文</button>
+        <button id="newsTabEN" onclick="switchNewsLang('en')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:0.75rem;cursor:pointer;">英文</button>
+        <button class="refresh-btn" onclick="loadNews()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
+      </div>
     </div>
     <div id="newsList" class="hot-cards">
       <div style="text-align:center;color:var(--muted);padding:30px 0;">加载新闻中...</div>
     </div>
-    <div class="page-note">优先中文（东方财富）· 失败时回退英文 · 点击标题打开原文</div>
+    <div class="page-note">中文=东方财富 · 英文=Finnhub · 可切换 · 点击标题打开原文</div>
   </div>
 
   <!-- ========== 下周日历 ========== -->
   <div class="page" id="page-cal">
-    <div class="section-title">下周重要财经事件</div>
-    <div class="cal-list">
-      <div class="cal-item">
-        <div class="cal-date"><div class="day">05</div><div class="week">周二</div></div>
-        <div class="cal-content">
-          <div class="event">JOLTs职位空缺 + 科技财报</div>
-          <div class="note">劳动力市场关键指标</div>
-          <span class="importance imp-high">高重要</span>
-        </div>
-      </div>
-      <div class="cal-item">
-        <div class="cal-date"><div class="day">06</div><div class="week">周三</div></div>
-        <div class="cal-content">
-          <div class="event">ADP就业 + 服务业PMI</div>
-          <div class="note">非农前瞻数据</div>
-          <span class="importance imp-mid">中等重要</span>
-        </div>
-      </div>
-      <div class="cal-item">
-        <div class="cal-date"><div class="day">07</div><div class="week">周四</div></div>
-        <div class="cal-content">
-          <div class="event">初请失业金 + 欧央行</div>
-          <div class="note">关注欧央行表态</div>
-          <span class="importance imp-high">高重要</span>
-        </div>
-      </div>
-      <div class="cal-item">
-        <div class="cal-date"><div class="day">08</div><div class="week">周五</div></div>
-        <div class="cal-content">
-          <div class="event">美国非农就业报告</div>
-          <div class="note">本周最重要数据</div>
-          <span class="importance imp-high">高重要</span>
-        </div>
-      </div>
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>重要财报日历</span>
+      <button class="refresh-btn" onclick="loadCalendar()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
     </div>
-    <div class="page-note">日历为示意</div>
+    <div class="cal-list" id="calList">
+      <div style="text-align:center;color:var(--muted);padding:30px 0;">加载日历中...</div>
+    </div>
+    <div class="page-note">Finnhub 财报 + 东方财富新闻线索 · 三档重要性</div>
   </div>
 
   <!-- ========== 板块动态 ========== -->
   <div class="page" id="page-sector">
-    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
-      <span>A股行业板块（尽量实时）</span>
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <span>板块动态</span>
       <button class="refresh-btn" onclick="loadSectors()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button id="sectorTabUS" onclick="switchSectorMarket('us')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--blue);color:#fff;font-size:0.85rem;cursor:pointer;">美股</button>
+      <button id="sectorTabCN" onclick="switchSectorMarket('cn')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:0.85rem;cursor:pointer;">A股</button>
     </div>
     <div id="sectorContent">
       <div style="text-align:center;color:var(--muted);padding:30px 0;">加载板块数据中...</div>
     </div>
-    <div class="page-note">数据尝试来自东方财富 · 失败时显示参考数据</div>
+    <div class="page-note" id="sectorNote">美股用行业ETF实时涨跌 · A股来自东方财富</div>
   </div>
 
 
@@ -702,6 +710,7 @@
     // ==================== 配置 ====================
     // 你的 Finnhub API Key（已填入）
     const FINNHUB_KEY = 'd9os0vhr01qou11on900d9os0vhr01qou11on90g';
+    const WORKER_BASE = 'https://gushi.ilikethecaptainofdestiny.workers.dev';
 
     // 默认观察列表
     const DEFAULT_WATCH = ['AAPL', 'NVDA', 'TSLA', 'MSFT', 'GOOGL', 'META', 'AMZN'];
@@ -848,35 +857,101 @@
     async function refreshAssets() {
       const container = document.getElementById('assetCards');
       if (!container) return;
-      const items = [
-        { symbol: 'AAPL', name: '苹果', unit: '实时价格' },
-        { symbol: 'NVDA', name: '英伟达', unit: '实时价格' },
-        { symbol: 'TSLA', name: '特斯拉', unit: '实时价格' },
+      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px 0;">加载热门大类资产中...</div>';
+
+      // 最受关注的大类资产（Finnhub 主源，Yahoo 备用）
+      // Google 无公开 API，无法接入
+      const assets = [
+        { symbol: 'GLD',  name: '黄金',     unit: '全球避险 · 黄金ETF' },
+        { symbol: 'SLV',  name: '白银',     unit: '工业+贵金属' },
+        { symbol: 'USO',  name: '原油',     unit: '能源 · 原油ETF' },
+        { symbol: 'UUP',  name: '美元',     unit: '美元指数ETF' },
+        { symbol: 'TLT',  name: '美债',     unit: '长债 · 利率敏感' },
+        { symbol: 'SPY',  name: '标普500',  unit: '美股大盘' },
+        { symbol: 'QQQ',  name: '纳指100',  unit: '科技成长' },
+        { symbol: 'IWM',  name: '罗素2000', unit: '美股小盘' },
+        { symbol: 'EEM',  name: '新兴市场', unit: '新兴市场ETF' },
+        { symbol: 'VNQ',  name: '美股地产', unit: '房地产REITs' },
       ];
+
       let html = '';
-      for (const item of items) {
-        const q = quoteCache[item.symbol] || await fetchQuote(item.symbol);
-        if (q) quoteCache[item.symbol] = q;
-        const price = q && q.c ? Number(q.c).toFixed(2) : '--';
-        const dp = q ? q.dp : null;
-        html += `
-          <div class="asset-card">
-            <div class="asset-left">
-              <div class="name">${item.name}</div>
-              <div class="unit">${item.unit}</div>
+      let okCount = 0;
+      const moves = [];
+
+      for (const item of assets) {
+        let price = null, dp = null, source = '';
+
+        // 1) Finnhub 主源
+        let q = quoteCache[item.symbol];
+        if (!q) {
+          q = await fetchQuote(item.symbol);
+          if (q) quoteCache[item.symbol] = q;
+        }
+        if (q && q.c) {
+          price = Number(q.c);
+          dp = q.dp;
+          source = 'Finnhub';
+        }
+
+        // 2) Yahoo 备用
+        if (price === null && typeof fetchYahooQuote === 'function') {
+          const y = await fetchYahooQuote(item.symbol);
+          if (y) {
+            price = y.price;
+            dp = y.chgPct;
+            source = 'Yahoo';
+          }
+        }
+
+        if (price !== null) {
+          okCount++;
+          moves.push({ name: item.name, dp: dp || 0 });
+          const dir = (dp >= 0) ? 'up' : 'down';
+          html += `
+            <div class="asset-card" onclick="openDetail('${item.symbol}')" style="cursor:pointer;">
+              <div class="asset-left">
+                <div class="name">${item.name}</div>
+                <div class="unit">${item.unit} · ${source}</div>
+              </div>
+              <div class="asset-right">
+                <div class="asset-price">${price >= 1000 ? price.toFixed(0) : price.toFixed(2)}</div>
+                <div class="asset-chg ${dir}">${formatChg(dp)}</div>
+              </div>
             </div>
-            <div class="asset-right">
-              <div class="asset-price">${price}</div>
-              <div class="asset-chg ${chgClass(dp)}">${formatChg(dp)}</div>
+          `;
+        } else {
+          html += `
+            <div class="asset-card">
+              <div class="asset-left">
+                <div class="name">${item.name}</div>
+                <div class="unit">${item.unit}</div>
+              </div>
+              <div class="asset-right">
+                <div class="asset-price">--</div>
+                <div class="asset-chg flat">暂无</div>
+              </div>
             </div>
-          </div>
-        `;
+          `;
+        }
+        await new Promise(r => setTimeout(r, 120));
       }
+
+      // 根据涨跌生成主线总结
+      const theme = document.querySelector('#page-asset .theme-box p');
+      if (theme && moves.length) {
+        moves.sort((a, b) => b.dp - a.dp);
+        const top = moves.slice(0, 2).map(m => m.name).join('、');
+        const weak = moves.filter(m => m.dp < 0).slice(0, 2).map(m => m.name).join('、');
+        let summary = `今日相对较强：${top}。`;
+        if (weak) summary += `相对偏弱：${weak}。`;
+        summary += '数据来自 Finnhub（主）与 Yahoo（备），谷歌无公开接口故未接入。仅供学习参考。';
+        theme.textContent = summary;
+      }
+
       container.innerHTML = html;
     }
 
 
-    // ==================== 股票详情 ====================
     async function openDetail(symbol) {
       document.getElementById('detailSymbol').textContent = symbol;
       document.getElementById('detailPrice').textContent = '加载中...';
@@ -956,20 +1031,52 @@
 
 
     // ==================== 实时新闻 ====================
-    async function loadNews() {
+    // ==================== 实时新闻（中文 / 英文可切换） ====================
+    let newsLang = localStorage.getItem('newsLang') || 'cn';
+
+    function switchNewsLang(lang) {
+      newsLang = lang;
+      localStorage.setItem('newsLang', lang);
+      const cn = document.getElementById('newsTabCN');
+      const en = document.getElementById('newsTabEN');
+      if (cn && en) {
+        if (lang === 'cn') {
+          cn.style.background = 'var(--blue)'; cn.style.color = '#fff'; cn.style.border = 'none';
+          en.style.background = 'none'; en.style.color = 'var(--muted)'; en.style.border = '1px solid var(--border)';
+        } else {
+          en.style.background = 'var(--blue)'; en.style.color = '#fff'; en.style.border = 'none';
+          cn.style.background = 'none'; cn.style.color = 'var(--muted)'; cn.style.border = '1px solid var(--border)';
+        }
+      }
+      loadNews();
+    }
+
+    function renderNewsItems(list) {
       const container = document.getElementById('newsList');
       if (!container) return;
-      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载中文新闻中...</div>';
+      if (!list || !list.length) {
+        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">暂无新闻数据</div>';
+        return;
+      }
+      container.innerHTML = list.map(item => `
+        <div class="news-item">
+          <a href="${item.link}" target="_blank" rel="noopener">
+            <div class="news-time">${item.time} · ${item.source}</div>
+            <div class="news-title">${item.title}</div>
+            <div class="news-summary">${item.summary || ''}</div>
+          </a>
+        </div>
+      `).join('');
+    }
 
-      // 优先：东方财富中文财经新闻
+    async function loadChineseNews() {
       const emUrl = 'https://np-listapi.eastmoney.com/comm/web/getNewsByColumns?client=web&biz=web_news_col&column=350&order=1&needInteractData=0&page_index=1&page_size=15&req_trace=1&fields=code,showTime,title,mediaName,summary,url,uniqueUrl';
       const proxies = [
+        WORKER_BASE + '?url=' + encodeURIComponent(emUrl),
         emUrl,
         'https://corsproxy.io/?' + encodeURIComponent(emUrl),
         'https://api.allorigins.win/raw?url=' + encodeURIComponent(emUrl)
       ];
-
-      let list = null;
       for (const u of proxies) {
         try {
           const res = await fetch(u);
@@ -978,71 +1085,136 @@
           if (data && data.contents) {
             try { data = JSON.parse(data.contents); } catch(e) {}
           }
-          if (data && data.data && Array.isArray(data.data.list) && data.data.list.length > 0) {
-            list = data.data.list;
-            break;
+          const list = data && data.data && data.data.list;
+          if (Array.isArray(list) && list.length) {
+            return list.slice(0, 12).map(item => ({
+              time: item.showTime || '',
+              source: item.mediaName || '东方财富',
+              title: item.title || '无标题',
+              summary: item.summary || '',
+              link: item.uniqueUrl || item.url || '#'
+            }));
           }
         } catch (e) {
-          console.warn('em news fail', e);
+          console.warn('cn news fail', e);
         }
       }
+      return null;
+    }
 
-      if (list && list.length) {
-        container.innerHTML = list.slice(0, 12).map(item => {
-          const time = item.showTime || '';
-          const source = item.mediaName || '东方财富';
-          const headline = item.title || '无标题';
-          const summary = item.summary || '';
-          const link = item.uniqueUrl || item.url || '#';
-          return `
-            <div class="news-item">
-              <a href="${link}" target="_blank" rel="noopener">
-                <div class="news-time">${time} · ${source}</div>
-                <div class="news-title">${headline}</div>
-                <div class="news-summary">${summary}</div>
-              </a>
-            </div>
-          `;
-        }).join('');
-        return;
-      }
-
-      // 回退：Finnhub 英文新闻
+    async function loadEnglishNews() {
       try {
         const url = `https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_KEY}`;
         const res = await fetch(url);
         const data = await res.json();
-        if (!Array.isArray(data) || data.length === 0) {
-          container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">暂无新闻数据</div>';
-          return;
-        }
-        container.innerHTML = data.slice(0, 12).map(item => {
-          const time = item.datetime ? new Date(item.datetime * 1000).toLocaleString('zh-CN', {
+        if (!Array.isArray(data) || !data.length) return null;
+        return data.slice(0, 12).map(item => ({
+          time: item.datetime ? new Date(item.datetime * 1000).toLocaleString('zh-CN', {
             month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
-          }) : '';
-          const source = item.source || '';
-          const headline = item.headline || '无标题';
-          const summary = item.summary || '';
-          const link = item.url || '#';
-          return `
-            <div class="news-item">
-              <a href="${link}" target="_blank" rel="noopener">
-                <div class="news-time">${time} · ${source}</div>
-                <div class="news-title">${headline}</div>
-                <div class="news-summary">${summary}</div>
-              </a>
-            </div>
-          `;
-        }).join('');
+          }) : '',
+          source: item.source || '',
+          title: item.headline || 'No title',
+          summary: item.summary || '',
+          link: item.url || '#'
+        }));
       } catch (e) {
-        console.error(e);
-        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">新闻加载失败，请稍后重试</div>';
+        console.warn('en news fail', e);
+        return null;
       }
     }
 
+    async function loadNews() {
+      const container = document.getElementById('newsList');
+      if (!container) return;
+      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载新闻中...</div>';
 
-    // ==================== 板块（东方财富优先） ====================
-    const FALLBACK_SECTORS = {
+      // sync button style
+      const cn = document.getElementById('newsTabCN');
+      const en = document.getElementById('newsTabEN');
+      if (cn && en) {
+        if (newsLang === 'cn') {
+          cn.style.background = 'var(--blue)'; cn.style.color = '#fff'; cn.style.border = 'none';
+          en.style.background = 'none'; en.style.color = 'var(--muted)'; en.style.border = '1px solid var(--border)';
+        } else {
+          en.style.background = 'var(--blue)'; en.style.color = '#fff'; en.style.border = 'none';
+          cn.style.background = 'none'; cn.style.color = 'var(--muted)'; cn.style.border = '1px solid var(--border)';
+        }
+      }
+
+      let list = null;
+      if (newsLang === 'cn') {
+        list = await loadChineseNews();
+        if (!list) {
+          // fallback to English
+          list = await loadEnglishNews();
+          if (list) {
+            container.insertAdjacentHTML('afterbegin', '<div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;">中文源暂不可用，已显示英文</div>');
+          }
+        }
+      } else {
+        list = await loadEnglishNews();
+        if (!list) {
+          list = await loadChineseNews();
+          if (list) {
+            container.insertAdjacentHTML('afterbegin', '<div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;">英文源暂不可用，已显示中文</div>');
+          }
+        }
+      }
+
+      if (!list) {
+        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">新闻加载失败，请稍后重试</div>';
+        return;
+      }
+      // clear and render
+      renderNewsItems(list);
+    }
+
+    // ==================== 板块（美股 / A股可切换） ====================
+    let sectorMarket = 'us'; // us | cn
+
+    const US_SECTOR_ETFS = [
+      { symbol: 'XLK', name: '科技', stocks: ['AAPL','MSFT','NVDA','AVGO','CRM','ADBE','ORCL','CSCO'] },
+      { symbol: 'XLF', name: '金融', stocks: ['JPM','BAC','WFC','GS','MS','C','BLK','SCHW'] },
+      { symbol: 'XLE', name: '能源', stocks: ['XOM','CVX','COP','SLB','EOG','MPC','PSX','VLO'] },
+      { symbol: 'XLV', name: '医疗', stocks: ['UNH','JNJ','LLY','ABBV','MRK','TMO','ABT','PFE'] },
+      { symbol: 'XLI', name: '工业', stocks: ['GE','CAT','RTX','HON','UNP','BA','DE','LMT'] },
+      { symbol: 'XLY', name: '可选消费', stocks: ['AMZN','TSLA','HD','MCD','NKE','SBUX','LOW','BKNG'] },
+      { symbol: 'XLP', name: '必选消费', stocks: ['PG','KO','PEP','COST','WMT','PM','MO','CL'] },
+      { symbol: 'XLU', name: '公用事业', stocks: ['NEE','SO','DUK','CEG','SRE','AEP','D','EXC'] },
+      { symbol: 'XLB', name: '原材料', stocks: ['LIN','APD','SHW','ECL','FCX','NEM','DOW','NUE'] },
+      { symbol: 'XLRE', name: '房地产', stocks: ['PLD','AMT','EQIX','WELL','SPG','O','DLR','PSA'] },
+      { symbol: 'XLC', name: '通信服务', stocks: ['META','GOOGL','NFLX','DIS','CMCSA','T','VZ','TMUS'] },
+      { symbol: 'SMH', name: '半导体', stocks: ['NVDA','TSM','AVGO','AMD','ASML','QCOM','TXN','MU','INTC','AMAT'] },
+    ];
+
+    const US_SECTOR_STOCKS = {
+      'XLK':  ['AAPL','MSFT','NVDA','AVGO','CRM','ORCL','ADBE','CSCO'],
+      'SMH':  ['NVDA','TSM','AVGO','AMD','ASML','MU','QCOM','AMAT','INTC','SNDK'],
+      'XLF':  ['JPM','BAC','WFC','GS','MS','C','BLK','SCHW'],
+      'XLE':  ['XOM','CVX','COP','SLB','EOG','MPC','PSX','VLO'],
+      'XLV':  ['LLY','UNH','JNJ','ABBV','MRK','TMO','ABT','PFE'],
+      'XLI':  ['GE','CAT','RTX','UNP','HON','BA','DE','LMT'],
+      'XLY':  ['AMZN','TSLA','HD','MCD','NKE','SBUX','LOW','BKNG'],
+      'XLP':  ['PG','KO','PEP','COST','WMT','PM','MO','CL'],
+      'XLU':  ['NEE','SO','DUK','CEG','SRE','AEP','D','EXC'],
+      'XLB':  ['LIN','APD','SHW','ECL','FCX','NEM','NUE','DOW'],
+      'XLRE': ['PLD','AMT','EQIX','WELL','SPG','O','CCI','DLR'],
+      'XLC':  ['META','GOOGL','NFLX','DIS','CMCSA','TMUS','CHTR','VZ'],
+    };
+
+    // A股常见行业对应代表性股票（简化）
+    const CN_SECTOR_STOCKS = {
+      '半导体': ['688981','002371','603501','688012'],
+      '半导体材料': ['603290','688126','300346'],
+      '通信网络设备及器件': ['000063','600498','002396'],
+      '印制电路板': ['002463','002916','300476'],
+      '元件': ['300408','002138','300433'],
+      '医疗研发外包': ['603259','300347','300759'],
+    };
+
+    // 美股板块 → 代表性个股
+// 美股板块 → 代表性个股
+const FALLBACK_SECTORS = {
       up: [
         { name: '半导体', chg: 3.8 },
         { name: '科技软件', chg: 2.1 },
@@ -1057,15 +1229,40 @@
       ]
     };
 
+    function switchSectorMarket(m) {
+      sectorMarket = m;
+      const usBtn = document.getElementById('sectorTabUS');
+      const cnBtn = document.getElementById('sectorTabCN');
+      if (usBtn && cnBtn) {
+        if (m === 'us') {
+          usBtn.style.background = 'var(--blue)';
+          usBtn.style.color = '#fff';
+          cnBtn.style.background = 'var(--card)';
+          cnBtn.style.color = 'var(--muted)';
+        } else {
+          cnBtn.style.background = 'var(--blue)';
+          cnBtn.style.color = '#fff';
+          usBtn.style.background = 'var(--card)';
+          usBtn.style.color = 'var(--muted)';
+        }
+      }
+      loadSectors();
+    }
+
     function renderSectors(upList, downList, sourceNote) {
       const container = document.getElementById('sectorContent');
       if (!container) return;
-      const upHtml = (upList || []).slice(0, 8).map(s => `
-        <div class="sector-card up"><div class="s-name">${s.name}</div><div class="s-chg">+${Number(s.chg).toFixed(2)}%</div></div>
-      `).join('');
-      const downHtml = (downList || []).slice(0, 8).map(s => `
-        <div class="sector-card down"><div class="s-name">${s.name}</div><div class="s-chg">${Number(s.chg).toFixed(2)}%</div></div>
-      `).join('');
+      const makeCard = (s, up) => {
+        const sym = s.symbol || '';
+        const click = (sectorMarket === 'us' && sym)
+          ? `onclick="openSectorStocks('${sym}','${s.name.replace(/'/g,'')}')"`
+          : '';
+        const cls = up ? 'up' : 'down';
+        const chgText = (s.chg >= 0 ? '+' : '') + Number(s.chg).toFixed(2) + '%';
+        return `<div class="sector-card ${cls}" ${click} style="${click ? 'cursor:pointer;' : ''}"><div class="s-name">${s.name}</div><div class="s-chg">${chgText}</div></div>`;
+      };
+      const upHtml = (upList || []).slice(0, 8).map(s => makeCard(s, true)).join('');
+      const downHtml = (downList || []).slice(0, 8).map(s => makeCard(s, false)).join('');
       container.innerHTML = `
         <div class="sector-group">
           <h3><span style="color:var(--green)">●</span> 上涨板块</h3>
@@ -1077,64 +1274,664 @@
         </div>
         <div class="signal-box">
           <div class="label">数据说明</div>
-          <p>${sourceNote || '行业板块涨跌幅（当日）'}</p>
+          <p>${sourceNote || ''}</p>
         </div>
       `;
+      const note = document.getElementById('sectorNote');
+      if (note) note.textContent = sourceNote || '';
     }
 
-    async function loadSectors() {
-      const container = document.getElementById('sectorContent');
-      if (container) container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载板块数据中...</div>';
+    async function loadUSSectors() {
+      const results = [];
+      for (const item of US_SECTOR_ETFS) {
+        const q = quoteCache[item.symbol] || await fetchQuote(item.symbol);
+        if (q) quoteCache[item.symbol] = q;
+        if (q && typeof q.dp === 'number') {
+          results.push({ name: item.name + ' (' + item.symbol + ')', chg: q.dp, symbol: item.symbol });
+        }
+        await new Promise(r => setTimeout(r, 120));
+      }
+      if (!results.length) {
+        renderSectors(FALLBACK_SECTORS.up, FALLBACK_SECTORS.down, '美股板块暂不可用，显示参考数据');
+        return;
+      }
+      const up = results.filter(x => x.chg > 0).sort((a,b) => b.chg - a.chg);
+      const down = results.filter(x => x.chg < 0).sort((a,b) => a.chg - b.chg);
+      renderSectors(up, down, '美股行业ETF实时涨跌（Finnhub）');
+    }
 
-      // 东方财富行业板块接口
+    async function loadCNSectors() {
       const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=100&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:90+t:2&fields=f12,f14,f3,f104,f105&_=' + Date.now();
       const proxies = [
+        WORKER_BASE + '?url=' + encodeURIComponent(url),
         url,
         'https://corsproxy.io/?' + encodeURIComponent(url),
         'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
       ];
-
       let items = null;
       for (const u of proxies) {
         try {
           const res = await fetch(u);
           if (!res.ok) continue;
           let data = await res.json();
-          // allorigins 可能包一层
-          if (data && data.contents) data = JSON.parse(data.contents);
+          if (data && data.contents) {
+            try { data = JSON.parse(data.contents); } catch(e) {}
+          }
           const diff = data && data.data && data.data.diff;
           if (Array.isArray(diff) && diff.length > 0) {
             items = diff;
             break;
           }
         } catch (e) {
-          console.warn('sector proxy fail', e);
+          console.warn('cn sector fail', e);
         }
       }
-
       if (!items) {
-        renderSectors(FALLBACK_SECTORS.up, FALLBACK_SECTORS.down, '实时接口暂不可用，当前为参考数据');
+        renderSectors(FALLBACK_SECTORS.up, FALLBACK_SECTORS.down, 'A股实时接口暂不可用，显示参考数据');
         return;
       }
-
       const list = items.map(it => ({
         name: it.f14 || it.f12 || '--',
-        chg: Number(it.f3) || 0
+        chg: Number(it.f3) || 0,
+        key: it.f14 || it.f12 || ''
       })).filter(x => x.name !== '--');
-
       const up = list.filter(x => x.chg > 0).sort((a,b) => b.chg - a.chg);
       const down = list.filter(x => x.chg < 0).sort((a,b) => a.chg - b.chg);
       renderSectors(up, down, '数据来自东方财富行业板块（当日涨跌幅）');
+    }
+
+
+    const STOCK_CN_NAMES = {
+      NVDA:'英伟达', TSM:'台积电', AVGO:'博通', AMD:'超威', ASML:'阿斯麦', QCOM:'高通',
+      MU:'美光', INTC:'英特尔', AMAT:'应用材料', TXN:'德州仪器', AAPL:'苹果', MSFT:'微软',
+      CRM:'Salesforce', ADBE:'Adobe', ORCL:'甲骨文', CSCO:'思科', JPM:'摩根大通',
+      BAC:'美国银行', WFC:'富国银行', GS:'高盛', MS:'摩根士丹利', C:'花旗', BLK:'贝莱德',
+      SCHW:'嘉信', XOM:'埃克森美孚', CVX:'雪佛龙', COP:'康菲', SLB:'斯伦贝谢', EOG:'EOG',
+      MPC:'马拉松石油', LLY:'礼来', UNH:'联合健康', JNJ:'强生', ABBV:'艾伯维', MRK:'默沙东',
+      TMO:'赛默飞', ABT:'雅培', PFE:'辉瑞', GE:'通用电气', CAT:'卡特彼勒', RTX:'雷神',
+      HON:'霍尼韦尔', UNP:'联合太平洋', BA:'波音', AMZN:'亚马逊', TSLA:'特斯拉', HD:'家得宝',
+      MCD:'麦当劳', NKE:'耐克', SBUX:'星巴克', PG:'宝洁', KO:'可口可乐', PEP:'百事',
+      COST:'好市多', WMT:'沃尔玛', META:'Meta', GOOGL:'谷歌', NFLX:'奈飞', DIS:'迪士尼',
+      PLD:'普洛斯', AMT:'美国电塔', NEE:'新纪元能源'
+    };
+
+    async function openSectorDetail(etfSymbol) {
+      const sector = US_SECTOR_ETFS.find(x => x.symbol === etfSymbol);
+      if (!sector || !sector.stocks || !sector.stocks.length) {
+        alert('该板块暂无成分股列表');
+        return;
+      }
+
+      const old = document.getElementById('sectorDetailPanel');
+      if (old) old.remove();
+
+      const panel = document.createElement('div');
+      panel.className = 'sector-detail';
+      panel.id = 'sectorDetailPanel';
+      panel.innerHTML = `
+        <div class="sd-header">
+          <div class="sd-title">${sector.name} (${etfSymbol}) · 相关个股</div>
+          <button class="sd-close" onclick="document.getElementById('sectorDetailPanel').remove()">×</button>
+        </div>
+        <div id="sectorStockList"><div style="text-align:center;color:var(--muted);padding:16px 0;font-size:0.85rem;">加载中...</div></div>
+      `;
+
+      const container = document.getElementById('sectorContent');
+      if (container) container.insertBefore(panel, container.firstChild);
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      let html = '';
+      for (const sym of sector.stocks) {
+        let q = quoteCache[sym];
+        if (!q) {
+          q = await fetchQuote(sym);
+          if (q) quoteCache[sym] = q;
+        }
+        const price = q && q.c ? Number(q.c).toFixed(2) : '--';
+        const dp = q ? q.dp : null;
+        const cnName = STOCK_CN_NAMES[sym] || '';
+        html += `
+          <div class="sector-stock" onclick="openDetail('${sym}')" style="cursor:pointer;">
+            <div class="ss-left">
+              <div class="ss-sym">${sym}</div>
+              <div class="ss-name">${cnName || '点击查看详情'}</div>
+            </div>
+            <div class="ss-right">
+              <div class="ss-price">${price}</div>
+              <div class="ss-chg ${chgClass(dp)}">${formatChg(dp)}</div>
+            </div>
+          </div>
+        `;
+        await new Promise(r => setTimeout(r, 100));
+      }
+      const listEl = document.getElementById('sectorStockList');
+      if (listEl) listEl.innerHTML = html || '<div style="color:var(--muted);font-size:0.85rem;">暂无数据</div>';
+    }
+
+
+    async function loadSectors() {
+      const container = document.getElementById('sectorContent');
+      if (container) container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载板块数据中...</div>';
+      if (sectorMarket === 'us') {
+        await loadUSSectors();
+      } else {
+        await loadCNSectors();
+      }
+    }
+
+
+    async function openSectorStocks(etfSymbol, sectorName) {
+      const stocks = US_SECTOR_STOCKS[etfSymbol] || [];
+      if (!stocks.length) {
+        alert(sectorName + ' 暂无成分股列表');
+        return;
+      }
+      // 复用详情抽屉展示板块成分
+      document.getElementById('detailSymbol').textContent = sectorName;
+      document.getElementById('detailPrice').textContent = '成分股';
+      document.getElementById('detailChg').textContent = etfSymbol;
+      document.getElementById('detailChg').className = 'detail-chg flat';
+      document.getElementById('detailGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:12px;">加载成分股行情...</div>';
+      // 隐藏图表
+      const chartWrap = document.querySelector('.chart-wrap');
+      if (chartWrap) chartWrap.style.display = 'none';
+      document.getElementById('detailOverlay').classList.add('show');
+      document.getElementById('detailDrawer').classList.add('show');
+
+      let html = '';
+      for (const sym of stocks) {
+        let q = quoteCache[sym] || await fetchQuote(sym);
+        if (q) quoteCache[sym] = q;
+        const price = q && q.c ? Number(q.c).toFixed(2) : '--';
+        const dp = q ? q.dp : null;
+        const chgStr = formatChg(dp);
+        html += `
+          <div class="detail-stat" style="cursor:pointer;" onclick="closeDetail(); setTimeout(()=>openDetail('${sym}'),200);">
+            <div class="label">${sym}</div>
+            <div class="val">${price} <span class="${chgClass(dp)}" style="font-size:0.8rem;">${chgStr}</span></div>
+          </div>
+        `;
+        await new Promise(r => setTimeout(r, 100));
+      }
+      document.getElementById('detailGrid').innerHTML = html || '<div style="grid-column:1/-1;color:var(--muted);">暂无数据</div>';
+    }
+
+    // 关闭详情时恢复图表显示
+    const _origCloseDetail = typeof closeDetail === 'function' ? closeDetail : null;
+    function closeDetail() {
+      document.getElementById('detailOverlay').classList.remove('show');
+      document.getElementById('detailDrawer').classList.remove('show');
+      const chartWrap = document.querySelector('.chart-wrap');
+      if (chartWrap) chartWrap.style.display = '';
+    }
+
+
+    // ==================== 财报日历（多源 + 三档重要性） ====================
+    const CAL_HIGH = new Set([
+      'AAPL','MSFT','NVDA','GOOGL','GOOG','META','AMZN','TSLA','NFLX','AMD',
+      'AVGO','TSM','JPM','XOM','LLY','UNH'
+    ]);
+    const CAL_MID = new Set([
+      'INTC','QCOM','MU','ASML','BAC','GS','CVX','JNJ','PFE','WMT','COST',
+      'HD','DIS','BA','CAT','CRM','ORCL','ADBE','CSCO','PEP','KO','PG'
+    ]);
+
+    const STOCK_NAMES_CAL = {
+      AAPL:'苹果', MSFT:'微软', NVDA:'英伟达', GOOGL:'谷歌', GOOG:'谷歌', META:'Meta',
+      AMZN:'亚马逊', TSLA:'特斯拉', NFLX:'奈飞', AMD:'超威', AVGO:'博通', TSM:'台积电',
+      INTC:'英特尔', QCOM:'高通', MU:'美光', ASML:'阿斯麦', JPM:'摩根大通', BAC:'美银',
+      GS:'高盛', XOM:'埃克森', CVX:'雪佛龙', LLY:'礼来', UNH:'联合健康', JNJ:'强生',
+      PFE:'辉瑞', WMT:'沃尔玛', COST:'好市多', HD:'家得宝', DIS:'迪士尼', BA:'波音',
+      CAT:'卡特彼勒', CRM:'Salesforce', ORCL:'甲骨文', ADBE:'Adobe', CSCO:'思科'
+    };
+
+    function calImportance(symbol) {
+      if (CAL_HIGH.has(symbol)) return 'high';
+      if (CAL_MID.has(symbol)) return 'mid';
+      return 'low';
+    }
+    function calImpLabel(level) {
+      if (level === 'high') return '高重要';
+      if (level === 'mid') return '中重要';
+      return '一般';
+    }
+    function calImpClass(level) {
+      if (level === 'high') return 'imp-high';
+      if (level === 'mid') return 'imp-mid';
+      return 'imp-low';
+    }
+
+    function fmtCalDate(dateStr) {
+      if (!dateStr) return { day: '--', week: '' };
+      const d = new Date(dateStr + 'T12:00:00');
+      const days = ['周日','周一','周二','周三','周四','周五','周六'];
+      return {
+        day: String(d.getDate()).padStart(2, '0'),
+        week: days[d.getDay()]
+      };
+    }
+
+    async function fetchEarningsCalendar() {
+      const now = new Date();
+      const from = now.toISOString().slice(0, 10);
+      const to = new Date(now.getTime() + 21 * 86400000).toISOString().slice(0, 10);
+      const url = `https://finnhub.io/api/v1/calendar/earnings?from=${from}&to=${to}&token=${FINNHUB_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      return (data && data.earningsCalendar) || [];
+    }
+
+    // 从东方财富新闻里抓「财报/非农/CPI」相关标题作补充
+    async function fetchNewsCalendarHints() {
+      const emUrl = 'https://np-listapi.eastmoney.com/comm/web/getNewsByColumns?client=web&biz=web_news_col&column=350&order=1&needInteractData=0&page_index=1&page_size=20&req_trace=1&fields=code,showTime,title,mediaName,summary,url,uniqueUrl';
+      const proxies = [
+        WORKER_BASE + '?url=' + encodeURIComponent(emUrl),
+        emUrl,
+        'https://corsproxy.io/?' + encodeURIComponent(emUrl),
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(emUrl)
+      ];
+      const keywords = ['财报','非农','CPI','PCE','美联储','降息','加息','FOMC','通胀','失业率','GDP'];
+      for (const u of proxies) {
+        try {
+          const res = await fetch(u);
+          if (!res.ok) continue;
+          let data = await res.json();
+          if (data && data.contents) {
+            try { data = JSON.parse(data.contents); } catch(e) {}
+          }
+          const list = data && data.data && data.data.list;
+          if (!Array.isArray(list)) continue;
+          return list.filter(item => {
+            const t = (item.title || '') + (item.summary || '');
+            return keywords.some(k => t.includes(k));
+          }).slice(0, 8).map(item => ({
+            type: 'news',
+            title: item.title || '',
+            note: (item.mediaName || '东方财富') + (item.showTime ? ' · ' + item.showTime : ''),
+            link: item.uniqueUrl || item.url || '#',
+            level: /非农|CPI|PCE|美联储|FOMC|降息|加息/.test(item.title || '') ? 'high' : 'mid'
+          }));
+        } catch (e) {
+          console.warn('news cal hint fail', e);
+        }
+      }
+      return [];
+    }
+
+    async function loadCalendar() {
+      const container = document.getElementById('calList');
+      if (!container) return;
+      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载日历中...</div>';
+
+      let earnings = [];
+      let newsHints = [];
+      try {
+        [earnings, newsHints] = await Promise.all([
+          fetchEarningsCalendar().catch(() => []),
+          fetchNewsCalendarHints().catch(() => [])
+        ]);
+      } catch (e) {
+        console.error(e);
+      }
+
+      // 财报：优先高/中重要
+      const focus = earnings.filter(e => CAL_HIGH.has(e.symbol) || CAL_MID.has(e.symbol));
+      const rest = earnings.filter(e => !CAL_HIGH.has(e.symbol) && !CAL_MID.has(e.symbol)).slice(0, 15);
+      const merged = [...focus, ...rest].slice(0, 30);
+
+      const byDate = {};
+      for (const e of merged) {
+        const dt = e.date || '';
+        if (!byDate[dt]) byDate[dt] = [];
+        byDate[dt].push(e);
+      }
+      const dates = Object.keys(byDate).sort();
+
+      let html = '';
+
+      // 图例
+      html += `
+        <div style="display:flex;gap:10px;margin-bottom:12px;font-size:0.72rem;color:var(--muted);flex-wrap:wrap;">
+          <span><span class="importance imp-high">高重要</span> 龙头财报/宏观</span>
+          <span><span class="importance imp-mid">中重要</span> 重要个股</span>
+          <span><span class="importance imp-low">一般</span> 其他</span>
+        </div>
+      `;
+
+      if (dates.length === 0 && newsHints.length === 0) {
+        html += '<div style="text-align:center;color:var(--muted);padding:20px 0;">近三周暂无重点财报</div>';
+      }
+
+      for (const dt of dates) {
+        const { day, week } = fmtCalDate(dt);
+        const events = byDate[dt];
+        // 按重要性排序
+        events.sort((a, b) => {
+          const rank = { high: 0, mid: 1, low: 2 };
+          return rank[calImportance(a.symbol)] - rank[calImportance(b.symbol)];
+        });
+        for (const e of events) {
+          const level = calImportance(e.symbol);
+          const cn = STOCK_NAMES_CAL[e.symbol] || '';
+          const hourHint = e.hour === 'bmo' ? '盘前' : e.hour === 'amc' ? '盘后' : (e.hour || '');
+          const nameStr = cn ? `${e.symbol} ${cn}` : e.symbol;
+          html += `
+            <div class="cal-item" ${e.symbol ? `onclick="openDetail('${e.symbol}')" style="cursor:pointer;"` : ''}>
+              <div class="cal-date"><div class="day">${day}</div><div class="week">${week}</div></div>
+              <div class="cal-content">
+                <div class="event">${nameStr}${hourHint ? ' · ' + hourHint : ''}</div>
+                <div class="note">财报发布 · ${dt}</div>
+                <span class="importance ${calImpClass(level)}">${calImpLabel(level)}</span>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      // 新闻线索补充
+      if (newsHints.length) {
+        html += `<div class="section-title" style="margin-top:16px;">相关新闻线索</div>`;
+        for (const n of newsHints) {
+          html += `
+            <div class="cal-item">
+              <div class="cal-date"><div class="day">讯</div><div class="week">新闻</div></div>
+              <div class="cal-content">
+                <div class="event"><a href="${n.link}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">${n.title}</a></div>
+                <div class="note">${n.note}</div>
+                <span class="importance ${calImpClass(n.level)}">${calImpLabel(n.level)}</span>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      // 宏观事件：带具体日期（官方日程，自动过滤已过期）
+      const MACRO_EVENTS = [
+        // 2026年8月（BLS / 美联储公开日程）
+        { date: '2026-08-07', time: '20:30 北京时间', event: '美国非农就业报告 (NFP)', note: '7月数据 · 08:30 ET', level: 'high' },
+        { date: '2026-08-12', time: '20:30 北京时间', event: '美国 CPI 通胀数据', note: '7月数据 · 08:30 ET', level: 'high' },
+        { date: '2026-08-13', time: '20:30 北京时间', event: '美国 PPI 生产者物价', note: '7月数据 · 08:30 ET', level: 'mid' },
+        { date: '2026-08-19', time: '02:00 北京时间', event: 'FOMC 会议纪要公布', note: '7月28-29会议纪要 · 14:00 ET', level: 'mid' },
+        { date: '2026-08-26', time: '20:30 北京时间', event: '美国 PCE 通胀数据', note: '美联储最关注的通胀指标 · 08:30 ET', level: 'high' },
+        // 后续 FOMC 2026
+        { date: '2026-09-16', time: '02:00 北京时间', event: 'FOMC 利率决议 + 点阵图', note: '9月15-16会议 · 决议14:00 ET · 含SEP', level: 'high' },
+        { date: '2026-10-28', time: '02:00 北京时间', event: 'FOMC 利率决议', note: '10月27-28会议 · 决议14:00 ET', level: 'high' },
+        { date: '2026-12-09', time: '03:00 北京时间', event: 'FOMC 利率决议 + 点阵图', note: '12月8-9会议 · 决议14:00 ET · 含SEP', level: 'high' },
+      ];
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const upcomingMacro = MACRO_EVENTS.filter(e => e.date >= todayStr);
+
+      if (upcomingMacro.length) {
+        html += `<div class="section-title" style="margin-top:16px;">宏观日程（含具体日期）</div>`;
+        for (const m of upcomingMacro) {
+          const { day, week } = fmtCalDate(m.date);
+          html += `
+            <div class="cal-item">
+              <div class="cal-date"><div class="day">${day}</div><div class="week">${week}</div></div>
+              <div class="cal-content">
+                <div class="event">${m.event}</div>
+                <div class="note">${m.date} · ${m.time}<br/>${m.note}</div>
+                <span class="importance ${calImpClass(m.level)}">${calImpLabel(m.level)}</span>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      container.innerHTML = html;
+    }
+
+
+    // ==================== 宏观数据（多源备用） ====================
+    async function fetchViaProxies(url) {
+      const proxies = [
+        WORKER_BASE + '?url=' + encodeURIComponent(url),
+        url,
+        'https://corsproxy.io/?' + encodeURIComponent(url),
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
+      ];
+      for (const u of proxies) {
+        try {
+          const res = await fetch(u, { signal: AbortSignal.timeout(8000) });
+          if (!res.ok) continue;
+          let data = await res.json();
+          if (data && data.contents) {
+            try { data = JSON.parse(data.contents); } catch(e) {}
+          }
+          return data;
+        } catch (e) {
+          console.warn('proxy fail', e);
+        }
+      }
+      return null;
+    }
+
+    async function fetchYahooQuote(symbol) {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+      const data = await fetchViaProxies(url);
+      if (!data) return null;
+      const meta = data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+      if (meta && typeof meta.regularMarketPrice === 'number') {
+        const price = meta.regularMarketPrice;
+        const prev = meta.chartPreviousClose || meta.previousClose || price;
+        const chg = price - prev;
+        const chgPct = prev ? (chg / prev * 100) : 0;
+        return { price, chg, chgPct, prev, source: 'Yahoo' };
+      }
+      return null;
+    }
+
+    // Finnhub 备用：用 UUP / 其他可交易标的
+    async function fetchFinnhubMacro() {
+      const uup = await fetchQuote('UUP');
+      const tlt = await fetchQuote('TLT'); // 长债ETF，收益率反向参考
+      const gld = await fetchQuote('GLD');
+      return { uup, tlt, gld };
+    }
+
+    function buildRateBias(tnx, tlt, uup) {
+      // 综合判断：收益率下行 / TLT上涨 → 偏降息；反之偏紧缩
+      let score = 0; // >0 偏紧缩，<0 偏宽松
+      let reasons = [];
+
+      if (tnx && typeof tnx.chgPct === 'number') {
+        if (tnx.chgPct > 0.2) { score += 2; reasons.push('美债收益率上行'); }
+        else if (tnx.chgPct < -0.2) { score -= 2; reasons.push('美债收益率下行'); }
+        else { reasons.push('美债收益率震荡'); }
+      }
+      if (tlt && typeof tlt.dp === 'number') {
+        // TLT涨 = 债牛 = 偏宽松
+        if (tlt.dp > 0.3) { score -= 1; reasons.push('长债ETF走强'); }
+        else if (tlt.dp < -0.3) { score += 1; reasons.push('长债ETF走弱'); }
+      }
+      if (uup && typeof uup.dp === 'number') {
+        if (uup.dp > 0.2) { score += 1; reasons.push('美元偏强'); }
+        else if (uup.dp < -0.2) { score -= 1; reasons.push('美元偏弱'); }
+      }
+
+      // 2026年政策背景：已从高点回落，整体偏观察降息路径
+      let bias, color, desc;
+      if (score >= 2) {
+        bias = '偏紧缩 / 观望加息或推迟降息';
+        color = 'var(--red)';
+        desc = '当前信号更偏向利率「更高更久」或降息延后。成长股与高估值资产可能承压，美元易偏强。';
+      } else if (score <= -2) {
+        bias = '偏宽松 / 降息预期升温';
+        color = 'var(--green)';
+        desc = '当前信号更偏向降息或宽松预期。通常利好科技成长、黄金，美元可能走弱。';
+      } else {
+        bias = '中性观望 · 等待数据';
+        color = 'var(--orange)';
+        desc = '信号混杂，市场多在等待非农、CPI/PCE 与 FOMC。建议结合日历页重要日期。';
+      }
+      return { bias, color, desc, reasons: reasons.join('；') || '数据不足' };
+    }
+
+    async function loadMacro() {
+      const container = document.getElementById('macroList');
+      const impactEl = document.getElementById('macroImpact');
+      if (!container) return;
+      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">多源加载宏观数据中...</div>';
+
+      // 源1 Yahoo · 源2 Finnhub · 代理自动重试
+      const [tnx, dxy, usdcny, fh] = await Promise.all([
+        fetchYahooQuote('^TNX'),
+        fetchYahooQuote('DX-Y.NYB'),
+        fetchYahooQuote('CNY=X'),
+        fetchFinnhubMacro()
+      ]);
+
+      const uup = fh && fh.uup;
+      const tlt = fh && fh.tlt;
+      const gld = fh && fh.gld;
+
+      const fedRate = { value: '3.50–3.75%', note: '联邦基金目标区间（2026年参考）', status: '持平' };
+      const pce = { value: '约2.5–2.7%', note: '核心PCE同比（官方参考）', status: '关注中' };
+
+      const bias = buildRateBias(tnx, tlt, uup);
+
+      let html = '';
+
+      // 政策倾向大提示
+      html += `
+        <div class="macro-item" style="border-color:${bias.color};border-width:1.5px;">
+          <div class="label">当前利率政策倾向（综合判断）</div>
+          <div class="value-row">
+            <div class="value" style="font-size:1.15rem;color:${bias.color};">${bias.bias}</div>
+          </div>
+          <div class="desc">${bias.desc}<br/><span style="opacity:0.85;">依据：${bias.reasons}</span></div>
+        </div>`;
+
+      // 10Y
+      if (tnx) {
+        const dir = tnx.chgPct >= 0 ? 'up' : 'down';
+        html += `
+          <div class="macro-item">
+            <div class="label">10年期美债收益率 <span style="font-size:0.7rem;color:var(--muted);">· ${tnx.source || 'Yahoo'}</span></div>
+            <div class="value-row">
+              <div class="value">${tnx.price.toFixed(2)}%</div>
+              <div class="change ${dir}">${tnx.chgPct >= 0 ? '+' : ''}${tnx.chgPct.toFixed(2)}%</div>
+            </div>
+            <div class="desc">上行利好美元、压制成长股估值；下行则相反。</div>
+          </div>`;
+      } else {
+        html += `
+          <div class="macro-item">
+            <div class="label">10年期美债收益率</div>
+            <div class="value-row"><div class="value">--</div><div class="change flat">多源暂无</div></div>
+            <div class="desc">Yahoo/代理均未返回，请稍后刷新。</div>
+          </div>`;
+      }
+
+      // Fed
+      html += `
+        <div class="macro-item">
+          <div class="label">美联储基准利率</div>
+          <div class="value-row">
+            <div class="value">${fedRate.value}</div>
+            <div class="change flat">${fedRate.status}</div>
+          </div>
+          <div class="desc">${fedRate.note}。下次决议见日历页 FOMC。</div>
+        </div>`;
+
+      // PCE
+      html += `
+        <div class="macro-item">
+          <div class="label">PCE / 通胀（参考）</div>
+          <div class="value-row">
+            <div class="value">${pce.value}</div>
+            <div class="change flat">${pce.status}</div>
+          </div>
+          <div class="desc">${pce.note}。发布日见日历页。</div>
+        </div>`;
+
+      // DXY
+      if (dxy) {
+        const dir = dxy.chgPct >= 0 ? 'up' : 'down';
+        html += `
+          <div class="macro-item">
+            <div class="label">美元指数 (DXY) <span style="font-size:0.7rem;color:var(--muted);">· Yahoo</span></div>
+            <div class="value-row">
+              <div class="value">${dxy.price.toFixed(2)}</div>
+              <div class="change ${dir}">${dxy.chgPct >= 0 ? '+' : ''}${dxy.chgPct.toFixed(2)}%</div>
+            </div>
+            <div class="desc">美元走强通常压制黄金、新兴市场与非美货币。</div>
+          </div>`;
+      } else if (uup && uup.c) {
+        const dir = uup.dp >= 0 ? 'up' : 'down';
+        html += `
+          <div class="macro-item">
+            <div class="label">美元 ETF (UUP) <span style="font-size:0.7rem;color:var(--muted);">· Finnhub 备用</span></div>
+            <div class="value-row">
+              <div class="value">${Number(uup.c).toFixed(2)}</div>
+              <div class="change ${dir}">${formatChg(uup.dp)}</div>
+            </div>
+            <div class="desc">美元强弱代理（ETF）。</div>
+          </div>`;
+      }
+
+      // USD/CNY
+      if (usdcny) {
+        const dir = usdcny.chgPct >= 0 ? 'up' : 'down';
+        html += `
+          <div class="macro-item">
+            <div class="label">美元 / 人民币 <span style="font-size:0.7rem;color:var(--muted);">· Yahoo</span></div>
+            <div class="value-row">
+              <div class="value">${usdcny.price.toFixed(4)}</div>
+              <div class="change ${dir}">${usdcny.chgPct >= 0 ? '+' : ''}${usdcny.chgPct.toFixed(2)}%</div>
+            </div>
+            <div class="desc">受中美利差与风险偏好影响。</div>
+          </div>`;
+      }
+
+      // TLT / GLD 补充
+      if (tlt && tlt.c) {
+        const dir = tlt.dp >= 0 ? 'up' : 'down';
+        html += `
+          <div class="macro-item">
+            <div class="label">长债 ETF (TLT) <span style="font-size:0.7rem;color:var(--muted);">· Finnhub</span></div>
+            <div class="value-row">
+              <div class="value">${Number(tlt.c).toFixed(2)}</div>
+              <div class="change ${dir}">${formatChg(tlt.dp)}</div>
+            </div>
+            <div class="desc">与美债收益率大致反向，涨多反映宽松/避险预期。</div>
+          </div>`;
+      }
+      if (gld && gld.c) {
+        const dir = gld.dp >= 0 ? 'up' : 'down';
+        html += `
+          <div class="macro-item">
+            <div class="label">黄金 ETF (GLD) <span style="font-size:0.7rem;color:var(--muted);">· Finnhub</span></div>
+            <div class="value-row">
+              <div class="value">${Number(gld.c).toFixed(2)}</div>
+              <div class="change ${dir}">${formatChg(gld.dp)}</div>
+            </div>
+            <div class="desc">降息预期升温或避险时往往走强。</div>
+          </div>`;
+      }
+
+      container.innerHTML = html;
+
+      if (impactEl) {
+        impactEl.innerHTML = `
+          <h3>利率 / 汇率影响简析</h3>
+          <p style="margin-bottom:8px;"><b>若降息：</b>通常利好成长股、科技与黄金；美元可能走弱；借贷成本下降。</p>
+          <p style="margin-bottom:8px;"><b>若加息或维持高利率：</b>压制高估值成长股；利好部分金融；美元可能走强。</p>
+          <p style="margin-bottom:8px;"><b>当前判断：</b><span style="color:${bias.color};font-weight:600;">${bias.bias}</span> — ${bias.desc}</p>
+          <p style="color:var(--muted);font-size:0.78rem;">数据源：Yahoo（代理）→ Finnhub 备用。不稳定时部分项会显示暂无。仅供学习，不构成投资建议。</p>
+        `;
+      }
     }
 
     // ==================== 页面切换 ====================
     const titles = {
       watch:  { title: '观察列表', sub: '实时美股自选 · Finnhub' },
       val:    { title: '估值快照', sub: '美股主要指数估值与表现' },
-      asset:  { title: '全球大类资产', sub: '黄金 · 美元 · 原油本周表现' },
+      asset:  { title: '全球大类资产', sub: '黄金 · 美元 · 原油 · 美债实时' },
       macro:  { title: '宏观快照', sub: '美债 · 利率 · 通胀核心数据' },
       hot:    { title: '本周热点', sub: '政策 · 财报 · 通胀三大主线' },
-      cal:    { title: '下周关键日历', sub: '重要数据与事件预告' },
+      cal:    { title: '关键日历', sub: '财报日历 · Finnhub' },
       sector: { title: '板块动态', sub: '本周涨跌板块与核心信号' },
     };
 
@@ -1154,6 +1951,8 @@
         if (target === 'asset') refreshAssets();
         if (target === 'hot') loadNews();
         if (target === 'sector') loadSectors();
+        if (target === 'cal') loadCalendar();
+        if (target === 'macro') loadMacro();
       });
     });
 
