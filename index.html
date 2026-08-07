@@ -167,8 +167,9 @@
       gap: 14px;
     }
     .cal-date { flex-shrink: 0; width: 48px; text-align: center; }
+    .cal-date .week { font-size: 0.68rem; }
     .cal-date .day { font-size: 1.25rem; font-weight: 700; line-height: 1.1; }
-    .cal-date .week { font-size: 0.7rem; color: var(--muted); }
+    .cal-date .week, .cal-date .month { font-size: 0.7rem; color: var(--muted); }
     .cal-content .event { font-size: 0.92rem; font-weight: 500; margin-bottom: 3px; }
     .cal-content .note { font-size: 0.78rem; color: var(--muted); }
     .importance {
@@ -414,7 +415,12 @@
       width: 100%;
       background: #131722;
     }
-    .watch-item { cursor: pointer; }
+    .watch-item { cursor: pointer; touch-action: manipulation; transition: transform 0.15s, opacity 0.15s; }
+    .watch-item.dragging { opacity: 0.9; transform: scale(1.02); box-shadow: 0 8px 24px rgba(0,0,0,0.35); z-index: 20; position: relative; border-color: var(--blue); touch-action: none; }
+    .watch-item.drag-over { border-color: var(--blue); background: var(--card-hover); }
+    .drag-handle { color: var(--muted); font-size: 1.1rem; padding: 8px 10px; cursor: grab; user-select: none; touch-action: none; -webkit-user-select: none; }
+    .drag-handle:active { cursor: grabbing; }
+    body.drag-lock { overflow: hidden; touch-action: none; }
     .watch-item .del-btn { z-index: 2; position: relative; }
 
 
@@ -542,7 +548,7 @@
   <!-- ========== 观察列表（新增，默认打开） ========== -->
   <div class="page active" id="page-watch">
     <div class="watch-add">
-      <input type="text" id="symbolInput" placeholder="输入代码，如 AAPL、NVDA、TSLA" maxlength="10" />
+      <input type="text" id="symbolInput" placeholder="代码/名称，如 MU、美光、Nvidia" maxlength="10" />
       <button onclick="addSymbol()">添加</button>
     </div>
     <div class="watch-status">
@@ -552,7 +558,7 @@
     <div class="watch-list" id="watchList">
       <div class="watch-empty">添加股票代码开始观察</div>
     </div>
-    <div class="page-note">数据来自 Finnhub · 仅供学习参考 · Key 已写入前端（注意安全）</div>
+    <div class="page-note">列表自动保存 · 按住 ⋮⋮ 拖动排序 · Finnhub</div>
   </div>
 
   <!-- ========== 估值快照 ========== -->
@@ -715,6 +721,111 @@
     // 默认观察列表
     const DEFAULT_WATCH = ['AAPL', 'NVDA', 'TSLA', 'MSFT', 'GOOGL', 'META', 'AMZN'];
 
+    // 常用美股：代码 / 英文 / 中文 → 方便搜索添加
+    const STOCK_SEARCH = [
+      { s: 'AAPL', en: 'Apple', cn: '苹果' },
+      { s: 'MSFT', en: 'Microsoft', cn: '微软' },
+      { s: 'NVDA', en: 'Nvidia', cn: '英伟达' },
+      { s: 'GOOGL', en: 'Alphabet Google', cn: '谷歌' },
+      { s: 'GOOG', en: 'Alphabet Google', cn: '谷歌' },
+      { s: 'AMZN', en: 'Amazon', cn: '亚马逊' },
+      { s: 'META', en: 'Meta Facebook', cn: '脸书' },
+      { s: 'TSLA', en: 'Tesla', cn: '特斯拉' },
+      { s: 'MU', en: 'Micron', cn: '美光' },
+      { s: 'AMD', en: 'AMD', cn: '超威' },
+      { s: 'INTC', en: 'Intel', cn: '英特尔' },
+      { s: 'AVGO', en: 'Broadcom', cn: '博通' },
+      { s: 'TSM', en: 'TSMC', cn: '台积电' },
+      { s: 'ASML', en: 'ASML', cn: '阿斯麦' },
+      { s: 'QCOM', en: 'Qualcomm', cn: '高通' },
+      { s: 'AMAT', en: 'Applied Materials', cn: '应用材料' },
+      { s: 'CRM', en: 'Salesforce', cn: '赛富时' },
+      { s: 'ORCL', en: 'Oracle', cn: '甲骨文' },
+      { s: 'ADBE', en: 'Adobe', cn: 'Adobe' },
+      { s: 'NFLX', en: 'Netflix', cn: '奈飞' },
+      { s: 'DIS', en: 'Disney', cn: '迪士尼' },
+      { s: 'JPM', en: 'JPMorgan', cn: '摩根大通' },
+      { s: 'BAC', en: 'Bank of America', cn: '美国银行' },
+      { s: 'GS', en: 'Goldman Sachs', cn: '高盛' },
+      { s: 'V', en: 'Visa', cn: '维萨' },
+      { s: 'MA', en: 'Mastercard', cn: '万事达' },
+      { s: 'JNJ', en: 'Johnson', cn: '强生' },
+      { s: 'LLY', en: 'Eli Lilly', cn: '礼来' },
+      { s: 'UNH', en: 'UnitedHealth', cn: '联合健康' },
+      { s: 'PFE', en: 'Pfizer', cn: '辉瑞' },
+      { s: 'XOM', en: 'Exxon', cn: '埃克森美孚' },
+      { s: 'CVX', en: 'Chevron', cn: '雪佛龙' },
+      { s: 'KO', en: 'Coca-Cola', cn: '可口可乐' },
+      { s: 'PEP', en: 'Pepsi', cn: '百事' },
+      { s: 'WMT', en: 'Walmart', cn: '沃尔玛' },
+      { s: 'COST', en: 'Costco', cn: '好市多' },
+      { s: 'HD', en: 'Home Depot', cn: '家得宝' },
+      { s: 'NKE', en: 'Nike', cn: '耐克' },
+      { s: 'SBUX', en: 'Starbucks', cn: '星巴克' },
+      { s: 'BA', en: 'Boeing', cn: '波音' },
+      { s: 'CAT', en: 'Caterpillar', cn: '卡特彼勒' },
+      { s: 'SNDK', en: 'Sandisk', cn: '闪迪' },
+      { s: 'ARM', en: 'Arm', cn: '安谋' },
+      { s: 'PLTR', en: 'Palantir', cn: '帕兰提尔' },
+      { s: 'COIN', en: 'Coinbase', cn: 'Coinbase' },
+      { s: 'MSTR', en: 'MicroStrategy', cn: '微策略' },
+      { s: 'BABA', en: 'Alibaba', cn: '阿里巴巴' },
+      { s: 'JD', en: 'JD.com', cn: '京东' },
+      { s: 'PDD', en: 'PDD Pinduoduo', cn: '拼多多' },
+      { s: 'NIO', en: 'NIO', cn: '蔚来' },
+      { s: 'XPEV', en: 'XPeng', cn: '小鹏' },
+      { s: 'LI', en: 'Li Auto', cn: '理想' },
+      { s: 'SMCI', en: 'Super Micro', cn: '超微电脑' },
+      { s: 'DELL', en: 'Dell', cn: '戴尔' },
+      { s: 'IBM', en: 'IBM', cn: 'IBM' },
+      { s: 'CSCO', en: 'Cisco', cn: '思科' },
+      { s: 'TXN', en: 'Texas Instruments', cn: '德州仪器' },
+      { s: 'MRVL', en: 'Marvell', cn: '美满电子' },
+      { s: 'SHOP', en: 'Shopify', cn: 'Shopify' },
+      { s: 'UBER', en: 'Uber', cn: '优步' },
+      { s: 'ABNB', en: 'Airbnb', cn: '爱彼迎' },
+    ];
+
+    function resolveSymbol(input) {
+      const raw = (input || '').trim();
+      if (!raw) return null;
+      const q = raw.toUpperCase();
+      const qLower = raw.toLowerCase();
+      // 精确代码
+      for (const item of STOCK_SEARCH) {
+        if (item.s === q) return item.s;
+      }
+      // 中文 / 英文模糊
+      const hits = STOCK_SEARCH.filter(item =>
+        item.s.includes(q) ||
+        item.en.toLowerCase().includes(qLower) ||
+        item.cn.includes(raw)
+      );
+      if (hits.length === 1) return hits[0].s;
+      if (hits.length > 1) {
+        // 优先代码开头匹配，否则返回列表让用户选
+        const exactCn = hits.find(h => h.cn === raw);
+        if (exactCn) return exactCn.s;
+        return hits; // 多个结果
+      }
+      // 当作代码直接用
+      const cleaned = q.replace(/[^A-Z0-9.\\-^]/g, '');
+      return cleaned || null;
+    }
+
+    function searchSuggest(input) {
+      const raw = (input || '').trim();
+      if (!raw) return [];
+      const q = raw.toUpperCase();
+      const qLower = raw.toLowerCase();
+      return STOCK_SEARCH.filter(item =>
+        item.s.includes(q) ||
+        item.en.toLowerCase().includes(qLower) ||
+        item.cn.includes(raw)
+      ).slice(0, 8);
+    }
+
+
     // ==================== 状态 ====================
     let watchlist = JSON.parse(localStorage.getItem('watchlist') || 'null') || DEFAULT_WATCH.slice();
     let quoteCache = {};
@@ -746,28 +857,83 @@
 
     // ==================== 观察列表逻辑 ====================
     function saveWatchlist() {
-      localStorage.setItem('watchlist', JSON.stringify(watchlist));
+      try {
+        localStorage.setItem('watchlist', JSON.stringify(watchlist));
+        localStorage.setItem('watchlist_saved_at', new Date().toISOString());
+      } catch (e) {
+        console.warn('save watchlist fail', e);
+      }
     }
 
-    function addSymbol() {
+    function addSymbol(forcedSym) {
       const input = document.getElementById('symbolInput');
-      let sym = input.value.trim().toUpperCase();
+      const raw = forcedSym || input.value.trim();
+      if (!raw) return;
+      const resolved = forcedSym ? forcedSym.toUpperCase() : resolveSymbol(raw);
+      if (Array.isArray(resolved)) {
+        // 多个匹配：展示建议，不直接添加
+        showSearchSuggest(raw);
+        return;
+      }
+      let sym = resolved;
       if (!sym) return;
-      sym = sym.replace(/[^A-Z0-9.\-^]/g, '');
+      sym = String(sym).toUpperCase().replace(/[^A-Z0-9.\-^]/g, '');
       if (!sym) return;
       if (watchlist.includes(sym)) {
         alert(sym + ' 已在观察列表中');
+        hideSearchSuggest();
         return;
       }
       watchlist.unshift(sym);
       saveWatchlist();
       input.value = '';
+      hideSearchSuggest();
       renderWatchlist();
       refreshQuotes();
     }
 
+    function showSearchSuggest(raw) {
+      let box = document.getElementById('searchSuggest');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'searchSuggest';
+        box.style.cssText = 'background:var(--card);border:1px solid var(--border);border-radius:10px;margin:-6px 0 12px;overflow:hidden;';
+        const addBar = document.querySelector('.watch-add');
+        if (addBar) addBar.insertAdjacentElement('afterend', box);
+      }
+      const hits = searchSuggest(raw);
+      if (!hits.length) {
+        box.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:0.85rem;">未找到匹配，可直接输入代码如 MU</div>';
+        return;
+      }
+      box.innerHTML = hits.map(h => `
+        <div onclick="addSymbol('${h.s}')" style="padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <span style="font-weight:600;">${h.s}</span>
+            <span style="color:var(--muted);font-size:0.8rem;margin-left:8px;">${h.cn}</span>
+          </div>
+          <span style="color:var(--muted);font-size:0.75rem;">${h.en}</span>
+        </div>
+      `).join('');
+    }
+
+    function hideSearchSuggest() {
+      const box = document.getElementById('searchSuggest');
+      if (box) box.remove();
+    }
+
     function removeSymbol(sym) {
       watchlist = watchlist.filter(s => s !== sym);
+      saveWatchlist();
+      renderWatchlist();
+    }
+
+    function moveSymbol(index, dir) {
+      const newIndex = index + dir;
+      if (newIndex < 0 || newIndex >= watchlist.length) return;
+      const tmp = watchlist[index];
+      watchlist[index] = watchlist[newIndex];
+      watchlist[newIndex] = tmp;
       saveWatchlist();
       renderWatchlist();
     }
@@ -790,26 +956,126 @@
         container.innerHTML = '<div class="watch-empty">添加股票代码开始观察</div>';
         return;
       }
-      container.innerHTML = watchlist.map(sym => {
+      container.innerHTML = watchlist.map((sym, idx) => {
         const q = quoteCache[sym];
         const price = q && q.c ? Number(q.c).toFixed(2) : '--';
         const dp = q ? q.dp : null;
+        const hi = q && q.h ? Number(q.h).toFixed(2) : '--';
+        const lo = q && q.l ? Number(q.l).toFixed(2) : '--';
+        const rangeStr = q ? `高 ${hi} · 低 ${lo}` : '加载中...';
+        let cnName = '';
+        if (typeof STOCK_SEARCH !== 'undefined') {
+          const hit = STOCK_SEARCH.find(x => x.s === sym);
+          if (hit) cnName = hit.cn;
+        }
         return `
           <div class="watch-item" onclick="openDetail('${sym}')">
-            <div class="left">
-              <div class="symbol">${sym}</div>
-              <div class="name">${q ? '实时 · 点击查看详情' : '加载中...'}</div>
+            <div class="left" style="flex:1;min-width:0;">
+              <div class="symbol">${sym}${cnName ? ' <span style="font-weight:400;color:var(--muted);font-size:0.78rem;">'+cnName+'</span>' : ''}</div>
+              <div class="name">${rangeStr}</div>
             </div>
             <div class="right">
               <div class="price-block">
                 <div class="price">${price}</div>
                 <div class="chg ${chgClass(dp)}">${formatChg(dp)}</div>
               </div>
+              <div class="drag-handle" data-idx="${idx}" title="按住拖动排序" onclick="event.stopPropagation();">⋮⋮</div>
               <button class="del-btn" onclick="event.stopPropagation(); removeSymbol('${sym}')">×</button>
             </div>
           </div>
         `;
       }).join('');
+      bindWatchDrag();
+    }
+
+
+    // ===== 拖动排序（可跨多位） =====
+    let dragState = null;
+
+    function bindWatchDrag() {
+      const list = document.getElementById('watchList');
+      if (!list) return;
+      list.querySelectorAll('.drag-handle').forEach(handle => {
+        handle.addEventListener('pointerdown', onDragStart, { passive: false });
+        handle.addEventListener('touchstart', (ev) => { ev.preventDefault(); }, { passive: false });
+      });
+    }
+
+    function onDragStart(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const handle = e.currentTarget;
+      const item = handle.closest('.watch-item');
+      if (!item) return;
+      const idx = Number(handle.dataset.idx);
+      dragState = { from: idx, over: idx, item, pointerId: e.pointerId, handle };
+      item.classList.add('dragging');
+      document.body.classList.add('drag-lock');
+      try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+      // 同时绑到 document，避免手指移出手柄丢失事件
+      document.addEventListener('pointermove', onDragMove, { passive: false });
+      document.addEventListener('pointerup', onDragEnd);
+      document.addEventListener('pointercancel', onDragEnd);
+    }
+
+    function getOverIndex(clientY) {
+      const list = document.getElementById('watchList');
+      const items = [...list.querySelectorAll('.watch-item')];
+      if (!items.length) return 0;
+      // 落在哪一行的垂直范围内，就以那一行为目标
+      for (let i = 0; i < items.length; i++) {
+        const rect = items[i].getBoundingClientRect();
+        if (clientY >= rect.top && clientY <= rect.bottom) return i;
+      }
+      if (clientY < items[0].getBoundingClientRect().top) return 0;
+      return items.length - 1;
+    }
+
+    function onDragMove(e) {
+      if (!dragState) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const over = getOverIndex(e.clientY);
+      dragState.over = over;
+      document.querySelectorAll('#watchList .watch-item').forEach((el, i) => {
+        el.classList.toggle('drag-over', i === over && i !== dragState.from);
+      });
+      // 仅在列表内部边缘轻滚，避免整页乱滚
+      const list = document.getElementById('watchList');
+      if (list) {
+        const rect = list.getBoundingClientRect();
+        if (e.clientY < rect.top + 40) list.scrollTop -= 8;
+        if (e.clientY > rect.bottom - 40) list.scrollTop += 8;
+      }
+    }
+
+    function onDragEnd(e) {
+      if (!dragState) return;
+      const { from, over, item, handle, pointerId } = dragState;
+      item.classList.remove('dragging');
+      document.body.classList.remove('drag-lock');
+      document.querySelectorAll('.watch-item').forEach(el => el.classList.remove('drag-over'));
+      document.removeEventListener('pointermove', onDragMove);
+      document.removeEventListener('pointerup', onDragEnd);
+      document.removeEventListener('pointercancel', onDragEnd);
+      try { handle.releasePointerCapture(pointerId); } catch (_) {}
+      dragState = null;
+      if (from === over || over == null || isNaN(over)) return;
+
+      // 目标：把 from 挪到 over，最终列表中该股票下标就是 over
+      const next = watchlist.slice();
+      const [moved] = next.splice(from, 1);
+      // 删除后插入位置：
+      // - 向下拖 (from < over): 删掉后 over 右侧左移，插到 over-1，最终下标变成 over-1
+      //   若希望最终下标 = over，应插 over（删后数组中 over 位置是原 over+1 的元素之前）
+      // 实测：next.splice(from,1); next.splice(over, 0, moved)
+      // from=0 over=3 [A,B,C,D,E] → 删A [B,C,D,E] 插3 → [B,C,D,A,E] 最终下标3 ✓
+      // from=3 over=0 [A,B,C,D,E] → 删D [A,B,C,E] 插0 → [D,A,B,C,E] 最终下标0 ✓
+      // from=1 over=2 [A,B,C,D] → 删B [A,C,D] 插2 → [A,C,B,D] 最终下标2 ✓
+      next.splice(over, 0, moved);
+      watchlist = next;
+      saveWatchlist();
+      renderWatchlist();
     }
 
     async function refreshQuotes() {
@@ -827,6 +1093,11 @@
 
     document.getElementById('symbolInput').addEventListener('keydown', e => {
       if (e.key === 'Enter') addSymbol();
+    });
+    document.getElementById('symbolInput').addEventListener('input', e => {
+      const v = e.target.value.trim();
+      if (v.length >= 1) showSearchSuggest(v);
+      else hideSearchSuggest();
     });
 
     // ==================== 其他页面简单刷新 ====================
@@ -959,39 +1230,118 @@
       document.getElementById('detailGrid').innerHTML = '';
       document.getElementById('detailOverlay').classList.add('show');
       document.getElementById('detailDrawer').classList.add('show');
+      const chartWrap = document.querySelector('.chart-wrap');
+      if (chartWrap) chartWrap.style.display = '';
 
-      // 报价
+      // Finnhub 常规报价
       let q = quoteCache[symbol];
       if (!q) {
         q = await fetchQuote(symbol);
         if (q) quoteCache[symbol] = q;
       }
+
       if (q && q.c) {
         document.getElementById('detailPrice').textContent = Number(q.c).toFixed(2);
         const dp = q.dp;
         const d = q.d;
         const chgEl = document.getElementById('detailChg');
-        chgEl.textContent = (d >= 0 ? '+' : '') + Number(d).toFixed(2) + '  (' + formatChg(dp) + ')';
+        const dStr = (d != null && !isNaN(d)) ? ((d >= 0 ? '+' : '') + Number(d).toFixed(2)) : '';
+        chgEl.textContent = dStr + '  (' + formatChg(dp) + ')';
         chgEl.className = 'detail-chg ' + chgClass(dp);
-
-        document.getElementById('detailGrid').innerHTML = `
-          <div class="detail-stat"><div class="label">今开</div><div class="val">${q.o ? Number(q.o).toFixed(2) : '--'}</div></div>
-          <div class="detail-stat"><div class="label">最高</div><div class="val">${q.h ? Number(q.h).toFixed(2) : '--'}</div></div>
-          <div class="detail-stat"><div class="label">最低</div><div class="val">${q.l ? Number(q.l).toFixed(2) : '--'}</div></div>
-          <div class="detail-stat"><div class="label">昨收</div><div class="val">${q.pc ? Number(q.pc).toFixed(2) : '--'}</div></div>
-        `;
       } else {
         document.getElementById('detailPrice').textContent = '--';
         document.getElementById('detailChg').textContent = '暂无报价';
       }
 
-      // 日线数据
+      // 近三日对比：收盘 + 最高/最低（Yahoo 日线，经 Worker）
+      let dayRows = '';
+      try {
+        const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=10d`;
+        const data = await fetchViaProxies(yUrl);
+        const result = data && data.chart && data.chart.result && data.chart.result[0];
+        if (result && result.timestamp && result.indicators && result.indicators.quote) {
+          const ts = result.timestamp;
+          const q0 = result.indicators.quote[0] || {};
+          const closes = q0.close || [];
+          const highs = q0.high || [];
+          const lows = q0.low || [];
+          const opens = q0.open || [];
+          const pairs = [];
+          for (let i = 0; i < ts.length; i++) {
+            if (closes[i] != null && !isNaN(closes[i])) {
+              pairs.push({
+                t: ts[i],
+                c: closes[i],
+                h: highs[i] != null ? highs[i] : null,
+                l: lows[i] != null ? lows[i] : null,
+                o: opens[i] != null ? opens[i] : null
+              });
+            }
+          }
+          const last3 = pairs.slice(-3);
+          if (last3.length) {
+            const labels = ['前日', '昨日', '今日'];
+            const offset = 3 - last3.length;
+            for (let i = 0; i < last3.length; i++) {
+              const p = last3[i];
+              const d = new Date(p.t * 1000);
+              const dateStr = (d.getMonth() + 1) + '/' + d.getDate();
+              const label = labels[offset + i] || dateStr;
+              let chgHtml = '';
+              if (i > 0) {
+                const prev = last3[i - 1].c;
+                const diff = p.c - prev;
+                const pct = prev ? (diff / prev * 100) : 0;
+                chgHtml = `<span class="${chgClass(pct)}" style="font-size:0.75rem;margin-left:4px;">${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${formatChg(pct)})</span>`;
+              } else {
+                chgHtml = `<span style="font-size:0.72rem;color:var(--muted);margin-left:4px;">基准</span>`;
+              }
+              const hi = p.h != null ? p.h.toFixed(2) : '--';
+              const lo = p.l != null ? p.l.toFixed(2) : '--';
+              dayRows += `
+                <div class="detail-stat" style="grid-column:1/-1;">
+                  <div class="label">${label} · ${dateStr}</div>
+                  <div class="val">收 ${p.c.toFixed(2)} ${chgHtml}</div>
+                  <div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">最高 ${hi} · 最低 ${lo}</div>
+                </div>`;
+            }
+            if (last3.length >= 2) {
+              const first = last3[0].c;
+              const last = last3[last3.length - 1].c;
+              const diff = last - first;
+              const pct = first ? (diff / first * 100) : 0;
+              dayRows += `
+                <div class="detail-stat" style="grid-column:1/-1;">
+                  <div class="label">近${last3.length}日累计</div>
+                  <div class="val"><span class="${chgClass(pct)}">${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${formatChg(pct)})</span></div>
+                </div>`;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('3day compare fail', e);
+      }
+
+      if (!dayRows) {
+        dayRows = `<div class="detail-stat" style="grid-column:1/-1;"><div class="label">近三日对比</div><div class="val" style="color:var(--muted);font-weight:400;">暂无历史数据</div></div>`;
+      }
+
+      document.getElementById('detailGrid').innerHTML = `
+        <div class="detail-stat"><div class="label">最高</div><div class="val" style="color:var(--green);">${q && q.h ? Number(q.h).toFixed(2) : '--'}</div></div>
+        <div class="detail-stat"><div class="label">最低</div><div class="val" style="color:var(--red);">${q && q.l ? Number(q.l).toFixed(2) : '--'}</div></div>
+        <div class="detail-stat"><div class="label">今开</div><div class="val">${q && q.o ? Number(q.o).toFixed(2) : '--'}</div></div>
+        <div class="detail-stat"><div class="label">昨收</div><div class="val">${q && q.pc ? Number(q.pc).toFixed(2) : '--'}</div></div>
+        ${dayRows}
+      `;
+
       loadTVChart(symbol);
     }
 
     function closeDetail() {
       document.getElementById('detailOverlay').classList.remove('show');
       document.getElementById('detailDrawer').classList.remove('show');
+      const chartWrap = document.querySelector('.chart-wrap');
+      if (chartWrap) chartWrap.style.display = '';
     }
 
     function loadTVChart(symbol) {
@@ -1445,9 +1795,15 @@ const FALLBACK_SECTORS = {
         const price = q && q.c ? Number(q.c).toFixed(2) : '--';
         const dp = q ? q.dp : null;
         const chgStr = formatChg(dp);
+        let cn = '';
+        if (typeof STOCK_SEARCH !== 'undefined') {
+          const hit = STOCK_SEARCH.find(x => x.s === sym);
+          if (hit) cn = hit.cn;
+        }
+        if (!cn && typeof STOCK_NAMES_CAL !== 'undefined') cn = STOCK_NAMES_CAL[sym] || '';
         html += `
           <div class="detail-stat" style="cursor:pointer;" onclick="closeDetail(); setTimeout(()=>openDetail('${sym}'),200);">
-            <div class="label">${sym}</div>
+            <div class="label">${sym}${cn ? ' <span style="font-weight:400;color:var(--muted);font-size:0.75rem;">' + cn + '</span>' : ''}</div>
             <div class="val">${price} <span class="${chgClass(dp)}" style="font-size:0.8rem;">${chgStr}</span></div>
           </div>
         `;
@@ -1502,18 +1858,23 @@ const FALLBACK_SECTORS = {
     }
 
     function fmtCalDate(dateStr) {
-      if (!dateStr) return { day: '--', week: '' };
+      if (!dateStr) return { day: '--', week: '', month: '', monthDay: '--' };
       const d = new Date(dateStr + 'T12:00:00');
       const days = ['周日','周一','周二','周三','周四','周五','周六'];
+      const month = (d.getMonth() + 1) + '月';
+      const day = String(d.getDate()).padStart(2, '0');
       return {
-        day: String(d.getDate()).padStart(2, '0'),
-        week: days[d.getDay()]
+        day,
+        week: days[d.getDay()],
+        month,
+        monthDay: month + day + '日'
       };
     }
 
     async function fetchEarningsCalendar() {
       const now = new Date();
-      const from = now.toISOString().slice(0, 10);
+      // 历史一个月 + 未来三周
+      const from = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10);
       const to = new Date(now.getTime() + 21 * 86400000).toISOString().slice(0, 10);
       const url = `https://finnhub.io/api/v1/calendar/earnings?from=${from}&to=${to}&token=${FINNHUB_KEY}`;
       const res = await fetch(url);
@@ -1579,17 +1940,99 @@ const FALLBACK_SECTORS = {
       const rest = earnings.filter(e => !CAL_HIGH.has(e.symbol) && !CAL_MID.has(e.symbol)).slice(0, 15);
       const merged = [...focus, ...rest].slice(0, 30);
 
-      const byDate = {};
+      // 收集全部事件（财报 + 宏观），再按「今天起 / 历史」拆分
+      const todayStr = (() => {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      })();
+
+      const allItems = []; // { date, sortKey, html, isPast }
+
       for (const e of merged) {
         const dt = e.date || '';
-        if (!byDate[dt]) byDate[dt] = [];
-        byDate[dt].push(e);
+        if (!dt) continue;
+        const level = calImportance(e.symbol);
+        const cn = STOCK_NAMES_CAL[e.symbol] || '';
+        const hourHint = e.hour === 'bmo' ? '盘前' : e.hour === 'amc' ? '盘后' : (e.hour || '');
+        const nameStr = cn ? `${e.symbol} ${cn}` : e.symbol;
+        const { day, week, month } = fmtCalDate(dt);
+        const isPast = dt < todayStr;
+        const isToday = dt === todayStr;
+        const card = `
+            <div class="cal-item" ${e.symbol ? `onclick="openDetail('${e.symbol}')" style="cursor:pointer;"` : ''}>
+              <div class="cal-date"><div class="day">${day}</div><div class="week">${month}</div><div class="week">${isToday ? '今天' : week}</div></div>
+              <div class="cal-content">
+                <div class="event">${nameStr}${hourHint ? ' · ' + hourHint : ''}</div>
+                <div class="note">财报发布 · ${dt}</div>
+                <span class="importance ${calImpClass(level)}">${calImpLabel(level)}</span>
+              </div>
+            </div>`;
+        allItems.push({ date: dt, level, html: card, isPast });
       }
-      const dates = Object.keys(byDate).sort();
+
+      // 宏观事件
+      const MACRO_EVENTS = [
+        // 历史（近一个月）
+        { date: '2026-07-03', time: '20:30 北京时间', event: '美国非农就业报告 (NFP)', note: '6月数据 · 已公布', level: 'high' },
+        { date: '2026-07-11', time: '20:30 北京时间', event: '美国 CPI 通胀数据', note: '6月数据 · 已公布', level: 'high' },
+        { date: '2026-07-15', time: '20:30 北京时间', event: '美国 PPI 生产者物价', note: '6月数据 · 已公布', level: 'mid' },
+        { date: '2026-07-25', time: '20:30 北京时间', event: '美国 PCE 通胀数据', note: '6月数据 · 已公布', level: 'high' },
+        { date: '2026-07-29', time: '02:00 北京时间', event: 'FOMC 利率决议', note: '7月28-29会议 · 已结束', level: 'high' },
+        { date: '2026-08-01', time: '20:30 北京时间', event: '美国非农就业报告 (NFP)', note: '7月数据初值窗口 · 参考', level: 'high' },
+        // 即将
+        { date: '2026-08-07', time: '20:30 北京时间', event: '美国非农就业报告 (NFP)', note: '7月数据 · 08:30 ET', level: 'high' },
+        { date: '2026-08-12', time: '20:30 北京时间', event: '美国 CPI 通胀数据', note: '7月数据 · 08:30 ET', level: 'high' },
+        { date: '2026-08-13', time: '20:30 北京时间', event: '美国 PPI 生产者物价', note: '7月数据 · 08:30 ET', level: 'mid' },
+        { date: '2026-08-19', time: '02:00 北京时间', event: 'FOMC 会议纪要公布', note: '7月28-29会议纪要 · 14:00 ET', level: 'mid' },
+        { date: '2026-08-26', time: '20:30 北京时间', event: '美国 PCE 通胀数据', note: '美联储最关注的通胀指标 · 08:30 ET', level: 'high' },
+        { date: '2026-09-16', time: '02:00 北京时间', event: 'FOMC 利率决议 + 点阵图', note: '9月15-16会议 · 决议14:00 ET · 含SEP', level: 'high' },
+        { date: '2026-10-28', time: '02:00 北京时间', event: 'FOMC 利率决议', note: '10月27-28会议 · 决议14:00 ET', level: 'high' },
+        { date: '2026-12-09', time: '03:00 北京时间', event: 'FOMC 利率决议 + 点阵图', note: '12月会议 · 含SEP', level: 'high' },
+      ];
+      for (const m of MACRO_EVENTS) {
+        const dt = m.date;
+        const { day, week, month } = fmtCalDate(dt);
+        const isPast = dt < todayStr;
+        const isToday = dt === todayStr;
+        const card = `
+            <div class="cal-item">
+              <div class="cal-date"><div class="day">${day}</div><div class="week">${month}</div><div class="week">${isToday ? '今天' : week}</div></div>
+              <div class="cal-content">
+                <div class="event">${m.event}</div>
+                <div class="note">${m.time}<br/>${m.note}</div>
+                <span class="importance ${calImpClass(m.level)}">${calImpLabel(m.level)}</span>
+              </div>
+            </div>`;
+        allItems.push({ date: dt, level: m.level, html: card, isPast });
+      }
+
+      const rank = { high: 0, mid: 1, low: 2 };
+      // 近 30 天历史窗口
+      const monthAgoStr = (() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      })();
+
+      const upcoming = allItems.filter(x => !x.isPast).sort((a, b) => {
+        if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+        return (rank[a.level] || 9) - (rank[b.level] || 9);
+      });
+      // 历史：昨天 → 前天 → …（近一个月），最近的在前
+      const past = allItems
+        .filter(x => x.isPast && x.date >= monthAgoStr)
+        .sort((a, b) => {
+          if (a.date !== b.date) return a.date > b.date ? -1 : 1;
+          return (rank[a.level] || 9) - (rank[b.level] || 9);
+        });
 
       let html = '';
-
-      // 图例
       html += `
         <div style="display:flex;gap:10px;margin-bottom:12px;font-size:0.72rem;color:var(--muted);flex-wrap:wrap;">
           <span><span class="importance imp-high">高重要</span> 龙头财报/宏观</span>
@@ -1598,37 +2041,31 @@ const FALLBACK_SECTORS = {
         </div>
       `;
 
-      if (dates.length === 0 && newsHints.length === 0) {
-        html += '<div style="text-align:center;color:var(--muted);padding:20px 0;">近三周暂无重点财报</div>';
+      // 历史：做成可点击进入的板块
+      window.__calPastHtml = past.length
+        ? past.map(x => x.html).join('')
+        : '<div style="color:var(--muted);font-size:0.85rem;padding:20px 0;text-align:center;">近一个月暂无历史事件</div>';
+      window.__calPastCount = past.length;
+
+      html += `
+        <div class="cal-item" onclick="openCalHistory()" style="cursor:pointer;border-color:var(--blue);margin-bottom:14px;">
+          <div class="cal-date"><div class="day">史</div><div class="week">历史</div></div>
+          <div class="cal-content">
+            <div class="event">近一个月历史事件</div>
+            <div class="note">${past.length ? '共 ' + past.length + ' 条 · 点击查看昨天/前天及更早' : '暂无记录 · 点击仍可打开'}</div>
+          </div>
+        </div>
+      `;
+
+      // 即将到来：今天开始往下
+      html += `<div class="section-title" style="margin-top:8px;">即将到来 · 从今天起</div>`;
+      if (!upcoming.length) {
+        html += '<div style="text-align:center;color:var(--muted);padding:16px 0;font-size:0.85rem;">暂无今日及之后的重点事件</div>';
+      } else {
+        html += upcoming.map(x => x.html).join('');
       }
 
-      for (const dt of dates) {
-        const { day, week } = fmtCalDate(dt);
-        const events = byDate[dt];
-        // 按重要性排序
-        events.sort((a, b) => {
-          const rank = { high: 0, mid: 1, low: 2 };
-          return rank[calImportance(a.symbol)] - rank[calImportance(b.symbol)];
-        });
-        for (const e of events) {
-          const level = calImportance(e.symbol);
-          const cn = STOCK_NAMES_CAL[e.symbol] || '';
-          const hourHint = e.hour === 'bmo' ? '盘前' : e.hour === 'amc' ? '盘后' : (e.hour || '');
-          const nameStr = cn ? `${e.symbol} ${cn}` : e.symbol;
-          html += `
-            <div class="cal-item" ${e.symbol ? `onclick="openDetail('${e.symbol}')" style="cursor:pointer;"` : ''}>
-              <div class="cal-date"><div class="day">${day}</div><div class="week">${week}</div></div>
-              <div class="cal-content">
-                <div class="event">${nameStr}${hourHint ? ' · ' + hourHint : ''}</div>
-                <div class="note">财报发布 · ${dt}</div>
-                <span class="importance ${calImpClass(level)}">${calImpLabel(level)}</span>
-              </div>
-            </div>
-          `;
-        }
-      }
-
-      // 新闻线索补充
+      // 新闻线索
       if (newsHints.length) {
         html += `<div class="section-title" style="margin-top:16px;">相关新闻线索</div>`;
         for (const n of newsHints) {
@@ -1645,42 +2082,31 @@ const FALLBACK_SECTORS = {
         }
       }
 
-      // 宏观事件：带具体日期（官方日程，自动过滤已过期）
-      const MACRO_EVENTS = [
-        // 2026年8月（BLS / 美联储公开日程）
-        { date: '2026-08-07', time: '20:30 北京时间', event: '美国非农就业报告 (NFP)', note: '7月数据 · 08:30 ET', level: 'high' },
-        { date: '2026-08-12', time: '20:30 北京时间', event: '美国 CPI 通胀数据', note: '7月数据 · 08:30 ET', level: 'high' },
-        { date: '2026-08-13', time: '20:30 北京时间', event: '美国 PPI 生产者物价', note: '7月数据 · 08:30 ET', level: 'mid' },
-        { date: '2026-08-19', time: '02:00 北京时间', event: 'FOMC 会议纪要公布', note: '7月28-29会议纪要 · 14:00 ET', level: 'mid' },
-        { date: '2026-08-26', time: '20:30 北京时间', event: '美国 PCE 通胀数据', note: '美联储最关注的通胀指标 · 08:30 ET', level: 'high' },
-        // 后续 FOMC 2026
-        { date: '2026-09-16', time: '02:00 北京时间', event: 'FOMC 利率决议 + 点阵图', note: '9月15-16会议 · 决议14:00 ET · 含SEP', level: 'high' },
-        { date: '2026-10-28', time: '02:00 北京时间', event: 'FOMC 利率决议', note: '10月27-28会议 · 决议14:00 ET', level: 'high' },
-        { date: '2026-12-09', time: '03:00 北京时间', event: 'FOMC 利率决议 + 点阵图', note: '12月8-9会议 · 决议14:00 ET · 含SEP', level: 'high' },
-      ];
-
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const upcomingMacro = MACRO_EVENTS.filter(e => e.date >= todayStr);
-
-      if (upcomingMacro.length) {
-        html += `<div class="section-title" style="margin-top:16px;">宏观日程（含具体日期）</div>`;
-        for (const m of upcomingMacro) {
-          const { day, week } = fmtCalDate(m.date);
-          html += `
-            <div class="cal-item">
-              <div class="cal-date"><div class="day">${day}</div><div class="week">${week}</div></div>
-              <div class="cal-content">
-                <div class="event">${m.event}</div>
-                <div class="note">${m.date} · ${m.time}<br/>${m.note}</div>
-                <span class="importance ${calImpClass(m.level)}">${calImpLabel(m.level)}</span>
-              </div>
-            </div>
-          `;
-        }
-      }
-
       container.innerHTML = html;
     }
+
+    function openCalHistory() {
+      // 复用详情抽屉展示历史
+      const overlay = document.getElementById('detailOverlay');
+      const drawer = document.getElementById('detailDrawer');
+      if (!drawer) return;
+      document.getElementById('detailSymbol').textContent = '近一个月历史';
+      document.getElementById('detailPrice').textContent = (window.__calPastCount || 0) + ' 条';
+      document.getElementById('detailChg').textContent = '昨天 → 更早';
+      document.getElementById('detailChg').className = 'detail-chg flat';
+      document.getElementById('detailGrid').innerHTML = '';
+      const chartWrap = document.querySelector('.chart-wrap');
+      if (chartWrap) chartWrap.style.display = 'none';
+      // 在 grid 下方注入列表：用 detailGrid 装历史卡片
+      document.getElementById('detailGrid').innerHTML = `
+        <div style="grid-column:1/-1;max-height:60vh;overflow-y:auto;">
+          ${window.__calPastHtml || ''}
+        </div>`;
+      if (overlay) overlay.classList.add('show');
+      drawer.classList.add('show');
+    }
+
+    function toggleCalHistory() { openCalHistory(); }
 
 
     // ==================== 宏观数据（多源备用） ====================
