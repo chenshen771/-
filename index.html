@@ -415,7 +415,19 @@
       width: 100%;
       background: #131722;
     }
-    .watch-item { cursor: pointer; touch-action: manipulation; transition: transform 0.15s, opacity 0.15s; }
+    .watch-item { cursor: pointer; touch-action: manipulation; transition: transform 0.15s, opacity 0.15s; position: relative; overflow: hidden; }
+    .watch-item { position: relative; overflow: hidden; }
+    .watch-item::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      border-radius: 12px 0 0 12px;
+      background: var(--border);
+    }
+    .watch-item.up-accent::before { background: var(--green); }
+    .watch-item.down-accent::before { background: var(--red); }
+
     .watch-item.dragging { opacity: 0.9; transform: scale(1.02); box-shadow: 0 8px 24px rgba(0,0,0,0.35); z-index: 20; position: relative; border-color: var(--blue); touch-action: none; }
     .watch-item.drag-over { border-color: var(--blue); background: var(--card-hover); }
     .drag-handle { color: var(--muted); font-size: 1.1rem; padding: 8px 10px; cursor: grab; user-select: none; touch-action: none; -webkit-user-select: none; }
@@ -537,7 +549,39 @@
       margin-top: 24px;
       padding-bottom: 8px;
     }
-  </style>
+  
+    .watch-item .symbol {
+      font-size: 1.05rem;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+      color: #f2f4f8;
+    }
+    .watch-item .name {
+      font-size: 0.72rem;
+      font-weight: 400;
+      color: #6b7280;
+      margin-top: 3px;
+      letter-spacing: 0.01em;
+    }
+    .watch-item .price {
+      font-size: 1.08rem;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.01em;
+      font-feature-settings: "tnum";
+    }
+    .watch-item .chg {
+      font-size: 0.78rem;
+      font-weight: 560;
+      font-variant-numeric: tabular-nums;
+      margin-top: 2px;
+    }
+    .watch-item .price-block {
+      text-align: right;
+      min-width: 88px;
+    }
+
+    </style>
 </head>
 <body>
   <header class="app-header">
@@ -958,7 +1002,7 @@
       }
       container.innerHTML = watchlist.map((sym, idx) => {
         const q = quoteCache[sym];
-        const price = q && q.c ? Number(q.c).toFixed(2) : '--';
+        const price = q && q.c ? ('$' + Number(q.c).toFixed(2)) : '--';
         const dp = q ? q.dp : null;
         const hi = q && q.h ? Number(q.h).toFixed(2) : '--';
         const lo = q && q.l ? Number(q.l).toFixed(2) : '--';
@@ -968,15 +1012,16 @@
           const hit = STOCK_SEARCH.find(x => x.s === sym);
           if (hit) cnName = hit.cn;
         }
+        const accent = (dp > 0) ? 'up-accent' : (dp < 0) ? 'down-accent' : '';
         return `
-          <div class="watch-item" onclick="openDetail('${sym}')">
+          <div class="watch-item ${accent}" onclick="openDetail('${sym}')">
             <div class="left" style="flex:1;min-width:0;">
               <div class="symbol">${sym}${cnName ? ' <span style="font-weight:400;color:var(--muted);font-size:0.78rem;">'+cnName+'</span>' : ''}</div>
               <div class="name">${rangeStr}</div>
             </div>
             <div class="right">
               <div class="price-block">
-                <div class="price">${price}</div>
+                <div class="price ${chgClass(dp)}">${price}</div>
                 <div class="chg ${chgClass(dp)}">${formatChg(dp)}</div>
               </div>
               <div class="drag-handle" data-idx="${idx}" title="按住拖动排序" onclick="event.stopPropagation();">⋮⋮</div>
