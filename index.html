@@ -582,6 +582,37 @@
       border: 1px solid rgba(239, 83, 80, 0.3);
     }
 
+    
+    .net-status {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 10px;
+      z-index: 50;
+      pointer-events: none;
+      backdrop-filter: blur(6px);
+    }
+    .net-status .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #64748b;
+      flex-shrink: 0;
+    }
+    .net-status.ok .dot { background: #26a69a; box-shadow: 0 0 6px #26a69a88; }
+    .net-status.mid .dot { background: #fbbf24; box-shadow: 0 0 6px #fbbf2488; }
+    .net-status.bad .dot { background: #ef5350; box-shadow: 0 0 6px #ef535088; }
+    .net-status .net-text { white-space: nowrap; }
+    .app-header { position: relative; padding-right: 110px; }
+
     </style>
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
@@ -589,6 +620,10 @@
   <header class="app-header">
     <h1 id="pageTitle">观察列表</h1>
     <div class="sub" id="pageSub">实时美股自选 · Finnhub</div>
+    <div class="net-status" id="netStatus" title="网络延迟">
+      <span class="dot"></span>
+      <span class="net-text" id="netStatusText">检测中...</span>
+    </div>
   </header>
 
   <!-- ========== 观察列表（新增，默认打开） ========== -->
@@ -1398,13 +1433,14 @@
     }
 
 
-    async function openDetail(symbol) {
+    async function openDetail(symbol, isRestore) {
       document.getElementById('detailSymbol').innerHTML = symbol + ' <span class="market-badge us">美股</span>';
       document.getElementById('detailPrice').textContent = '加载中...';
       document.getElementById('detailChg').textContent = '';
       document.getElementById('detailGrid').innerHTML = '';
       document.getElementById('detailOverlay').classList.add('show');
       document.getElementById('detailDrawer').classList.add('show');
+      if (!isRestore) pushDetailHistory({ type: 'stock-us', symbol: symbol });
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = '';
 
@@ -1512,12 +1548,73 @@
       loadTVChart(symbol);
     }
 
-    function closeDetail() {
-      document.getElementById('detailOverlay').classList.remove('show');
-      document.getElementById('detailDrawer').classList.remove('show');
+    // ---------- 系统返回：分层回退（股票详情 → 成分股列表 → 关闭） ----------
+    let appNavStack = []; // { type: 'sector-us'|'sector-cn'|'stock-us'|'stock-cn', ... }
+    let suppressPopstate = false;
+
+    function hideDetailUI() {
+      const overlay = document.getElementById('detailOverlay');
+      const drawer = document.getElementById('detailDrawer');
+      if (overlay) overlay.classList.remove('show');
+      if (drawer) drawer.classList.remove('show');
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = '';
     }
+
+    function pushDetailHistory(layer) {
+      try {
+        appNavStack.push(layer || { type: 'unknown' });
+        history.pushState({ appDetail: 1, depth: appNavStack.length }, '');
+      } catch (e) {
+        appNavStack.push(layer || { type: 'unknown' });
+      }
+    }
+
+    function restoreNavLayer(layer) {
+      if (!layer) return;
+      if (layer.type === 'sector-us') {
+        openSectorStocks(layer.symbol, layer.name, true);
+      } else if (layer.type === 'sector-cn') {
+        openCNSectorStocks(layer.symbol, layer.name, true);
+      } else if (layer.type === 'stock-us') {
+        openDetail(layer.symbol, true);
+      } else if (layer.type === 'stock-cn') {
+        openCNDetail(layer.symbol, layer.name, true);
+      }
+    }
+
+    function closeDetail(fromPopstate) {
+      // × / 遮罩：关闭全部层级
+      const depth = appNavStack.length;
+      appNavStack = [];
+      hideDetailUI();
+      if (!fromPopstate && depth > 0) {
+        suppressPopstate = true;
+        try { history.go(-depth); } catch (e) {}
+        setTimeout(function () { suppressPopstate = false; }, 50);
+      }
+    }
+
+    function handleAppBack() {
+      if (suppressPopstate) return;
+      if (appNavStack.length === 0) {
+        hideDetailUI();
+        return;
+      }
+      // 弹出当前层
+      appNavStack.pop();
+      if (appNavStack.length === 0) {
+        hideDetailUI();
+        return;
+      }
+      // 恢复上一层（成分股列表等）
+      const prev = appNavStack[appNavStack.length - 1];
+      restoreNavLayer(prev);
+    }
+
+    window.addEventListener('popstate', function () {
+      handleAppBack();
+    });
 
     let chartStyle = (localStorage.getItem('tvChartStyle') === 'full') ? 'full' : 'mini'; // 默认精简
     let lastChartSymbol = '';
@@ -1731,6 +1828,7 @@ function loadFullTVChart(symbol) {
     }
 
 
+    let newsLang = localStorage.getItem('newsLang') || 'cn';
     function switchNewsLang(lang) {
       newsLang = lang;
       localStorage.setItem('newsLang', lang);
@@ -1766,34 +1864,82 @@ function loadFullTVChart(symbol) {
       `).join('');
     }
 
+    
+    if (typeof Promise.any !== 'function') {
+      Promise.any = function (promises) {
+        return new Promise(function (resolve, reject) {
+          var errors = [];
+          var done = 0;
+          var n = promises.length;
+          if (!n) return reject(new AggregateError([], 'All promises were rejected'));
+          promises.forEach(function (p, i) {
+            Promise.resolve(p).then(resolve, function (err) {
+              errors[i] = err;
+              done++;
+              if (done === n) reject(new AggregateError(errors, 'All promises were rejected'));
+            });
+          });
+        });
+      };
+    }
+
+    async function fetchWithTimeout(url, ms) {
+      ms = ms || 8000;
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, ms) : null;
+      try {
+        const res = await fetch(url, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+        if (timer) clearTimeout(timer);
+        return res;
+      } catch (e) {
+        if (timer) clearTimeout(timer);
+        throw e;
+      }
+    }
+
     async function loadChineseNews() {
-      const emUrl = 'https://np-listapi.eastmoney.com/comm/web/getNewsByColumns?client=web&biz=web_news_col&column=350&order=1&needInteractData=0&page_index=1&page_size=15&req_trace=1&fields=code,showTime,title,mediaName,summary,url,uniqueUrl';
-      const proxies = [
-        WORKER_BASE + '?url=' + encodeURIComponent(emUrl),
-        emUrl,
-        'https://corsproxy.io/?' + encodeURIComponent(emUrl),
-        'https://api.allorigins.win/raw?url=' + encodeURIComponent(emUrl)
-      ];
-      for (const u of proxies) {
+      const emUrl = 'https://np-listapi.eastmoney.com/comm/web/getNewsByColumns?client=web&biz=web_news_col&column=350&order=1&needInteractData=0&page_index=1&page_size=15&req_trace=' + Date.now() + '&fields=code,showTime,title,mediaName,summary,url,uniqueUrl';
+      const urls = [];
+      if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
+        urls.push(WORKER_BASE + '?url=' + encodeURIComponent(emUrl));
+      }
+      urls.push('https://api.allorigins.win/raw?url=' + encodeURIComponent(emUrl));
+      urls.push(emUrl);
+
+      for (let i = 0; i < urls.length; i++) {
         try {
-          const res = await fetch(u);
-          if (!res.ok) continue;
-          let data = await res.json();
-          if (data && data.contents) {
-            try { data = JSON.parse(data.contents); } catch(e) {}
+          const res = await Promise.race([
+            fetch(urls[i], { cache: 'no-store' }),
+            new Promise(function (_, reject) {
+              setTimeout(function () { reject(new Error('timeout')); }, 5000);
+            })
+          ]);
+          if (!res || !res.ok) continue;
+          const raw = await Promise.race([
+            res.text(),
+            new Promise(function (_, reject) {
+              setTimeout(function () { reject(new Error('body-timeout')); }, 5000);
+            })
+          ]);
+          let data;
+          try { data = JSON.parse(raw); } catch (e) { continue; }
+          if (data && typeof data.contents === 'string') {
+            try { data = JSON.parse(data.contents); } catch (e) {}
           }
           const list = data && data.data && data.data.list;
           if (Array.isArray(list) && list.length) {
-            return list.slice(0, 12).map(item => ({
-              time: item.showTime || '',
-              source: item.mediaName || '东方财富',
-              title: item.title || '无标题',
-              summary: item.summary || '',
-              link: item.uniqueUrl || item.url || '#'
-            }));
+            return list.slice(0, 12).map(function (item) {
+              return {
+                time: item.showTime || '',
+                source: item.mediaName || '东方财富',
+                title: item.title || '无标题',
+                summary: item.summary || '',
+                link: item.uniqueUrl || item.url || '#'
+              };
+            });
           }
         } catch (e) {
-          console.warn('cn news fail', e);
+          console.warn('cn news', i, e && e.message);
         }
       }
       return null;
@@ -1820,51 +1966,46 @@ function loadFullTVChart(symbol) {
       }
     }
 
+    let newsLoadId = 0;
     async function loadNews() {
       const container = document.getElementById('newsList');
       if (!container) return;
+      const loadId = ++newsLoadId;
       container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载新闻中...</div>';
-
-      // sync button style
-      const cn = document.getElementById('newsTabCN');
-      const en = document.getElementById('newsTabEN');
-      if (cn && en) {
+      try {
+        const cn = document.getElementById('newsTabCN');
+        const en = document.getElementById('newsTabEN');
+        if (cn && en) {
+          if (newsLang === 'cn') {
+            cn.style.background = 'var(--blue)'; cn.style.color = '#fff'; cn.style.border = 'none';
+            en.style.background = 'none'; en.style.color = 'var(--muted)'; en.style.border = '1px solid var(--border)';
+          } else {
+            en.style.background = 'var(--blue)'; en.style.color = '#fff'; en.style.border = 'none';
+            cn.style.background = 'none'; cn.style.color = 'var(--muted)'; cn.style.border = '1px solid var(--border)';
+          }
+        }
+        let list = null;
         if (newsLang === 'cn') {
-          cn.style.background = 'var(--blue)'; cn.style.color = '#fff'; cn.style.border = 'none';
-          en.style.background = 'none'; en.style.color = 'var(--muted)'; en.style.border = '1px solid var(--border)';
-        } else {
-          en.style.background = 'var(--blue)'; en.style.color = '#fff'; en.style.border = 'none';
-          cn.style.background = 'none'; cn.style.color = 'var(--muted)'; cn.style.border = '1px solid var(--border)';
-        }
-      }
-
-      let list = null;
-      if (newsLang === 'cn') {
-        list = await loadChineseNews();
-        if (!list) {
-          // fallback to English
-          list = await loadEnglishNews();
-          if (list) {
-            container.insertAdjacentHTML('afterbegin', '<div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;">中文源暂不可用，已显示英文</div>');
-          }
-        }
-      } else {
-        list = await loadEnglishNews();
-        if (!list) {
           list = await loadChineseNews();
-          if (list) {
-            container.insertAdjacentHTML('afterbegin', '<div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;">英文源暂不可用，已显示中文</div>');
-          }
+          if (!list) list = await loadEnglishNews();
+        } else {
+          list = await loadEnglishNews();
+          if (!list) list = await loadChineseNews();
+        }
+        if (loadId !== newsLoadId) return;
+        if (!list || !list.length) {
+          container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">新闻加载失败，请点刷新重试</div>';
+          return;
+        }
+        renderNewsItems(list);
+      } catch (err) {
+        console.warn('loadNews error', err);
+        if (loadId === newsLoadId) {
+          container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载出错，请点刷新</div>';
         }
       }
-
-      if (!list) {
-        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">新闻加载失败，请稍后重试</div>';
-        return;
-      }
-      // clear and render
-      renderNewsItems(list);
     }
+
 
     // ==================== 板块（美股 / A股可切换） ====================
     let sectorMarket = 'us'; // us | cn
@@ -2190,7 +2331,7 @@ const FALLBACK_SECTORS = {
     }
 
 
-    async function openSectorStocks(etfSymbol, sectorName) {
+    async function openSectorStocks(etfSymbol, sectorName, isRestore) {
       let stocks = (typeof US_SECTOR_STOCKS !== 'undefined' && US_SECTOR_STOCKS[etfSymbol]) ? US_SECTOR_STOCKS[etfSymbol] : [];
       if (!stocks.length && typeof US_SECTOR_ETFS !== 'undefined') {
         const hit = US_SECTOR_ETFS.find(x => x.symbol === etfSymbol);
@@ -2200,17 +2341,18 @@ const FALLBACK_SECTORS = {
         alert(sectorName + ' 暂无成分股列表');
         return;
       }
-      // 复用详情抽屉展示板块成分
       document.getElementById('detailSymbol').textContent = sectorName;
       document.getElementById('detailPrice').textContent = '成分股';
       document.getElementById('detailChg').textContent = etfSymbol;
       document.getElementById('detailChg').className = 'detail-chg flat';
       document.getElementById('detailGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:12px;">加载成分股行情...</div>';
-      // 隐藏图表
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = 'none';
       document.getElementById('detailOverlay').classList.add('show');
       document.getElementById('detailDrawer').classList.add('show');
+      if (!isRestore) {
+        pushDetailHistory({ type: 'sector-us', symbol: etfSymbol, name: sectorName });
+      }
 
       let html = '';
       for (const sym of stocks) {
@@ -2226,18 +2368,18 @@ const FALLBACK_SECTORS = {
         }
         if (!cn && typeof STOCK_NAMES_CAL !== 'undefined') cn = STOCK_NAMES_CAL[sym] || '';
         html += `
-          <div class="detail-stat" style="cursor:pointer;" onclick="closeDetail(); setTimeout(()=>openDetail('${sym}'),200);">
+          <div class="detail-stat" style="cursor:pointer;" onclick="openDetail('${sym}')">
             <div class="label">${sym}${cn ? ' <span style="font-weight:400;color:var(--muted);font-size:0.75rem;">' + cn + '</span>' : ''}</div>
             <div class="val">${price} <span class="${chgClass(dp)}" style="font-size:0.8rem;">${chgStr}</span></div>
           </div>
         `;
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 80));
       }
       document.getElementById('detailGrid').innerHTML = html || '<div style="grid-column:1/-1;color:var(--muted);">暂无数据</div>';
     }
 
     // A股板块成分股（东方财富 BK 板块）
-    async function openCNSectorStocks(boardCode, sectorName) {
+    async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       document.getElementById('detailSymbol').textContent = sectorName || 'A股板块';
       document.getElementById('detailPrice').textContent = '成分股';
       document.getElementById('detailChg').textContent = boardCode || 'A股';
@@ -2247,6 +2389,7 @@ const FALLBACK_SECTORS = {
       if (chartWrap) chartWrap.style.display = 'none';
       document.getElementById('detailOverlay').classList.add('show');
       document.getElementById('detailDrawer').classList.add('show');
+      if (!isRestore) pushDetailHistory({ type: 'sector-cn', symbol: boardCode, name: sectorName });
 
       let stocks = [];
       if (boardCode && String(boardCode).startsWith('BK')) {
@@ -2317,7 +2460,7 @@ const FALLBACK_SECTORS = {
       return 'SZSE:' + c;
     }
 
-    async function openCNDetail(code, name) {
+    async function openCNDetail(code, name, isRestore) {
       const title = (name ? name + ' ' : '') + code;
       document.getElementById('detailSymbol').textContent = title;
       document.getElementById('detailPrice').textContent = '加载中...';
@@ -2325,6 +2468,7 @@ const FALLBACK_SECTORS = {
       document.getElementById('detailGrid').innerHTML = '';
       document.getElementById('detailOverlay').classList.add('show');
       document.getElementById('detailDrawer').classList.add('show');
+      if (!isRestore) pushDetailHistory({ type: 'stock-cn', symbol: code, name: name || '' });
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = '';
 
@@ -2498,12 +2642,7 @@ const FALLBACK_SECTORS = {
     
     // 关闭详情时恢复图表显示
     const _origCloseDetail = typeof closeDetail === 'function' ? closeDetail : null;
-    function closeDetail() {
-      document.getElementById('detailOverlay').classList.remove('show');
-      document.getElementById('detailDrawer').classList.remove('show');
-      const chartWrap = document.querySelector('.chart-wrap');
-      if (chartWrap) chartWrap.style.display = '';
-    }
+    
 
 
     // ==================== 财报日历（多源 + 三档重要性） ====================
@@ -3076,6 +3215,58 @@ const FALLBACK_SECTORS = {
         refreshQuotes();
       }
     }, 60000);
+  
+    // ---------- 网络延迟 / 流畅度（全局右上角） ----------
+    let lastNetMs = null;
+    async function probeNetworkLatency() {
+      const el = document.getElementById('netStatus');
+      const tx = document.getElementById('netStatusText');
+      if (!el || !tx) return;
+      const targets = [];
+      if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
+        targets.push(WORKER_BASE + (WORKER_BASE.indexOf('?') >= 0 ? '&' : '?') + '_ping=' + Date.now());
+      }
+      targets.push('https://push2delay.eastmoney.com/api/qt/ulist.np/get?fltt=2&secids=1.000001&fields=f12&_=' + Date.now());
+      targets.push('https://finnhub.io/api/v1/quote?symbol=AAPL&token=demo');
+
+      let ms = null;
+      for (const url of targets) {
+        try {
+          const t0 = performance.now();
+          const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const timer = ctrl ? setTimeout(() => ctrl.abort(), 5000) : null;
+          await fetch(url, { method: 'GET', cache: 'no-store', mode: 'cors', signal: ctrl ? ctrl.signal : undefined });
+          if (timer) clearTimeout(timer);
+          ms = Math.round(performance.now() - t0);
+          break;
+        } catch (e) {
+          continue;
+        }
+      }
+      if (ms == null) {
+        el.className = 'net-status bad';
+        tx.textContent = '网络异常';
+        return;
+      }
+      lastNetMs = ms;
+      let label = '流畅';
+      let cls = 'ok';
+      if (ms > 1200) { label = '较慢'; cls = 'bad'; }
+      else if (ms > 500) { label = '一般'; cls = 'mid'; }
+      el.className = 'net-status ' + cls;
+      tx.textContent = label + ' ' + ms + 'ms';
+    }
+
+    function startNetMonitor() {
+      probeNetworkLatency();
+      setInterval(probeNetworkLatency, 15000);
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', startNetMonitor);
+    } else {
+      startNetMonitor();
+    }
+
   </script>
 </body>
 </html>
