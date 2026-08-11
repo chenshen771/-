@@ -1519,7 +1519,7 @@
       if (chartWrap) chartWrap.style.display = '';
     }
 
-    let chartStyle = localStorage.getItem('tvChartStyle') || 'mini';
+    let chartStyle = (localStorage.getItem('tvChartStyle') === 'full') ? 'full' : 'mini'; // 默认精简
     let lastChartSymbol = '';
 
     function updateChartStyleButtons() {
@@ -1546,12 +1546,19 @@
       if (lastChartSymbol) loadTVChart(lastChartSymbol);
     }
 
+    // 页面加载时同步按钮状态（默认精简）
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', updateChartStyleButtons);
+    } else {
+      updateChartStyleButtons();
+    }
+
             let miniChartObj = null;
 
     async function loadMiniSparkChart(symbol) {
       const wrap = document.getElementById('tvChart');
       if (!wrap) return;
-      wrap.innerHTML = '<div id="miniChartBox" style="width:100%;height:280px;background:#0d1117;border-radius:10px;"></div>';
+      wrap.innerHTML = '<div id="miniChartBox" style="width:100%;height:300px;background:#0d1117;border-radius:10px;"></div>';
       const box = document.getElementById('miniChartBox');
       if (!box) return;
 
@@ -1612,7 +1619,7 @@
 
         const chart = LightweightCharts.createChart(box, {
           width: box.clientWidth || 320,
-          height: 280,
+          height: 300,
           layout: {
             background: { type: 'solid', color: '#0d1117' },
             textColor: '#94a3b8',
@@ -1644,13 +1651,21 @@
           wickDownColor: '#ef5350',
         });
         series.setData(candleData);
-        chart.timeScale().fitContent();
+        // 默认放大：只显示最近约 45 根K线（类似图2的近景），仍可左滑看更早
+        const total = candleData.length;
+        const showBars = Math.min(45, total);
+        chart.timeScale().setVisibleLogicalRange({
+          from: Math.max(0, total - showBars) - 0.5,
+          to: total - 1 + 0.5
+        });
 
         // 最新价线
         const last = candleData[candleData.length - 1].close;
+        const prev = total > 1 ? candleData[total - 2].close : last;
+        const up = last >= prev;
         series.createPriceLine({
           price: last,
-          color: '#26a69a',
+          color: up ? '#26a69a' : '#ef5350',
           lineWidth: 1,
           lineStyle: LightweightCharts.LineStyle.Dashed,
           axisLabelVisible: true,
