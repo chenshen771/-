@@ -375,11 +375,16 @@
       background: var(--card);
       border-radius: 18px 18px 0 0;
       z-index: 81;
-      max-height: 85vh;
+      max-height: 92vh;
       transform: translateY(100%);
       transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
       overflow-y: auto;
-      padding: 12px 16px 28px;
+      -webkit-overflow-scrolling: touch;
+      padding: 12px 16px 40px;
+    }
+    .detail-drawer .detail-grid {
+      max-height: none;
+      padding-bottom: 24px;
     }
     .detail-drawer.show { transform: translateY(0); }
     .detail-handle {
@@ -389,10 +394,15 @@
       margin: 0 auto 14px;
     }
     .detail-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
+      position: relative;
       margin-bottom: 14px;
+      padding-right: 36px;
+      box-sizing: border-box;
+    }
+    .detail-close {
+      position: absolute;
+      top: 0;
+      right: 0;
     }
     .detail-symbol {
       font-family: var(--font-display);
@@ -652,7 +662,57 @@
     .net-status .net-text { white-space: nowrap; }
     .app-header { position: relative; padding-right: 110px; }
 
-    </style>
+    
+    .sector-card { position: relative; }
+    .sector-card .s-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      font-family: var(--font-num);
+      font-size: 0.62rem;
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    .sector-card.up .s-badge { background: rgba(0,216,104,0.12); color: var(--green); }
+    .sector-card.down .s-badge { background: rgba(255,92,92,0.12); color: var(--red); }
+
+  
+    .l1-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .l1-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 12px;
+      cursor: pointer;
+      position: relative;
+      text-align: left;
+    }
+    .l1-card:active { opacity: 0.9; transform: scale(0.98); }
+    .l1-card .l1-name { font-family: var(--font-display); font-weight: 600; font-size: 0.95rem; }
+    .l1-card .l1-en { font-size: 0.68rem; color: var(--muted); margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .sub-tag {
+      display: inline-block;
+      font-family: var(--font-num);
+      font-size: 0.62rem;
+      padding: 1px 7px;
+      border-radius: 8px;
+      background: rgba(77,159,255,0.12);
+      color: var(--blue);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .l1-card .l1-meta { font-family: var(--font-num); font-size: 0.75rem; margin-top: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .l2-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .l2-head .back-mini {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer;
+    }
+    .l2-head .l2-title { font-size: 0.9rem; font-weight: 600; }
+
+  </style>
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
@@ -951,11 +1011,33 @@
       { s: 'BKSY', en: 'BlackSky', cn: 'BlackSky' },
       { s: 'AAOI', en: 'Applied Optoelectronics', cn: '应用光电' },
       { s: 'ALKB', en: 'ALKB', cn: '' },
+      // —— A股常用 ——
+      { s: '688825', en: 'CXMT', cn: '长鑫科技' },
+      { s: '688981', en: 'SMIC', cn: '中芯国际' },
+      { s: '603986', en: 'GigaDevice', cn: '兆易创新' },
+      { s: '002371', en: 'NAURA', cn: '北方华创' },
+      { s: '688012', en: 'AMEC', cn: '中微公司' },
+      { s: '300750', en: 'CATL', cn: '宁德时代' },
+      { s: '002594', en: 'BYD', cn: '比亚迪' },
+      { s: '600519', en: 'Kweichow Moutai', cn: '贵州茅台' },
+      { s: '000858', en: 'Wuliangye', cn: '五粮液' },
+      { s: '601318', en: 'Ping An', cn: '中国平安' },
+      { s: '600036', en: 'CMB', cn: '招商银行' },
+      { s: '601012', en: 'LONGi', cn: '隆基绿能' },
+      { s: '300308', en: 'Zhongji Innolight', cn: '中际旭创' },
+      { s: '300502', en: 'Eoptolink', cn: '新易盛' },
+      { s: '002230', en: 'iFlytek', cn: '科大讯飞' },
+      { s: '688041', en: 'Haiguang', cn: '海光信息' },
+      { s: '688256', en: 'Cambricon', cn: '寒武纪' },
     ];
 
     function resolveSymbol(input) {
       const raw = (input || '').trim();
       if (!raw) return null;
+      // 6位A股代码 或 688825.SS
+      if (typeof isAShareSymbol === 'function' && isAShareSymbol(raw)) {
+        return normalizeAShareCode(raw) || raw;
+      }
       const q = raw.toUpperCase();
       const qLower = raw.toLowerCase();
       // 精确代码
@@ -1015,16 +1097,92 @@
 
     // ==================== 状态 ====================
     let watchlist = JSON.parse(localStorage.getItem('watchlist') || 'null') || DEFAULT_WATCH.slice();
+    // 规范化 A股 后缀代码
+    watchlist = (function (list) {
+      const seen = {};
+      const out = [];
+      (list || []).forEach(function (sym) {
+        let s = String(sym || '').toUpperCase().replace(/\s/g, '');
+        if (/^\d{6}\.(SS|SZ|SH|BJ)$/.test(s)) s = s.slice(0, 6);
+        else if (/^(SSE|SZSE|BSE):\d{6}$/.test(s)) s = s.replace(/^(SSE|SZSE|BSE):/, '');
+        if (!seen[s]) { seen[s] = true; out.push(s); }
+      });
+      try { localStorage.setItem('watchlist', JSON.stringify(out)); } catch (e) {}
+      return out;
+    })(watchlist);
     let quoteCache = {};
 
     // ==================== Finnhub 请求 ====================
+    async function fetchCNQuote(code) {
+      const c = (typeof normalizeAShareCode === 'function' ? normalizeAShareCode(code) : null) || String(code).replace(/\D/g, '').slice(0, 6);
+      if (!c || c.length !== 6) return null;
+      const secid = (typeof cnSecid === 'function') ? cnSecid(c) : ((c.startsWith('6') || c.startsWith('5')) ? '1.' + c : '0.' + c);
+      const url = 'https://push2delay.eastmoney.com/api/qt/stock/get?secid=' + secid + '&fields=f43,f44,f45,f46,f57,f58,f60,f169,f170&_=' + Date.now();
+      const proxies = [];
+      if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) proxies.push(WORKER_BASE + '?url=' + encodeURIComponent(url));
+      proxies.push(url);
+      for (let i = 0; i < proxies.length; i++) {
+        try {
+          const res = await (typeof fetchWithTimeoutSimple === 'function' ? fetchWithTimeoutSimple(proxies[i], 5000) : fetch(proxies[i]));
+          if (!res || !res.ok) continue;
+          let data = await res.json();
+          if (data && data.contents) { try { data = JSON.parse(data.contents); } catch (e) {} }
+          const q = data && data.data;
+          if (!q) continue;
+          const scale = function (v) {
+            if (v == null || v === '-' || isNaN(Number(v))) return null;
+            const n = Number(v);
+            if (Number.isInteger(n) && Math.abs(n) >= 100) return n / 100;
+            return n;
+          };
+          const price = scale(q.f43);
+          if (price == null) continue;
+          let dp = q.f170 != null ? Number(q.f170) : null;
+          if (dp != null && Math.abs(dp) > 50) dp = dp / 100;
+          return {
+            c: price,
+            h: scale(q.f44),
+            l: scale(q.f45),
+            o: scale(q.f46),
+            pc: scale(q.f60),
+            dp: dp,
+            d: q.f169 != null ? (Math.abs(Number(q.f169)) > 100 ? Number(q.f169) / 100 : Number(q.f169)) : null,
+            cnName: q.f58 || ''
+          };
+        } catch (e) {}
+      }
+      return null;
+    }
+
     async function fetchQuote(symbol) {
       try {
-        const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${FINNHUB_KEY}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('网络错误 ' + res.status);
-        const data = await res.json();
-        if (data && typeof data.c === 'number') return data;
+        if (typeof isAShareSymbol === 'function' && isAShareSymbol(symbol)) {
+          return await fetchCNQuote(symbol);
+        }
+        const url = 'https://finnhub.io/api/v1/quote?symbol=' + encodeURIComponent(symbol) + '&token=' + FINNHUB_KEY;
+        const proxies = [];
+        if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
+          proxies.push(WORKER_BASE + '?url=' + encodeURIComponent(url));
+        }
+        proxies.push(url);
+        for (let i = 0; i < proxies.length; i++) {
+          try {
+            const res = await (typeof fetchWithTimeoutSimple === 'function'
+              ? fetchWithTimeoutSimple(proxies[i], 5000)
+              : Promise.race([
+                  fetch(proxies[i], { cache: 'no-store' }),
+                  new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, 5000); })
+                ]));
+            if (!res || !res.ok) continue;
+            let data = await res.json();
+            if (data && data.contents) {
+              try { data = JSON.parse(data.contents); } catch (e) {}
+            }
+            if (data && typeof data.c === 'number') return data;
+          } catch (e) {
+            console.warn('finnhub try fail', symbol, e && e.message);
+          }
+        }
         return null;
       } catch (e) {
         console.error('fetchQuote error', symbol, e);
@@ -1032,13 +1190,24 @@
       }
     }
 
-    async function fetchQuotes(symbols) {
+    async function fetchQuotes(symbols, onOne) {
       const results = {};
-      for (const sym of symbols) {
-        const data = await fetchQuote(sym);
-        if (data) results[sym] = data;
-        await new Promise(r => setTimeout(r, 180)); // 保护免费额度
-      }
+      await Promise.all((symbols || []).map(async function (sym) {
+        try {
+          const data = await Promise.race([
+            fetchQuote(sym),
+            new Promise(function (resolve) { setTimeout(function () { resolve(null); }, 6000); })
+          ]);
+          if (data) {
+            results[sym] = data;
+            if (typeof onOne === 'function') {
+              try { onOne(sym, data); } catch (e) {}
+            }
+          }
+        } catch (e) {
+          console.warn('quote fail', sym, e);
+        }
+      }));
       return results;
     }
 
@@ -1065,6 +1234,9 @@
       let sym = resolved;
       if (!sym) return;
       sym = String(sym).toUpperCase().replace(/[^A-Z0-9.\-^]/g, '');
+      if (typeof isAShareSymbol === 'function' && isAShareSymbol(sym)) {
+        sym = normalizeAShareCode(sym) || sym;
+      }
       if (!sym) return;
       if (watchlist.includes(sym)) {
         alert(sym + ' 已在观察列表中');
@@ -1118,11 +1290,20 @@
               return true;
             })
             .slice(0, 15)
-            .map(r => ({
-              s: (r.displaySymbol || r.symbol || '').toUpperCase(),
-              en: r.description || r.type || '',
-              cn: ''
-            }))
+            .map(r => {
+              let s = (r.displaySymbol || r.symbol || '').toUpperCase();
+              let cn = '';
+              // A股 Yahoo/Finnhub 后缀 → 6位代码
+              if (/^\d{6}\.(SS|SZ|SH|BJ)$/.test(s)) {
+                const code = s.slice(0, 6);
+                s = code;
+                if (typeof STOCK_SEARCH !== 'undefined') {
+                  const hit = STOCK_SEARCH.find(function (x) { return x.s === code; });
+                  if (hit) cn = hit.cn;
+                }
+              }
+              return { s: s, en: r.description || r.type || '', cn: cn };
+            })
             .filter(r => r.s);
 
           const seen = new Set();
@@ -1216,11 +1397,14 @@
           const hit = STOCK_SEARCH.find(x => x.s === sym);
           if (hit) cnName = hit.cn;
         }
+        if (!cnName && q && q.cnName) cnName = q.cnName;
+        const isCN = (typeof isAShareSymbol === 'function' && isAShareSymbol(sym));
+        const mBadge = isCN ? '<span class="market-badge cn" style="font-size:0.65rem;margin-left:4px;">A股</span>' : '';
         const accent = (dp > 0) ? 'up-accent' : (dp < 0) ? 'down-accent' : '';
         return `
-          <div class="watch-item ${accent}" onclick="openDetail('${sym}')">
+          <div class="watch-item ${accent}" onclick="openWatchDetail('${sym}')">
             <div class="left" style="flex:1;min-width:0;">
-              <div class="symbol">${sym}${cnName ? ' <span style="font-weight:400;color:var(--muted);font-size:0.78rem;">'+cnName+'</span>' : ''}</div>
+              <div class="symbol">${sym}${cnName ? ' <span style="font-weight:400;color:var(--muted);font-size:0.78rem;">'+cnName+'</span>' : ''}${mBadge}</div>
               <div class="name">${rangeStr}</div>
             </div>
             <div class="right">
@@ -1332,7 +1516,11 @@
       timeEl.textContent = '更新中...';
       renderWatchlist();
 
-      const data = await fetchQuotes(watchlist);
+      const data = await fetchQuotes(watchlist, function (sym, q) {
+        quoteCache[sym] = q;
+        // 有结果就局部刷新，不用等全部完成
+        renderWatchlist();
+      });
       Object.assign(quoteCache, data);
       renderWatchlist();
 
@@ -1471,6 +1659,20 @@
       container.innerHTML = html;
     }
 
+
+    async function openWatchDetail(symbol) {
+      if (typeof isAShareSymbol === 'function' && isAShareSymbol(symbol)) {
+        const code = normalizeAShareCode(symbol) || symbol;
+        let cn = '';
+        if (typeof STOCK_SEARCH !== 'undefined') {
+          const hit = STOCK_SEARCH.find(function (x) { return x.s === code; });
+          if (hit) cn = hit.cn;
+        }
+        openCNDetail(code, cn);
+        return;
+      }
+      openDetail(symbol);
+    }
 
     async function openDetail(symbol, isRestore) {
       document.getElementById('detailSymbol').innerHTML = symbol + ' <span class="market-badge us">美股</span>';
@@ -1611,7 +1813,11 @@
 
     function restoreNavLayer(layer) {
       if (!layer) return;
-      if (layer.type === 'sector-us') {
+      if (layer.type === 'us-sector-l2') {
+        openUSSectorL2(layer.l1, layer.l2, true);
+      } else if (layer.type === 'cn-sector-l2') {
+        openCNSectorL2(layer.l1, layer.l2);
+      } else if (layer.type === 'sector-us') {
         openSectorStocks(layer.symbol, layer.name, true);
       } else if (layer.type === 'sector-cn') {
         openCNSectorStocks(layer.symbol, layer.name, true);
@@ -1845,7 +2051,14 @@ function loadFullTVChart(symbol) {
     function loadTVChart(symbol) {
       const wrap = document.getElementById('tvChart');
       if (!wrap) return;
-      const raw = String(symbol || 'AAPL');
+      let raw = String(symbol || 'AAPL');
+      // 688825.SS / 000001.SZ → SSE:688825 / SZSE:000001
+      if (/^\d{6}\.SS$/i.test(raw) || /^\d{6}\.SH$/i.test(raw)) raw = 'SSE:' + raw.slice(0, 6);
+      else if (/^\d{6}\.SZ$/i.test(raw)) raw = 'SZSE:' + raw.slice(0, 6);
+      else if (/^\d{6}\.BJ$/i.test(raw)) raw = 'BSE:' + raw.slice(0, 6);
+      else if (/^\d{6}$/.test(raw)) {
+        raw = (raw.startsWith('6') || raw.startsWith('5') || raw.startsWith('9')) ? ('SSE:' + raw) : ('SZSE:' + raw);
+      }
       lastChartSymbol = raw;
       updateChartStyleButtons();
       if (chartStyle === 'full') loadFullTVChart(raw);
@@ -2049,6 +2262,144 @@ function loadFullTVChart(symbol) {
     // ==================== 板块（美股 / A股可切换） ====================
     let sectorMarket = 'us'; // us | cn
 
+    
+    // 美股三级：一级大类 → 二级细分 → 三级个股
+    const US_SECTOR_TREE = [
+      {
+        id: 'tech', name: '科技与电子', en: 'Technology',
+        children: [
+          { id: 'semi', name: '半导体与芯片', stocks: ['NVDA','TSM','AVGO','AMD','ASML','MU','QCOM','AMAT','LRCX','KLAC','INTC','SNDK'] },
+          { id: 'optical', name: '光模块', stocks: ['COHR','LITE','AAOI','CIEN','FN'] },
+          { id: 'hardware', name: 'IT硬件与设备', stocks: ['SMCI','DELL','ANET','HPQ','NTAP','WDC','STX'] },
+          { id: 'storage', name: '存储芯片', stocks: ['MU','WDC','STX','SNDK'] },
+          { id: 'datacenter', name: '数据中心', stocks: ['VRT','EQIX','DLR','ANET','SMCI','DELL'] },
+          { id: 'software', name: '软件与云计算', stocks: ['MSFT','ORCL','CRM','ADBE','NOW','SNOW','INTU'] },
+          { id: 'cyber', name: '网络安全', stocks: ['CRWD','PANW','ZS','FTNT','S'] }
+        ]
+      },
+      {
+        id: 'internet', name: '互联网与通信', en: 'Internet & Telecom',
+        children: [
+          { id: 'platform', name: '互联网平台', stocks: ['META','GOOGL','AMZN','NFLX','SHOP','UBER','BKNG'] },
+          { id: 'china_net', name: '中概互联网', stocks: ['BABA','PDD','JD','BIDU','TME','BILI'] },
+          { id: 'telecom', name: '电信与5G', stocks: ['T','VZ','TMUS','QCOM','ERIC','NOK','CSCO'] }
+        ]
+      },
+      {
+        id: 'mfg', name: '先进制造与工业', en: 'Industrials',
+        children: [
+          { id: 'ev', name: '新能源与汽车', stocks: ['TSLA','LI','NIO','XPEV','F','GM','RIVN'] },
+          { id: 'battery', name: '锂电池', stocks: ['ALB','SQM','TSLA','LCID'] },
+          { id: 'robot', name: '高端装备与机器人', stocks: ['ISRG','ROK','PATH','CGNX','GE','CAT'] },
+          { id: 'defense', name: '航天国防', stocks: ['LMT','RTX','BA','NOC','GD'] },
+          { id: 'logistics', name: '交运与物流', stocks: ['UPS','FDX','DAL','UAL','UNP','CSX'] }
+        ]
+      },
+      {
+        id: 'energy', name: '资源与能源', en: 'Energy & Materials',
+        children: [
+          { id: 'oil', name: '油气开采', stocks: ['XOM','CVX','COP','OXY','DVN','EOG'] },
+          { id: 'energy_eq', name: '能源设备', stocks: ['XLE','SLB','HAL','BKR'] },
+          { id: 'solar', name: '光伏与新能源', stocks: ['ENPH','FSLR','SEDG','RUN'] },
+          { id: 'metals', name: '有色与采矿', stocks: ['FCX','SCCO','NEM','GOLD','NUE'] },
+          { id: 'gold', name: '黄金股', stocks: ['NEM','GOLD','AEM','KGC'] }
+        ]
+      },
+      {
+        id: 'fin', name: '金融与商业服务', en: 'Financials',
+        children: [
+          { id: 'bank', name: '银行与资本市场', stocks: ['JPM','BAC','WFC','C','GS','MS'] },
+          { id: 'asset', name: '资管与券商', stocks: ['BLK','SCHW','BX','KKR'] },
+          { id: 'fintech', name: '金融科技与支付', stocks: ['V','MA','PYPL','SQ','COIN','HOOD'] }
+        ]
+      },
+      {
+        id: 'health', name: '医疗与大健康', en: 'Healthcare',
+        children: [
+          { id: 'biopharma', name: '生物医药', stocks: ['LLY','NVO','MRNA','PFE','JNJ','ABBV','MRK'] },
+          { id: 'biotech', name: '生物科技', stocks: ['VRTX','REGN','GILD','AMGN','BIIB'] },
+          { id: 'device', name: '医疗器械与服务', stocks: ['ISRG','TMO','ABT','UNH','ISRG'] }
+        ]
+      },
+      {
+        id: 'consumer', name: '大消费与地产', en: 'Consumer & RE',
+        children: [
+          { id: 'staples', name: '日常消费', stocks: ['PG','KO','PEP','COST','WMT','PM'] },
+          { id: 'discretionary', name: '可选消费', stocks: ['AMZN','HD','MCD','NKE','SBUX','LOW'] },
+          { id: 'reit', name: '地产与数据中心REIT', stocks: ['EQIX','DLR','PLD','AMT','SPG','O'] }
+        ]
+      }
+    ];
+
+    let usSectorL1 = null; // 当前一级 id
+    let usSectorView = 'l1'; // l1 | l2
+
+    // A股三级：一级大类 → 二级申万/东财风格 → 三级成分股
+    const CN_SECTOR_TREE = [
+      {
+        id: 'cn_tech', name: '科技与技术', en: 'Tech',
+        children: [
+          { id: 'elec', name: '电子', board: 'BK1201', match: ['电子'], tips: '半导体芯片 · 苹果/手机链 · 面板' },
+          { id: 'computer', name: '计算机', board: 'BK1207', match: ['计算机'], tips: '软件 · AI算力 · 网络安全 · IT服务' },
+          { id: 'telecom', name: '通信', board: 'BK1215', match: ['通信'], tips: '5G/6G · 光模块 · 运营商' },
+          { id: 'media', name: '传媒', board: 'BK0486', match: ['传媒'], tips: '游戏 · 影视 · 广告 · 数字出版' }
+        ]
+      },
+      {
+        id: 'cn_mfg', name: '制造与重工', en: 'Manufacturing',
+        children: [
+          { id: 'power', name: '电力设备', board: 'BK1200', match: ['电力设备'], tips: '光伏 · 风电 · 锂电池 · 储能 · 电网' },
+          { id: 'machine', name: '机械设备', board: 'BK1205', match: ['机械设备'], tips: '机器人 · 工业母机 · 工程机械' },
+          { id: 'auto', name: '汽车', board: 'BK1211', match: ['汽车'], tips: '新能源车 · 整车 · 零部件' },
+          { id: 'defense', name: '国防军工', board: 'BK1204', match: ['国防军工'], tips: '航天 · 航空 · 兵器 · 船舶' },
+          { id: 'build', name: '建筑装饰', board: 'BK1209', match: ['建筑装饰'], tips: '基建 · 装修' },
+          { id: 'bmat', name: '建筑材料', board: 'BK1208', match: ['建筑材料'], tips: '水泥 · 玻璃' },
+          { id: 'light', name: '轻工制造', board: 'BK1212', match: ['轻工制造'], tips: '造纸 · 家居' }
+        ]
+      },
+      {
+        id: 'cn_cons', name: '消费与医疗', en: 'Consumer & Health',
+        children: [
+          { id: 'food', name: '食品饮料', board: 'BK0438', match: ['食品饮料'], tips: '白酒 · 啤酒 · 调味品 · 零食' },
+          { id: 'pharma', name: '医药生物', board: 'BK1216', match: ['医药生物'], tips: '创新药 · 器械 · 中药 · CXO' },
+          { id: 'appliance', name: '家用电器', board: 'BK0456', match: ['家用电器'], tips: '白电 · 黑电 · 小家电' },
+          { id: 'beauty', name: '美容护理', board: 'BK1035', match: ['美容护理'], tips: '医美 · 化妆品' },
+          { id: 'retail', name: '商贸零售', board: 'BK1213', match: ['商贸零售'], tips: '零售 · 免税' },
+          { id: 'textile', name: '纺织服饰', board: 'BK0436', match: ['纺织服饰'], tips: '服装 · 纺织' },
+          { id: 'service', name: '社会服务', board: 'BK1214', match: ['社会服务'], tips: '酒店 · 旅游 · 餐饮' }
+        ]
+      },
+      {
+        id: 'cn_res', name: '基础资源', en: 'Resources',
+        children: [
+          { id: 'metal', name: '有色金属', board: 'BK0478', match: ['有色金属'], tips: '铜 · 铝 · 锂 · 钴 · 稀土 · 黄金' },
+          { id: 'coal', name: '煤炭', board: 'BK0437', match: ['煤炭'], tips: '动力煤 · 焦煤' },
+          { id: 'oil', name: '石油石化', board: 'BK0464', match: ['石油石化'], tips: '油气 · 炼化' },
+          { id: 'chem', name: '基础化工', board: 'BK1206', match: ['基础化工'], tips: '磷化工 · 氟化工 · 有机硅' },
+          { id: 'steel', name: '钢铁', board: 'BK0479', match: ['钢铁'], tips: '普钢 · 特钢' },
+          { id: 'env', name: '环保', board: 'BK0728', match: ['环保'], tips: '环保设备 · 治理' },
+          { id: 'agri', name: '农林牧渔', board: 'BK0433', match: ['农林牧渔'], tips: '养殖 · 种子 · 饲料' }
+        ]
+      },
+      {
+        id: 'cn_fin', name: '金融地产与服务', en: 'Financials & Services',
+        children: [
+          { id: 'bank', name: '银行', board: 'BK1283', match: ['银行'], tips: '大行 · 股份行 · 城商行' },
+          { id: 'nonbank', name: '非银金融', board: 'BK1203', match: ['非银金融'], tips: '券商 · 保险 · 信托' },
+          { id: 'property', name: '房地产', board: 'BK1202', match: ['房地产'], tips: '开发 · 物业' },
+          { id: 'transport', name: '交通运输', board: 'BK1210', match: ['交通运输'], tips: '航运 · 航空 · 铁路 · 快递' },
+          { id: 'utility', name: '公用事业', board: 'BK0427', match: ['公用事业'], tips: '火电 · 核电 · 水务 · 天然气' }
+        ]
+      }
+    ];
+
+    let cnSectorL1 = null;
+    let cnSectorView = 'l1';
+    let cnBoardCache = null; // 全量行业+概念缓存
+
+
+
+
     const US_SECTOR_ETFS = [
       { symbol: 'XLK', name: '科技', stocks: ['AAPL','MSFT','NVDA','AVGO','CRM','ADBE','ORCL','CSCO'] },
       { symbol: 'SMH', name: '半导体', stocks: ['NVDA','TSM','AVGO','AMD','ASML','QCOM','TXN','MU','INTC','AMAT','LRCX','KLAC'] },
@@ -2080,6 +2431,11 @@ function loadFullTVChart(symbol) {
       { symbol: 'SKYY', name: '云计算', stocks: ['MSFT','AMZN','GOOGL','ORCL','CRM','SNOW'] },
       { symbol: 'IBB', name: '生物医药', stocks: ['VRTX','GILD','AMGN','REGN','MRNA'] },
       { symbol: 'XME', name: '金属矿产', stocks: ['FCX','NEM','NUE','STLD','X'] },
+      { symbol: 'COHR', name: '光模块', stocks: ['COHR','LITE','AAOI','CIEN','FN'] },
+      { symbol: 'VRT', name: '数据中心', stocks: ['VRT','EQIX','DLR','ANET','SMCI','DELL'] },
+      { symbol: 'MU', name: '存储芯片', stocks: ['MU','WDC','STX','SNDK'] },
+      { symbol: 'SOXX', name: '半导体SOX', stocks: ['NVDA','AVGO','AMD','QCOM','MU','TSM','AMAT','LRCX'] },
+      { symbol: 'QTUM', name: '量子与AI算力', stocks: ['NVDA','AMD','GOOGL','MSFT','IBM'] },
     ];
 
     const US_SECTOR_STOCKS = {
@@ -2105,7 +2461,13 @@ function loadFullTVChart(symbol) {
       'LIT':  ['ALB','SQM','TSLA'],
       'GDX':  ['NEM','GOLD','AEM','KGC'],
 
-    };
+    
+      'COHR': ['COHR','LITE','AAOI','CIEN','FN'],
+      'VRT':  ['VRT','EQIX','DLR','ANET','SMCI','DELL'],
+      'MU':   ['MU','WDC','STX','SNDK'],
+      'SOXX': ['NVDA','AVGO','AMD','QCOM','MU','TSM','AMAT','LRCX'],
+      'QTUM': ['NVDA','AMD','GOOGL','MSFT','IBM'],
+};
 
     // A股常见行业对应代表性股票（简化）
     const CN_SECTOR_STOCKS = {
@@ -2136,6 +2498,11 @@ const FALLBACK_SECTORS = {
 
     function switchSectorMarket(m) {
       sectorMarket = m;
+      usSectorView = 'l1';
+      usSectorL1 = null;
+      cnSectorView = 'l1';
+      cnSectorL1 = null;
+      cnBoardCache = null;
       const usBtn = document.getElementById('sectorTabUS');
       const cnBtn = document.getElementById('sectorTabCN');
       if (usBtn && cnBtn) {
@@ -2165,12 +2532,21 @@ const FALLBACK_SECTORS = {
         if (sectorMarket === 'us' && sym) {
           click = `onclick="openSectorStocks('${sym}','${safeName}')"`;
         } else if (sectorMarket === 'cn') {
-          // A股：用板块 BK 代码拉成分股
           click = `onclick="openCNSectorStocks('${board}','${safeName}')"`;
         }
         const cls = up ? 'up' : 'down';
         const chgText = (s.chg >= 0 ? '+' : '') + Number(s.chg).toFixed(2) + '%';
-        return `<div class="sector-card ${cls}" ${click} style="${click ? 'cursor:pointer;' : ''}"><div class="s-name">${s.name}</div><div class="s-chg">${chgText}</div></div>`;
+        // 成分股数量小标签
+        let cnt = 0;
+        if (sectorMarket === 'us' && sym) {
+          const etf = (typeof US_SECTOR_ETFS !== 'undefined') && US_SECTOR_ETFS.find(x => x.symbol === sym);
+          if (etf && etf.stocks) cnt = etf.stocks.length;
+          else if (typeof US_SECTOR_STOCKS !== 'undefined' && US_SECTOR_STOCKS[sym]) cnt = US_SECTOR_STOCKS[sym].length;
+        } else if (s.count) {
+          cnt = s.count;
+        }
+        const badge = cnt > 0 ? `<span class="s-badge">${cnt}</span>` : '';
+        return `<div class="sector-card ${cls}" ${click} style="${click ? 'cursor:pointer;' : ''}">${badge}<div class="s-name">${s.name}</div><div class="s-chg">${chgText}</div></div>`;
       };
       const upHtml = (upList || []).slice(0, 50).map(s => makeCard(s, true)).join('');
       const downHtml = (downList || []).slice(0, 50).map(s => makeCard(s, false)).join('');
@@ -2192,46 +2568,304 @@ const FALLBACK_SECTORS = {
       if (note) note.textContent = sourceNote || '';
     }
 
-    async function loadUSSectors() {
-      // 并行拉取，全部展示（失败也保留，涨跌记为 0）
-      const results = await Promise.all(US_SECTOR_ETFS.map(async (item) => {
+    
+    async function avgStocksChg(symbols) {
+      if (!symbols || !symbols.length) return { chg: 0, n: 0 };
+      let sum = 0, n = 0;
+      const slice = symbols.slice(0, 3); // 少取几只，加快板块页
+      const tasks = slice.map(async function (sym) {
         try {
-          let q = quoteCache[item.symbol];
+          let q = quoteCache[sym];
           if (!q) {
-            q = await fetchQuote(item.symbol);
-            if (q) quoteCache[item.symbol] = q;
+            q = await Promise.race([
+              fetchQuote(sym),
+              new Promise(function (resolve) { setTimeout(function () { resolve(null); }, 1800); })
+            ]);
+            if (q) quoteCache[sym] = q;
           }
-          const chg = (q && typeof q.dp === 'number' && !isNaN(q.dp)) ? q.dp : 0;
-          return { name: item.name + ' (' + item.symbol + ')', chg, symbol: item.symbol };
-        } catch (e) {
-          return { name: item.name + ' (' + item.symbol + ')', chg: 0, symbol: item.symbol };
-        }
-      }));
-      if (!results.length) {
-        renderSectors(FALLBACK_SECTORS.up, FALLBACK_SECTORS.down, '美股板块暂不可用，显示参考数据');
-        return;
-      }
-      const up = results.filter(x => x.chg > 0).sort((a, b) => b.chg - a.chg);
-      const down = results.filter(x => x.chg < 0).sort((a, b) => a.chg - b.chg);
-      const flat = results.filter(x => x.chg === 0);
-      // 平盘的附在上涨区后面，保证都能看到
-      renderSectors(up.concat(flat), down, '美股行业ETF实时涨跌（Finnhub · 共' + results.length + '个）');
+          if (q && typeof q.dp === 'number' && !isNaN(q.dp)) {
+            sum += q.dp;
+            n++;
+          }
+        } catch (e) {}
+      });
+      await Promise.race([
+        Promise.all(tasks),
+        new Promise(function (resolve) { setTimeout(resolve, 2500); })
+      ]);
+      return { chg: n ? sum / n : 0, n: n };
     }
 
-    async function fetchCNSectorList(po) {
-      // po=1 涨幅从高到低；po=0 跌幅从深到浅
-      const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=120&po=' + po + '&np=1&fltt=2&invt=2&fid=f3&fs=m:90+t:2&fields=f12,f14,f3,f104,f105&_=' + Date.now();
+    
+    async function loadSectors() {
+      const container = document.getElementById('sectorContent');
+      if (container) {
+        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载板块数据中...</div>';
+      }
+      try {
+        if (typeof sectorMarket === 'undefined' || !sectorMarket) sectorMarket = 'us';
+        if (sectorMarket === 'cn') {
+          await loadCNSectors();
+        } else {
+          await loadUSSectors();
+        }
+      } catch (e) {
+        console.warn('loadSectors', e);
+        if (container) {
+          container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载失败，请点刷新重试</div>';
+        }
+      }
+    }
+
+    async function loadUSSectors() {
+      usSectorView = 'l1';
+      usSectorL1 = null;
+      cnSectorView = 'l1';
+      cnSectorL1 = null;
+      cnBoardCache = null;
+      await renderUSSectorL1();
+    }
+
+    function paintUSSectorL1Cards(cards) {
+      const container = document.getElementById('sectorContent');
+      if (!container) return;
+      const up = cards.filter(function (x) { return x.chg > 0; }).sort(function (a, b) { return b.chg - a.chg; });
+      const down = cards.filter(function (x) { return x.chg < 0; }).sort(function (a, b) { return a.chg - b.chg; });
+      const flat = cards.filter(function (x) { return x.chg === 0; });
+      function cardHtml(s) {
+        const cls = s.chg > 0 ? 'up' : (s.chg < 0 ? 'down' : 'up');
+        const chgText = (s.chg >= 0 ? '+' : '') + Number(s.chg).toFixed(2) + '%';
+        const chgCls = s.chg >= 0 ? 'up' : 'down';
+        return '<div class="l1-card sector-card ' + cls + '" onclick="openUSSectorL1(\'' + s.id + '\')">' +
+          '<span class="s-badge">' + s.count + '</span>' +
+          '<div class="l1-name">' + s.name + '</div>' +
+          '<div class="l1-en"><span>' + s.en + '</span><span class="sub-tag">' + s.subCount + ' 个细分</span></div>' +
+          '<div class="l1-meta"><span class="' + chgCls + '" style="font-family:var(--font-num);font-weight:700;">' + chgText + '</span></div></div>';
+      }
+      let html = '';
+      if (up.length || flat.length) {
+        html += '<div class="sector-group"><h3><span style="color:var(--green)">●</span> 上涨 / 平盘大类</h3><div class="l1-grid">';
+        html += up.concat(flat).map(cardHtml).join('') + '</div></div>';
+      }
+      if (down.length) {
+        html += '<div class="sector-group"><h3><span style="color:var(--red)">●</span> 下跌大类</h3><div class="l1-grid">';
+        html += down.map(cardHtml).join('') + '</div></div>';
+      }
+      if (!html) html = '<div style="color:var(--muted);text-align:center;padding:20px;">暂无数据</div>';
+      container.innerHTML = html;
+      const note = document.getElementById('sectorNote');
+      if (note) note.textContent = '一级角标=大类成分股总数 · 二级角标=该产业成分股数 · 系统返回逐层回退';
+    }
+
+    async function renderUSSectorL1() {
+      const container = document.getElementById('sectorContent');
+      if (!container) return;
+      usSectorView = 'l1';
+      // 先立刻画出结构（不阻塞），再补涨跌
+      const baseCards = US_SECTOR_TREE.map(function (l1) {
+        let all = [];
+        l1.children.forEach(function (c) { all = all.concat(c.stocks || []); });
+        all = Array.from(new Set(all));
+        return {
+          id: l1.id,
+          name: l1.name,
+          en: l1.en,
+          chg: 0,
+          count: all.length,
+          subCount: l1.children.length,
+          _syms: all.slice(0, 3)
+        };
+      });
+      paintUSSectorL1Cards(baseCards);
+
+      const cards = await Promise.all(baseCards.map(async function (card) {
+        let avg = { chg: 0 };
+        try { avg = await avgStocksChg(card._syms || []); } catch (e) {}
+        return {
+          id: card.id,
+          name: card.name,
+          en: card.en,
+          chg: avg.chg || 0,
+          count: card.count,
+          subCount: card.subCount
+        };
+      }));
+      paintUSSectorL1Cards(cards);
+    }
+
+    async function openUSSectorL1(id, isRestore) {
+      const l1 = US_SECTOR_TREE.find(function (x) { return x.id === id; });
+      if (!l1) return;
+      usSectorL1 = id;
+      usSectorView = 'l2';
+      if (!isRestore) {
+        try { history.pushState({ usSectorL1: id }, ''); } catch (e) {}
+      }
+      const container = document.getElementById('sectorContent');
+      if (!container) return;
+      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载细分行业...</div>';
+
+      const rows = [];
+      for (let i = 0; i < l1.children.length; i++) {
+        const c = l1.children[i];
+        const avg = await avgStocksChg(c.stocks || []);
+        rows.push({
+          id: c.id,
+          name: c.name,
+          stocks: c.stocks || [],
+          chg: avg.chg,
+          count: (c.stocks || []).length
+        });
+      }
+      const up = rows.filter(function (x) { return x.chg > 0; }).sort(function (a, b) { return b.chg - a.chg; });
+      const down = rows.filter(function (x) { return x.chg < 0; }).sort(function (a, b) { return a.chg - b.chg; });
+      const flat = rows.filter(function (x) { return x.chg === 0; });
+
+      function cardHtml(s) {
+        const cls = s.chg >= 0 ? 'up' : 'down';
+        const chgText = (s.chg >= 0 ? '+' : '') + Number(s.chg).toFixed(2) + '%';
+        const safe = String(s.name).replace(/'/g, '');
+        return '<div class="sector-card ' + cls + '" style="cursor:pointer;position:relative;" onclick="openUSSectorL2(\'' + l1.id + '\',\'' + s.id + '\')">' +
+          '<span class="s-badge">' + s.count + '</span>' +
+          '<div class="s-name">' + s.name + '</div>' +
+          '<div class="s-chg">' + chgText + '</div></div>';
+      }
+
+      let html = '<div class="l2-head">' +
+        '<button type="button" class="back-mini" onclick="renderUSSectorL1()">← 大类</button>' +
+        '<span class="l2-title">' + l1.name + '</span></div>';
+      if (up.length || flat.length) {
+        html += '<div class="sector-group"><h3><span style="color:var(--green)">●</span> 上涨细分</h3><div class="sector-cards">';
+        html += up.concat(flat).map(cardHtml).join('') + '</div></div>';
+      }
+      if (down.length) {
+        html += '<div class="sector-group"><h3><span style="color:var(--red)">●</span> 下跌细分</h3><div class="sector-cards">';
+        html += down.map(cardHtml).join('') + '</div></div>';
+      }
+      container.innerHTML = html;
+    }
+
+    async function openUSSectorL2(l1id, l2id, isRestore) {
+      const l1 = US_SECTOR_TREE.find(function (x) { return x.id === l1id; });
+      if (!l1) return;
+      const l2 = l1.children.find(function (x) { return x.id === l2id; });
+      if (!l2) return;
+      if (!isRestore && typeof pushDetailHistory === 'function') {
+        pushDetailHistory({ type: 'us-sector-l2', l1: l1id, l2: l2id });
+      }
+      const symbols = l2.stocks || [];
+      const overlay = document.getElementById('detailOverlay');
+      const drawer = document.getElementById('detailDrawer');
+      document.getElementById('detailSymbol').textContent = l2.name;
+      document.getElementById('detailPrice').textContent = '成分股';
+      document.getElementById('detailChg').textContent = l1.name + ' · ' + symbols.length + ' 只';
+      document.getElementById('detailChg').className = 'detail-chg flat';
+      document.getElementById('detailGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:12px;">加载行情...</div>';
+      const chartWrap = document.querySelector('.chart-wrap');
+      if (chartWrap) chartWrap.style.display = 'none';
+      if (overlay) overlay.classList.add('show');
+      if (drawer) drawer.classList.add('show');
+
+      let html = '';
+      let upCnt = 0, downCnt = 0;
+      for (let i = 0; i < symbols.length; i++) {
+        const sym = symbols[i];
+        try {
+          let q = quoteCache[sym] || await fetchQuote(sym);
+          if (q) quoteCache[sym] = q;
+          const price = q && q.c != null ? Number(q.c).toFixed(2) : '--';
+          const dp = q ? q.dp : null;
+          if (dp > 0) upCnt++; else if (dp < 0) downCnt++;
+          let cn = '';
+          if (typeof STOCK_SEARCH !== 'undefined') {
+            const hit = STOCK_SEARCH.find(function (x) { return x.s === sym; });
+            if (hit) cn = hit.cn;
+          }
+          if (!cn && typeof STOCK_CN_NAMES !== 'undefined') cn = STOCK_CN_NAMES[sym] || '';
+          html += '<div class="detail-stat" style="cursor:pointer;" onclick="openDetail(\'' + sym + '\')">' +
+            '<div class="label">' + sym + (cn ? ' <span style="color:var(--muted);font-weight:400;">' + cn + '</span>' : '') + '</div>' +
+            '<div class="val">' + price + ' <span class="' + (typeof chgClass === 'function' ? chgClass(dp) : '') + '" style="font-size:0.8rem;">' +
+            (typeof formatChg === 'function' ? formatChg(dp) : '') + '</span></div></div>';
+        } catch (e) {
+          html += '<div class="detail-stat"><div class="label">' + sym + '</div><div class="val">--</div></div>';
+        }
+      }
+      try {
+        var upTri = '<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid var(--green);vertical-align:middle;margin-right:3px;"></span>';
+        var downTri = '<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid var(--red);vertical-align:middle;margin-right:3px;"></span>';
+        document.getElementById('detailChg').innerHTML =
+          l1.name + ' · 共' + symbols.length + '只 · ' +
+          '<span style="white-space:nowrap;">' + upTri + '<span style="color:var(--green);font-weight:700;">' + upCnt + '</span></span>' +
+          ' <span style="white-space:nowrap;">' + downTri + '<span style="color:var(--red);font-weight:700;">' + downCnt + '</span></span>';
+      } catch (e) {}
+      document.getElementById('detailGrid').innerHTML = html || '<div style="grid-column:1/-1;color:var(--muted);">暂无标的</div>';
+    }
+
+
+    async function fetchWithTimeoutSimple(url, ms) {
+      ms = ms || 6000;
+      try {
+        if (typeof AbortController === 'undefined') {
+          return await Promise.race([
+            fetch(url, { cache: 'no-store' }),
+            new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, ms); })
+          ]);
+        }
+        const ctrl = new AbortController();
+        const t = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, ms);
+        try {
+          const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+          clearTimeout(t);
+          return res;
+        } catch (e) {
+          clearTimeout(t);
+          throw e;
+        }
+      } catch (e) { throw e; }
+    }
+
+        async function fetchCNSectorList(po) {
+      async function page(pn) {
+        const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=' + pn + '&pz=100&po=' + po + '&np=1&fltt=2&invt=2&fid=f3&fs=m:90+t:2&fields=f12,f14,f3,f104,f105&_=' + Date.now();
+        const proxies = [];
+        if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
+          proxies.push(WORKER_BASE + '?url=' + encodeURIComponent(url));
+        }
+        proxies.push(url);
+        for (let i = 0; i < proxies.length; i++) {
+          try {
+            const res = await (typeof fetchWithTimeoutSimple === 'function' ? fetchWithTimeoutSimple(proxies[i], 4000) : fetch(proxies[i]));
+            if (!res || !res.ok) continue;
+            let data = await res.json();
+            if (data && data.contents) { try { data = JSON.parse(data.contents); } catch (e) {} }
+            const diff = data && data.data && data.data.diff;
+            if (Array.isArray(diff) && diff.length) return diff;
+          } catch (e) {}
+        }
+        return [];
+      }
+      // 两页并行即可覆盖主要行业
+      const pages = await Promise.all([page(1), page(2)]);
+      const map = new Map();
+      pages.forEach(function (diff) {
+        (diff || []).forEach(function (it) { if (it && it.f12) map.set(it.f12, it); });
+      });
+      const merged = Array.from(map.values());
+      return merged.length ? merged : null;
+    }
+
+async function fetchCNConceptList(po) {
+      const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=150&po=' + po + '&np=1&fltt=2&invt=2&fid=f3&fs=m:90+t:3&fields=f12,f14,f3,f104,f105&_=' + Date.now();
       const proxies = [];
       if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
         proxies.push(WORKER_BASE + '?url=' + encodeURIComponent(url));
       }
       proxies.push(url);
-      proxies.push('https://corsproxy.io/?' + encodeURIComponent(url));
       proxies.push('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
-      for (const u of proxies) {
+      for (let i = 0; i < proxies.length; i++) {
         try {
-          const res = await fetch(u);
-          if (!res.ok) continue;
+          const res = await fetchWithTimeoutSimple(proxies[i], 5500);
+          if (!res || !res.ok) continue;
           let data = await res.json();
           if (data && data.contents) {
             try { data = JSON.parse(data.contents); } catch (e) {}
@@ -2239,189 +2873,358 @@ const FALLBACK_SECTORS = {
           const diff = data && data.data && data.data.diff;
           if (Array.isArray(diff) && diff.length > 0) return diff;
         } catch (e) {
-          console.warn('cn sector fail', e);
+          console.warn('cn concept fail', e && e.message);
         }
       }
       return null;
     }
 
-    async function loadCNSectors() {
-      // 同时拉涨幅榜 + 跌幅榜，避免只有上涨、科技/下跌看不到
+    
+    
+    async function fetchCNBoardMeta(board) {
+      if (!board) return { count: 0, chg: 0 };
+      if (window.__cnBoardMeta && window.__cnBoardMeta[board]) return window.__cnBoardMeta[board];
+      try {
+        const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=1&po=1&np=1&fltt=2&invt=2&fid=f3&fs=b:' + board + '&fields=f12,f3&_=' + Date.now();
+        const proxies = [];
+        if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) proxies.push(WORKER_BASE + '?url=' + encodeURIComponent(url));
+        proxies.push(url);
+        for (let i = 0; i < proxies.length; i++) {
+          try {
+            const res = await (typeof fetchWithTimeoutSimple === 'function' ? fetchWithTimeoutSimple(proxies[i], 3500) : fetch(proxies[i]));
+            if (!res || !res.ok) continue;
+            let data = await res.json();
+            if (data && data.contents) { try { data = JSON.parse(data.contents); } catch (e) {} }
+            if (data && data.data) {
+              const total = Number(data.data.total) || 0;
+              let chg = 0;
+              const diff = data.data.diff;
+              if (Array.isArray(diff) && diff[0] && diff[0].f3 != null) chg = Number(diff[0].f3) || 0;
+              const meta = { count: total, chg: chg };
+              window.__cnBoardMeta = window.__cnBoardMeta || {};
+              window.__cnBoardMeta[board] = meta;
+              return meta;
+            }
+          } catch (e) {}
+        }
+      } catch (e) {}
+      return { count: 0, chg: 0 };
+    }
+
+    async function loadCNBoardUniverse() {
+      if (cnBoardCache && cnBoardCache.length) return cnBoardCache;
+      // 只拉行业榜（概念榜太慢且树已写死 BK），加速首屏
       const [upRaw, downRaw] = await Promise.all([
         fetchCNSectorList(1),
         fetchCNSectorList(0)
       ]);
-      if (!upRaw && !downRaw) {
-        renderSectors(FALLBACK_SECTORS.up, FALLBACK_SECTORS.down, 'A股实时接口暂不可用，显示参考数据');
-        return;
-      }
+      const upConcept = null, downConcept = null;
       const mapItem = (it) => ({
         name: it.f14 || it.f12 || '--',
         chg: Number(it.f3) || 0,
-        key: it.f14 || it.f12 || '',
-        board: it.f12 || ''
+        board: it.f12 || '',
+        count: (Number(it.f104) || 0) + (Number(it.f105) || 0)
       });
       const byBoard = new Map();
-      for (const it of (upRaw || []).concat(downRaw || [])) {
+      for (const it of (upRaw || []).concat(downRaw || []).concat(upConcept || []).concat(downConcept || [])) {
         const row = mapItem(it);
-        if (row.name === '--' || !row.board) continue;
+        if (!row.board || row.name === '--') continue;
+        // 过滤打板类
+        const n = row.name;
+        if (/昨日|打板|连板|一字|二板|三板|晋级|炸板|回封|空间板/.test(n)) continue;
+        if (/[IⅡⅢIV]{1,3}$/.test(n) || /\s+[II]+$/.test(n) || /[0-9]$/.test(n) && /设备|开采|环保/.test(n)) continue;
+        if (/油气开采|环保设备/.test(n) && /[IⅡⅢ1-9]/.test(n)) continue;
         if (!byBoard.has(row.board)) byBoard.set(row.board, row);
       }
-      const list = [...byBoard.values()];
-      let up = list.filter(x => x.chg > 0).sort((a, b) => b.chg - a.chg);
-      let down = list.filter(x => x.chg < 0).sort((a, b) => a.chg - b.chg);
-
-      // 若跌幅榜仍空，从涨幅榜数据里再筛一遍（有时 po=0 失败）
-      if (!down.length && upRaw) {
-        down = (upRaw || []).map(mapItem).filter(x => x.chg < 0 && x.name !== '--').sort((a, b) => a.chg - b.chg);
-      }
-
-      // 科技相关板块：若未进前排，尽量从全量结果里补进展示（上涨区末尾提示性保留前排逻辑在 render 截断）
-      const techKeys = ['半导体', '芯片', '软件', '计算机', '通信', '电子', '光刻', '消费电子', '印制电路', '元件', '人工智能', '算力', '服务器', '云计算', '互联网'];
-      const techList = list.filter(x => techKeys.some(k => (x.name || '').includes(k)));
-      // 把未出现在 up 前 8 的科技板块，按涨跌插入（涨的补进 up，跌的补进 down）
-      for (const t of techList) {
-        if (t.chg >= 0 && !up.find(x => x.board === t.board)) up.push(t);
-        if (t.chg < 0 && !down.find(x => x.board === t.board)) down.push(t);
-      }
-      up = up.sort((a, b) => b.chg - a.chg);
-      down = down.sort((a, b) => a.chg - b.chg);
-
-      renderSectors(up, down, '数据来自东方财富行业板块（涨幅榜+跌幅榜）');
+      // 确保树中写死的 BK 一定出现（即使不在涨跌榜前几页）
+      try {
+        CN_SECTOR_TREE.forEach(function (l1) {
+          (l1.children || []).forEach(function (c) {
+            if (c.board && !byBoard.has(c.board)) {
+              byBoard.set(c.board, { name: c.name, chg: 0, board: c.board, count: 0 });
+            }
+          });
+        });
+      } catch (e) {}
+      const arr = [...byBoard.values()];
+      if (arr.length) cnBoardCache = arr;
+      return arr;
     }
 
+    function matchCNBoards(matchKeys, universe) {
+      const keys = matchKeys || [];
+      const hits = [];
+      const seen = new Set();
+      for (const row of universe) {
+        const name = row.name || '';
+        for (const k of keys) {
+          if (name.indexOf(k) >= 0) {
+            if (!seen.has(row.board)) {
+              seen.add(row.board);
+              hits.push(row);
+            }
+            break;
+          }
+        }
+      }
+      return hits;
+    }
 
-    const STOCK_CN_NAMES = {
-      NVDA:'英伟达', TSM:'台积电', AVGO:'博通', AMD:'超威', ASML:'阿斯麦', QCOM:'高通',
-      MU:'美光', INTC:'英特尔', AMAT:'应用材料', TXN:'德州仪器', AAPL:'苹果', MSFT:'微软',
-      CRM:'Salesforce', ADBE:'Adobe', ORCL:'甲骨文', CSCO:'思科', JPM:'摩根大通',
-      BAC:'美国银行', WFC:'富国银行', GS:'高盛', MS:'摩根士丹利', C:'花旗', BLK:'贝莱德',
-      SCHW:'嘉信', XOM:'埃克森美孚', CVX:'雪佛龙', COP:'康菲', SLB:'斯伦贝谢', EOG:'EOG',
-      MPC:'马拉松石油', LLY:'礼来', UNH:'联合健康', JNJ:'强生', ABBV:'艾伯维', MRK:'默沙东',
-      TMO:'赛默飞', ABT:'雅培', PFE:'辉瑞', GE:'通用电气', CAT:'卡特彼勒', RTX:'雷神',
-      HON:'霍尼韦尔', UNP:'联合太平洋', BA:'波音', AMZN:'亚马逊', TSLA:'特斯拉', HD:'家得宝',
-      MCD:'麦当劳', NKE:'耐克', SBUX:'星巴克', PG:'宝洁', KO:'可口可乐', PEP:'百事',
-      COST:'好市多', WMT:'沃尔玛', META:'Meta', GOOGL:'谷歌', NFLX:'奈飞', DIS:'迪士尼',
-      PLD:'普洛斯', AMT:'美国电塔', NEE:'新纪元能源'
-    };
+    function aggCNHits(hits) {
+      if (!hits.length) return { chg: 0, count: 0, board: '', name: '', boards: [] };
+      let sum = 0, cnt = 0, stockN = 0;
+      hits.forEach(function (h) {
+        sum += h.chg;
+        cnt++;
+        stockN += (h.count || 0);
+      });
+      // 代表 board：涨跌绝对值最大的
+      const lead = hits.slice().sort(function (a, b) { return Math.abs(b.chg) - Math.abs(a.chg); })[0];
+      return {
+        chg: cnt ? sum / cnt : 0,
+        count: stockN || hits.length,
+        board: lead ? lead.board : '',
+        name: lead ? lead.name : '',
+        boards: hits
+      };
+    }
 
-    async function openSectorDetail(etfSymbol) {
-      const sector = US_SECTOR_ETFS.find(x => x.symbol === etfSymbol);
-      if (!sector || !sector.stocks || !sector.stocks.length) {
-        alert('该板块暂无成分股列表');
+    async function loadCNSectors() {
+      cnSectorView = 'l1';
+      cnSectorL1 = null;
+      await renderCNSectorL1();
+    }
+
+    async function renderCNSectorL1() {
+      const container = document.getElementById('sectorContent');
+      if (!container) return;
+      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载A股大类...</div>';
+      cnSectorView = 'l1';
+      let universe = [];
+      try {
+        universe = await loadCNBoardUniverse();
+      } catch (e) {
+        console.warn('cn universe', e);
+      }
+      if (!universe || !universe.length) {
+        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">A股板块加载失败，请点刷新重试<br/><span style="font-size:0.75rem;">网络或数据源暂时不可用</span></div>';
         return;
       }
 
-      const old = document.getElementById('sectorDetailPanel');
-      if (old) old.remove();
+      // 按每个二级固定 BK 取官方成分股总数再相加 = 一级角标（与点进二级看到的家数一致）
+      const cards = await Promise.all(CN_SECTOR_TREE.map(async function (l1) {
+        let stockTotal = 0;
+        let chgSum = 0, chgN = 0;
+        await Promise.all(l1.children.map(async function (c) {
+          let count = 0, chg = 0;
+          let lead = null;
+          if (c.board) lead = universe.find(function (h) { return h.board === c.board; });
+          if (!lead) lead = universe.find(function (h) { return h.name === c.name; });
+          if (lead) {
+            count = lead.count || 0;
+            chg = lead.chg || 0;
+          }
+          // 榜单里没有或家数为 0：直接问东财该板块 total
+          if (c.board && count <= 0) {
+            const meta = await fetchCNBoardMeta(c.board);
+            if (meta.count > 0) count = meta.count;
+            if (meta.chg) chg = meta.chg;
+          } else if (c.board && lead) {
+            // 有涨跌但家数可能用 f104+f105 偏小，仍用 total 校正
+            try {
+              const meta = await fetchCNBoardMeta(c.board);
+              if (meta.count > count) count = meta.count;
+            } catch (e) {}
+          }
+          stockTotal += count;
+          if (typeof chg === 'number') { chgSum += chg; chgN++; }
+        }));
+        return {
+          id: l1.id,
+          name: l1.name,
+          en: l1.en,
+          chg: chgN ? (chgSum / chgN) : 0,
+          count: stockTotal,
+          boardCount: l1.children.length,
+          subCount: l1.children.length
+        };
+      }));
 
-      const panel = document.createElement('div');
-      panel.className = 'sector-detail';
-      panel.id = 'sectorDetailPanel';
-      panel.innerHTML = `
-        <div class="sd-header">
-          <div class="sd-title">${sector.name} (${etfSymbol}) · 相关个股</div>
-          <button class="sd-close" onclick="document.getElementById('sectorDetailPanel').remove()">×</button>
-        </div>
-        <div id="sectorStockList"><div style="text-align:center;color:var(--muted);padding:16px 0;font-size:0.85rem;">加载中...</div></div>
-      `;
+      const up = cards.filter(function (x) { return x.chg > 0; }).sort(function (a, b) { return b.chg - a.chg; });
+      const down = cards.filter(function (x) { return x.chg < 0; }).sort(function (a, b) { return a.chg - b.chg; });
+      const flat = cards.filter(function (x) { return x.chg === 0; });
 
-      const container = document.getElementById('sectorContent');
-      if (container) container.insertBefore(panel, container.firstChild);
-      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      function cardHtml(s) {
+        const cls = s.chg >= 0 ? 'up' : 'down';
+        const chgText = (s.chg >= 0 ? '+' : '') + Number(s.chg).toFixed(2) + '%';
+        return '<div class="l1-card sector-card ' + cls + '" onclick="openCNSectorL1(\'' + s.id + '\')">' +
+          '<span class="s-badge">' + s.count + '</span>' +
+          '<div class="l1-name">' + s.name + '</div>' +
+          '<div class="l1-en"><span>' + s.en + '</span><span class="sub-tag">' + s.subCount + ' 个细分</span></div>' +
+          '<div class="l1-meta"><span class="' + cls + '" style="font-family:var(--font-num);font-weight:700;">' + chgText + '</span></div></div>';
+      }
 
       let html = '';
-      for (const sym of sector.stocks) {
-        let q = quoteCache[sym];
-        if (!q) {
-          q = await fetchQuote(sym);
-          if (q) quoteCache[sym] = q;
-        }
-        const price = q && q.c ? Number(q.c).toFixed(2) : '--';
-        const dp = q ? q.dp : null;
-        const cnName = STOCK_CN_NAMES[sym] || '';
-        html += `
-          <div class="sector-stock" onclick="openDetail('${sym}')" style="cursor:pointer;">
-            <div class="ss-left">
-              <div class="ss-sym">${sym}</div>
-              <div class="ss-name">${cnName || '点击查看详情'}</div>
-            </div>
-            <div class="ss-right">
-              <div class="ss-price">${price}</div>
-              <div class="ss-chg ${chgClass(dp)}">${formatChg(dp)}</div>
-            </div>
-          </div>
-        `;
-        await new Promise(r => setTimeout(r, 100));
+      if (up.length || flat.length) {
+        html += '<div class="sector-group"><h3><span style="color:var(--green)">●</span> 上涨 / 平盘大类</h3><div class="l1-grid">';
+        html += up.concat(flat).map(cardHtml).join('') + '</div></div>';
       }
-      const listEl = document.getElementById('sectorStockList');
-      if (listEl) listEl.innerHTML = html || '<div style="color:var(--muted);font-size:0.85rem;">暂无数据</div>';
+      if (down.length) {
+        html += '<div class="sector-group"><h3><span style="color:var(--red)">●</span> 下跌大类</h3><div class="l1-grid">';
+        html += down.map(cardHtml).join('') + '</div></div>';
+      }
+      if (!html) html = '<div style="color:var(--muted);text-align:center;padding:20px;">暂无数据，请刷新</div>';
+      container.innerHTML = html;
+      const note = document.getElementById('sectorNote');
+      if (note) note.textContent = '';
     }
 
-
-    async function loadSectors() {
+    async function openCNSectorL1(id, isRestore) {
+      const l1 = CN_SECTOR_TREE.find(function (x) { return x.id === id; });
+      if (!l1) return;
+      cnSectorL1 = id;
+      cnSectorView = 'l2';
+      if (!isRestore) {
+        try { history.pushState({ cnSectorL1: id }, ''); } catch (e) {}
+      }
       const container = document.getElementById('sectorContent');
-      if (container) container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载板块数据中...</div>';
-      if (sectorMarket === 'us') {
-        await loadUSSectors();
-      } else {
-        await loadCNSectors();
+      if (!container) return;
+      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载细分...</div>';
+      const universe = await loadCNBoardUniverse();
+
+      const rows = await Promise.all(l1.children.map(async function (c) {
+        let lead = null;
+        if (c.board) {
+          lead = universe.find(function (h) { return h.board === c.board; }) || null;
+        }
+        if (!lead) {
+          lead = universe.find(function (h) { return h.name === c.name; }) || null;
+        }
+        if (!lead) {
+          const hits = matchCNBoards(c.match || [c.name], universe, [c.name]);
+          lead = hits[0] || null;
+        }
+        let count = lead && lead.count ? lead.count : 0;
+        let chg = lead ? lead.chg : 0;
+        const board = c.board || (lead && lead.board) || '';
+        if (board) {
+          try {
+            const meta = await fetchCNBoardMeta(board);
+            if (meta.count > 0) count = meta.count;
+            // 板块涨跌仍优先用行业榜
+            if (!lead && meta.chg) chg = meta.chg;
+          } catch (e) {}
+        }
+        return {
+          id: c.id,
+          name: c.name,
+          tips: c.tips || '',
+          chg: chg,
+          count: count,
+          board: board,
+          boards: lead ? [lead] : []
+        };
+      }));
+
+      // 对没有涨跌/家数的板块，用成分股接口读 total 和简单涨跌
+      await Promise.all(rows.map(async function (r) {
+        if (!r.board) return;
+        if (r.count > 0 && r.chg !== 0) return;
+        try {
+          const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=3&po=1&np=1&fltt=2&invt=2&fid=f3&fs=b:' + r.board + '&fields=f12,f14,f2,f3&_=' + Date.now();
+          const u = (typeof WORKER_BASE !== 'undefined' && WORKER_BASE)
+            ? WORKER_BASE + '?url=' + encodeURIComponent(url) : url;
+          const res = await (typeof fetchWithTimeoutSimple === 'function' ? fetchWithTimeoutSimple(u, 3000) : fetch(u));
+          if (!res || !res.ok) return;
+          let data = await res.json();
+          if (data && data.contents) { try { data = JSON.parse(data.contents); } catch (e) {} }
+          if (data && data.data) {
+            if (data.data.total) r.count = data.data.total;
+            const diff = data.data.diff || [];
+            if (diff.length) {
+              let sum = 0, n = 0;
+              diff.forEach(function (it) {
+                if (it.f3 != null) { sum += Number(it.f3); n++; }
+              });
+              if (n) r.chg = sum / n;
+            }
+          }
+        } catch (e) {}
+      }));
+
+      // 缓存二级命中，供三级打开
+      window.__cnL2Cache = window.__cnL2Cache || {};
+      rows.forEach(function (r) {
+        window.__cnL2Cache[l1.id + ':' + r.id] = r;
+      });
+
+      const up = rows.filter(function (x) { return x.chg > 0; }).sort(function (a, b) { return b.chg - a.chg; });
+      const down = rows.filter(function (x) { return x.chg < 0; }).sort(function (a, b) { return a.chg - b.chg; });
+      const flat = rows.filter(function (x) { return x.chg === 0; });
+
+      function cardHtml(s) {
+        const cls = s.chg >= 0 ? 'up' : 'down';
+        const chgText = (s.chg >= 0 ? '+' : '') + Number(s.chg).toFixed(2) + '%';
+        const badge = s.count > 0 ? s.count : '-';
+        const tips = s.tips ? '<div style="font-size:0.65rem;color:var(--muted);margin-top:4px;line-height:1.3;">' + s.tips + '</div>' : '';
+        return '<div class="sector-card ' + cls + '" style="cursor:pointer;position:relative;text-align:left;" onclick="openCNSectorL2(\'' + l1.id + '\',\'' + s.id + '\')">' +
+          '<span class="s-badge">' + badge + '</span>' +
+          '<div class="s-name">' + s.name + '</div>' + tips +
+          '<div class="s-chg">' + chgText + '</div></div>';
       }
+
+      let html = '<div class="l2-head">' +
+        '<button type="button" class="back-mini" onclick="renderCNSectorL1()">← 大类</button>' +
+        '<span class="l2-title">' + l1.name + '</span></div>';
+      if (up.length || flat.length) {
+        html += '<div class="sector-group"><h3><span style="color:var(--green)">●</span> 上涨细分</h3><div class="sector-cards">';
+        html += up.concat(flat).map(cardHtml).join('') + '</div></div>';
+      }
+      if (down.length) {
+        html += '<div class="sector-group"><h3><span style="color:var(--red)">●</span> 下跌细分</h3><div class="sector-cards">';
+        html += down.map(cardHtml).join('') + '</div></div>';
+      }
+            container.innerHTML = html;
+
     }
 
-
-    async function openSectorStocks(etfSymbol, sectorName, isRestore) {
-      let stocks = (typeof US_SECTOR_STOCKS !== 'undefined' && US_SECTOR_STOCKS[etfSymbol]) ? US_SECTOR_STOCKS[etfSymbol] : [];
-      if (!stocks.length && typeof US_SECTOR_ETFS !== 'undefined') {
-        const hit = US_SECTOR_ETFS.find(x => x.symbol === etfSymbol);
-        if (hit && hit.stocks) stocks = hit.stocks;
+        async function openCNSectorL2(l1id, l2id) {
+      const key = l1id + ':' + l2id;
+      const cached = window.__cnL2Cache && window.__cnL2Cache[key];
+      const l1 = CN_SECTOR_TREE.find(function (x) { return x.id === l1id; });
+      const l2 = l1 && l1.children.find(function (x) { return x.id === l2id; });
+      const title = (l2 && l2.name) || (cached && cached.name) || '细分行业';
+      // 优先：树里写死的 BK 代码 → 缓存 → 名称匹配
+      let board = (l2 && l2.board) || (cached && cached.board) || '';
+      if (!board) {
+        try {
+          const universe = await loadCNBoardUniverse();
+          const hit = universe.find(function (h) { return h.name === title; })
+            || (l2 ? matchCNBoards(l2.match || [title], universe, [title])[0] : null);
+          if (hit) board = hit.board;
+        } catch (e) {}
       }
-      if (!stocks.length) {
-        alert(sectorName + ' 暂无成分股列表');
+      if (board) {
+        openCNSectorStocks(board, title);
         return;
       }
-      document.getElementById('detailSymbol').textContent = sectorName;
+      const overlay = document.getElementById('detailOverlay');
+      const drawer = document.getElementById('detailDrawer');
+      document.getElementById('detailSymbol').textContent = title;
       document.getElementById('detailPrice').textContent = '成分股';
-      document.getElementById('detailChg').textContent = etfSymbol;
+      document.getElementById('detailChg').textContent = '无板块代码';
       document.getElementById('detailChg').className = 'detail-chg flat';
-      document.getElementById('detailGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:12px;">加载成分股行情...</div>';
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = 'none';
-      document.getElementById('detailOverlay').classList.add('show');
-      document.getElementById('detailDrawer').classList.add('show');
-      if (!isRestore) {
-        pushDetailHistory({ type: 'sector-us', symbol: etfSymbol, name: sectorName });
-      }
-
-      let html = '';
-      for (const sym of stocks) {
-        let q = quoteCache[sym] || await fetchQuote(sym);
-        if (q) quoteCache[sym] = q;
-        const price = q && q.c ? Number(q.c).toFixed(2) : '--';
-        const dp = q ? q.dp : null;
-        const chgStr = formatChg(dp);
-        let cn = '';
-        if (typeof STOCK_SEARCH !== 'undefined') {
-          const hit = STOCK_SEARCH.find(x => x.s === sym);
-          if (hit) cn = hit.cn;
-        }
-        if (!cn && typeof STOCK_NAMES_CAL !== 'undefined') cn = STOCK_NAMES_CAL[sym] || '';
-        html += `
-          <div class="detail-stat" style="cursor:pointer;" onclick="openDetail('${sym}')">
-            <div class="label">${sym}${cn ? ' <span style="font-weight:400;color:var(--muted);font-size:0.75rem;">' + cn + '</span>' : ''}</div>
-            <div class="val">${price} <span class="${chgClass(dp)}" style="font-size:0.8rem;">${chgStr}</span></div>
-          </div>
-        `;
-        await new Promise(r => setTimeout(r, 80));
-      }
-      document.getElementById('detailGrid').innerHTML = html || '<div style="grid-column:1/-1;color:var(--muted);">暂无数据</div>';
+      document.getElementById('detailGrid').innerHTML = '<div style="grid-column:1/-1;color:var(--muted);padding:20px;text-align:center;">未匹配到东财板块，请点刷新</div>';
+      if (overlay) overlay.classList.add('show');
+      if (drawer) drawer.classList.add('show');
     }
 
-    // A股板块成分股（东方财富 BK 板块）
-    async function openCNSectorStocks(boardCode, sectorName, isRestore) {
+async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       document.getElementById('detailSymbol').textContent = sectorName || 'A股板块';
       document.getElementById('detailPrice').textContent = '成分股';
-      document.getElementById('detailChg').textContent = boardCode || 'A股';
+      document.getElementById('detailChg').textContent = '加载中...';
       document.getElementById('detailChg').className = 'detail-chg flat';
       document.getElementById('detailGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:12px;">加载成分股行情...</div>';
       const chartWrap = document.querySelector('.chart-wrap');
@@ -2432,40 +3235,80 @@ const FALLBACK_SECTORS = {
 
       let stocks = [];
       if (boardCode && String(boardCode).startsWith('BK')) {
-        const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=20&po=1&np=1&fltt=2&invt=2&fid=f3&fs=b:' + boardCode + '&fields=f12,f14,f2,f3&_=' + Date.now();
-        const proxies = [];
-        if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
-          proxies.push(WORKER_BASE + '?url=' + encodeURIComponent(url));
-        }
-        proxies.push(url);
-        proxies.push('https://corsproxy.io/?' + encodeURIComponent(url));
-        proxies.push('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
-        for (const u of proxies) {
-          try {
-            const res = await fetch(u);
-            if (!res.ok) continue;
-            let data = await res.json();
-            if (data && data.contents) {
-              try { data = JSON.parse(data.contents); } catch (e) {}
-            }
-            const diff = data && data.data && data.data.diff;
-            if (Array.isArray(diff) && diff.length) {
-              stocks = diff.map(it => ({
-                code: String(it.f12 || ''),
-                name: it.f14 || '',
-                price: it.f2 != null ? Number(it.f2) : null,
-                chg: it.f3 != null ? Number(it.f3) : null
-              })).filter(x => x.code);
-              break;
-            }
-          } catch (e) {
-            console.warn('cn board stocks fail', e);
+        async function fetchBoardPage(pn) {
+          const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=' + pn + '&pz=100&po=1&np=1&fltt=2&invt=2&fid=f3&fs=b:' + boardCode + '&fields=f12,f14,f2,f3&_=' + Date.now();
+          const proxies = [];
+          if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
+            proxies.push(WORKER_BASE + '?url=' + encodeURIComponent(url));
           }
+          proxies.push(url);
+          for (let i = 0; i < proxies.length; i++) {
+            try {
+              const res = await (typeof fetchWithTimeoutSimple === 'function'
+                ? fetchWithTimeoutSimple(proxies[i], 6000)
+                : fetch(proxies[i]));
+              if (!res || !res.ok) continue;
+              let data = await res.json();
+              if (data && data.contents) {
+                try { data = JSON.parse(data.contents); } catch (e) {}
+              }
+              const diff = data && data.data && data.data.diff;
+              if (Array.isArray(diff) && diff.length) {
+                return {
+                  list: diff.map(function (it) {
+                    return {
+                      code: String(it.f12 || ''),
+                      name: it.f14 || '',
+                      price: it.f2 != null ? Number(it.f2) : null,
+                      chg: it.f3 != null ? Number(it.f3) : null
+                    };
+                  }).filter(function (x) { return x.code; }),
+                  total: (data.data && data.data.total) || diff.length
+                };
+              }
+            } catch (e) {
+              console.warn('cn board page fail', pn, e && e.message);
+            }
+          }
+          return null;
         }
+        // 多页拉取，尽量拉全
+        let totalHint = 0;
+        for (let page = 1; page <= 30; page++) {
+          const pageData = await fetchBoardPage(page);
+          if (!pageData || !pageData.list.length) break;
+          totalHint = pageData.total || totalHint;
+          const exist = {};
+          stocks.forEach(function (s) { exist[s.code] = true; });
+          pageData.list.forEach(function (s) {
+            if (!exist[s.code]) {
+              stocks.push(s);
+              exist[s.code] = true;
+            }
+          });
+          if (stocks.length >= totalHint) break;
+          if (pageData.list.length < 100) break;
+        }
+        try {
+          let upCnt = 0, downCnt = 0;
+          stocks.forEach(function (s) {
+            if (s.chg > 0) upCnt++;
+            else if (s.chg < 0) downCnt++;
+          });
+          var upTri2 = '<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid var(--green);vertical-align:middle;margin-right:3px;"></span>';
+          var downTri2 = '<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid var(--red);vertical-align:middle;margin-right:3px;"></span>';
+          document.getElementById('detailChg').innerHTML =
+            '共' + (totalHint || stocks.length) + '只 · 已加载' + stocks.length + '只 · ' +
+            '<span style="white-space:nowrap;">' + upTri2 + '<span style="color:var(--green);font-weight:700;">' + upCnt + '</span></span>' +
+            ' <span style="white-space:nowrap;">' + downTri2 + '<span style="color:var(--red);font-weight:700;">' + downCnt + '</span></span>';
+        } catch (e) {}
       }
       if (!stocks.length && typeof CN_SECTOR_STOCKS !== 'undefined') {
         const codes = CN_SECTOR_STOCKS[sectorName] || [];
         stocks = codes.map(c => ({ code: c, name: '', price: null, chg: null }));
+        try {
+          document.getElementById('detailChg').textContent = '共' + stocks.length + '只 · 已加载' + stocks.length + '只';
+        } catch (e) {}
       }
       if (!stocks.length) {
         document.getElementById('detailGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:16px;">暂无成分股数据</div>';
@@ -2473,7 +3316,7 @@ const FALLBACK_SECTORS = {
       }
 
       let html = '';
-      for (const s of stocks.slice(0, 20)) {
+      for (const s of stocks) {
         const price = s.price != null && !isNaN(s.price) ? Number(s.price).toFixed(2) : '--';
         const dp = s.chg;
         const chgStr = (dp != null && !isNaN(dp)) ? ((dp >= 0 ? '+' : '') + Number(dp).toFixed(2) + '%') : '--';
@@ -2487,6 +3330,22 @@ const FALLBACK_SECTORS = {
     }
 
     // A股个股详情 + K线
+    
+    function isAShareSymbol(sym) {
+      const s = String(sym || '').toUpperCase().replace(/\s/g, '');
+      if (/^\d{6}$/.test(s)) return true;
+      if (/^\d{6}\.(SS|SZ|SH|BJ)$/.test(s)) return true;
+      if (/^(SSE|SZSE|BSE):\d{6}$/.test(s)) return true;
+      return false;
+    }
+    function normalizeAShareCode(sym) {
+      let s = String(sym || '').toUpperCase().replace(/\s/g, '');
+      s = s.replace(/^(SSE|SZSE|BSE):/, '');
+      s = s.replace(/\.(SS|SZ|SH|BJ)$/, '');
+      if (/^\d{6}$/.test(s)) return s;
+      return null;
+    }
+
     function cnSecid(code) {
       const c = String(code || '');
       // 6开头 / 5开头 上海；0/3 深圳；4/8 北交所按深
@@ -3305,6 +4164,37 @@ const FALLBACK_SECTORS = {
     } else {
       startNetMonitor();
     }
+
+  
+    window.addEventListener('popstate', function (e) {
+      // 只有当浏览历史真正退出了"细分行业(L2)"这一级自身的 state 时才回退到大类(L1)。
+      // 若 e.state 里仍带有 usSectorL1 标记，说明这次 popstate 只是在关闭上层的成分股抽屉（appNavStack 弹层），
+      // L2 页面本身并未离开，不应该跳回大类。
+      if (typeof sectorMarket !== 'undefined' && sectorMarket === 'us' && typeof usSectorView !== 'undefined' && usSectorView === 'l2') {
+        if (e && e.state && e.state.usSectorL1) return;
+        if (typeof appNavStack !== 'undefined' && appNavStack.length > 0) return;
+        const drawer = document.getElementById('detailDrawer');
+        if (drawer && drawer.classList.contains('show')) return;
+        const page = document.getElementById('page-sector');
+        if (page && page.classList.contains('active') && typeof renderUSSectorL1 === 'function') {
+          renderUSSectorL1();
+        }
+      }
+    });
+
+  
+    window.addEventListener('popstate', function (e) {
+      if (typeof sectorMarket !== 'undefined' && sectorMarket === 'cn' && typeof cnSectorView !== 'undefined' && cnSectorView === 'l2') {
+        if (e && e.state && e.state.cnSectorL1) return;
+        if (typeof appNavStack !== 'undefined' && appNavStack.length > 0) return;
+        const drawer = document.getElementById('detailDrawer');
+        if (drawer && drawer.classList.contains('show')) return;
+        const page = document.getElementById('page-sector');
+        if (page && page.classList.contains('active') && typeof renderCNSectorL1 === 'function') {
+          renderCNSectorL1();
+        }
+      }
+    });
 
   </script>
 </body>
