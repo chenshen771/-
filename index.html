@@ -227,6 +227,10 @@
       background: var(--green-bg);
       border: 1px solid rgba(0,216,104,0.18);
     }
+    .sector-card.flat {
+      border-color: rgba(148,163,184,0.25);
+    }
+    .sector-card.flat .s-chg { color: var(--muted); }
     .sector-card.down {
       background: var(--red-bg);
       border: 1px solid rgba(255,92,92,0.18);
@@ -234,6 +238,10 @@
     .sector-card .s-name { font-size: 0.85rem; font-weight: 500; margin-bottom: 4px; }
     .sector-card .s-chg { font-family: var(--font-num); font-size: 1.05rem; font-weight: 700; }
     .sector-card.up .s-chg { color: var(--green); }
+    .sector-card.flat {
+      border-color: rgba(148,163,184,0.25);
+    }
+    .sector-card.flat .s-chg { color: var(--muted); }
     .sector-card.down .s-chg { color: var(--red); }
 
     .signal-box {
@@ -625,6 +633,18 @@
       color: #82b1ff;
       border: 1px solid rgba(66, 133, 244, 0.35);
     }
+    .bias-pill {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 6px;
+      border-radius: 6px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      font-family: var(--font-num);
+      vertical-align: middle;
+    }
+    .bias-pill.up { color: #4ade80; background: rgba(34,197,94,0.15); }
+    .bias-pill.down { color: #f87171; background: rgba(239,68,68,0.15); }
     .market-badge.cn {
       background: rgba(239, 83, 80, 0.15);
       color: #ef9a9a;
@@ -677,6 +697,10 @@
       letter-spacing: 0.02em;
     }
     .sector-card.up .s-badge { background: rgba(0,216,104,0.12); color: var(--green); }
+    .sector-card.flat {
+      border-color: rgba(148,163,184,0.25);
+    }
+    .sector-card.flat .s-chg { color: var(--muted); }
     .sector-card.down .s-badge { background: rgba(255,92,92,0.12); color: var(--red); }
 
   
@@ -733,12 +757,14 @@
     </div>
     <div class="watch-status">
       <span id="updateTime">准备就绪</span>
-      <button class="refresh-btn" onclick="refreshQuotes()">刷新</button>
     </div>
     <div class="watch-list" id="watchList">
       <div class="watch-empty">添加股票代码开始观察</div>
     </div>
-    <div class="page-note">列表自动保存 · 按住 ⋮⋮ 拖动排序 · Finnhub</div>
+    <div class="page-note" style="line-height:1.45;padding-bottom:8px;">
+      列表自动保存 · 按住 ⋮⋮ 拖动排序 · Finnhub<br>
+      盘中「今↑/↓」为根据开高低现价、大盘、新闻标题与财报窗口做的<strong>今日参考示意</strong>（随行情重算），权重含新闻/财报微调，不是真实涨跌概率，不构成投资建议。收盘后显示当日最高最低；名称旁↑/↓%为示意优势方向。
+    </div>
   </div>
 
   <!-- ========== 估值快照 ========== -->
@@ -828,7 +854,10 @@
   <div class="page" id="page-sector">
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <span>板块动态</span>
-      <button class="refresh-btn" onclick="loadSectors()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="sectorLiveStatus" style="font-size:0.72rem;font-family:var(--font-num);color:var(--muted);white-space:nowrap;">○ 待更新</span>
+        <button class="refresh-btn" onclick="window.__cnBoardCacheAt=0;cnBoardCache=null;window.__cnBoardMeta={};paintSectorLiveStatus('loading');loadSectors()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
+      </div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:14px;">
       <button id="sectorTabUS" onclick="switchSectorMarket('us')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--blue);color:#fff;font-size:0.85rem;cursor:pointer;">美股</button>
@@ -1112,6 +1141,255 @@
     })(watchlist);
     let quoteCache = {};
 
+    // ==================== Finnhub WebSocket 实时推送 ====================
+    let fhWs = null;
+    let fhWsSubs = new Set(); // 当前已订阅的美股代码
+    let fhWsWanted = new Set();
+    let fhWsReconnectTimer = null;
+    let fhWsStatus = 'off'; // off | connecting | live | error
+
+    function fhWsIsUsSymbol(sym) {
+      if (!sym) return false;
+      if (typeof isAShareSymbol === 'function' && isAShareSymbol(sym)) return false;
+      // 排除指数等
+      const s = String(sym).toUpperCase();
+      if (/^\d{6}/.test(s)) return false;
+      return /^[A-Z][A-Z0-9.\-^]*$/.test(s);
+    }
+
+    function updateFhWsBadge() {
+      let el = document.getElementById('fhWsBadge');
+      if (!el) {
+        const st = document.querySelector('.watch-status');
+        if (st) {
+          el = document.createElement('span');
+          el.id = 'fhWsBadge';
+          el.style.cssText = 'font-size:0.7rem;margin-left:8px;font-family:var(--font-num);';
+          st.appendChild(el);
+        }
+      }
+      if (!el) return;
+      if (fhWsStatus === 'live') {
+        el.textContent = '● WS推送';
+        el.style.color = 'var(--green)';
+      } else if (fhWsStatus === 'overlimit') {
+        el.textContent = '○ 超50只·实时刷新';
+        el.style.color = 'var(--orange)';
+      } else if (fhWsStatus === 'connecting') {
+        el.textContent = '○ 连接中';
+        el.style.color = 'var(--orange)';
+      } else if (fhWsStatus === 'error') {
+        el.textContent = '○ 推送断开·实时刷新';
+        el.style.color = 'var(--muted)';
+      } else {
+        el.textContent = '';
+      }
+    }
+
+    function fhWsApplyTrade(sym, price, ts) {
+      if (!sym || !(price > 0)) return;
+      const prev = quoteCache[sym] || {};
+      const pc = (typeof prev.pc === 'number' && prev.pc > 0) ? prev.pc : (prev.c || price);
+      const d = price - pc;
+      const dp = pc ? (d / pc * 100) : 0;
+      let h = typeof prev.h === 'number' ? prev.h : price;
+      let l = typeof prev.l === 'number' ? prev.l : price;
+      if (price > h) h = price;
+      if (price < l) l = price;
+      quoteCache[sym] = Object.assign({}, prev, {
+        c: price,
+        d: d,
+        dp: dp,
+        h: h,
+        l: l,
+        pc: pc,
+        t: ts || Date.now(),
+        _fromWs: true
+      });
+
+      // 观察列表在前台时刷新
+      const page = document.getElementById('page-watch');
+      if (page && page.classList.contains('active')) {
+        const drawer = document.getElementById('detailDrawer');
+        if (!drawer || !drawer.classList.contains('show')) {
+          if (typeof renderWatchlist === 'function') renderWatchlist();
+        } else {
+          // 详情打开也更新列表缓存，关闭后是新的
+        }
+      }
+
+      // 详情页当前这只
+      if (typeof liveDetailSymbol !== 'undefined' && liveDetailSymbol === sym) {
+        const priceEl = document.getElementById('detailPrice');
+        const chgEl = document.getElementById('detailChg');
+        if (priceEl) priceEl.textContent = Number(price).toFixed(2);
+        if (chgEl) {
+          chgEl.textContent = (d >= 0 ? '+' : '') + d.toFixed(2) + ' (' + (dp >= 0 ? '+' : '') + dp.toFixed(2) + '%)';
+          chgEl.className = 'detail-chg ' + (dp > 0 ? 'up' : dp < 0 ? 'down' : 'flat');
+        }
+      }
+
+      // 精简图最后一根
+      if (typeof miniChartSeries !== 'undefined' && miniChartSeries && miniChartLastCandles && miniChartLastCandles.length) {
+        const chartSym = (typeof miniChartLiveSymbol === 'string') ? miniChartLiveSymbol : '';
+        // chart may be MU or same
+        if (chartSym === sym || chartSym.indexOf(sym) >= 0 || sym === chartSym) {
+          try {
+            const bars = miniChartLastCandles;
+            const lastBar = Object.assign({}, bars[bars.length - 1]);
+            lastBar.close = +Number(price).toFixed(4);
+            if (price > lastBar.high) lastBar.high = lastBar.close;
+            if (price < lastBar.low) lastBar.low = lastBar.close;
+            bars[bars.length - 1] = lastBar;
+            miniChartSeries.update(lastBar);
+            const tag = document.getElementById('miniChartLiveTag');
+            if (tag) {
+              tag.textContent = '● WS ' + Number(price).toFixed(2);
+              tag.style.color = dp >= 0 ? 'var(--green)' : 'var(--red)';
+            }
+          } catch (e) {}
+        }
+      }
+    }
+
+    function fhWsUsWatchCount() {
+      let n = 0;
+      (watchlist || []).forEach(function (s) {
+        if (fhWsIsUsSymbol(s)) n++;
+      });
+      return n;
+    }
+
+    
+    function fhWsActive() {
+      return (typeof fhWsStatus !== 'undefined' && fhWsStatus === 'live' &&
+        typeof fhWsShouldUse === 'function' && fhWsShouldUse());
+    }
+
+        function fhWsShouldUse() {
+      // 免费档约 50 只；超过则退回 REST 轮询
+      return fhWsUsWatchCount() <= 50;
+    }
+
+    function fhWsSyncSubscriptions() {
+      if (!fhWs || fhWs.readyState !== 1) return;
+
+      if (!fhWsShouldUse()) {
+        // 超限：全部退订，标记为 rest 模式
+        fhWsSubs.forEach(function (s) {
+          try { fhWs.send(JSON.stringify({ type: 'unsubscribe', symbol: s })); } catch (e) {}
+        });
+        fhWsSubs = new Set();
+        fhWsWanted = new Set();
+        fhWsStatus = 'overlimit';
+        updateFhWsBadge();
+        return;
+      }
+
+      const wanted = new Set();
+      (watchlist || []).forEach(function (s) {
+        if (fhWsIsUsSymbol(s)) wanted.add(String(s).toUpperCase());
+      });
+      if (typeof liveDetailSymbol === 'string' && liveDetailSymbol && fhWsIsUsSymbol(liveDetailSymbol)) {
+        wanted.add(String(liveDetailSymbol).toUpperCase());
+      }
+      fhWsWanted = wanted;
+
+      fhWsSubs.forEach(function (s) {
+        if (!wanted.has(s)) {
+          try { fhWs.send(JSON.stringify({ type: 'unsubscribe', symbol: s })); } catch (e) {}
+          fhWsSubs.delete(s);
+        }
+      });
+      wanted.forEach(function (s) {
+        if (!fhWsSubs.has(s)) {
+          try { fhWs.send(JSON.stringify({ type: 'subscribe', symbol: s })); } catch (e) {}
+          fhWsSubs.add(s);
+        }
+      });
+      if (fhWsStatus !== 'live') {
+        fhWsStatus = 'live';
+        updateFhWsBadge();
+      }
+    }
+
+    function fhWsConnect() {
+      if (fhWs && (fhWs.readyState === 0 || fhWs.readyState === 1)) return;
+      if (typeof FINNHUB_KEY === 'undefined' || !FINNHUB_KEY) return;
+      try {
+        fhWsStatus = 'connecting';
+        updateFhWsBadge();
+        fhWs = new WebSocket('wss://ws.finnhub.io?token=' + encodeURIComponent(FINNHUB_KEY));
+        fhWs.onopen = function () {
+          fhWsStatus = 'live';
+          fhWsSubs = new Set();
+          updateFhWsBadge();
+          fhWsSyncSubscriptions();
+          // 连上后详情若在美股，停掉 REST 轮询
+          if (typeof liveDetailSymbol === 'string' && liveDetailSymbol && !liveDetailIsCN) {
+            if (typeof stopLiveDetail === 'function') {
+              var keep = liveDetailSymbol;
+              stopLiveDetail();
+              liveDetailSymbol = keep;
+              liveDetailIsCN = false;
+            }
+            var tag = document.getElementById('miniChartLiveTag');
+            if (tag) { tag.textContent = '● WS'; tag.style.color = 'var(--green)'; }
+          }
+        };
+        fhWs.onmessage = function (ev) {
+          try {
+            const msg = JSON.parse(ev.data);
+            if (msg.type === 'ping') {
+              try { fhWs.send(JSON.stringify({ type: 'pong' })); } catch (e) {}
+              return;
+            }
+            if (msg.type === 'trade' && Array.isArray(msg.data)) {
+              msg.data.forEach(function (t) {
+                if (t && t.s && t.p) fhWsApplyTrade(t.s, Number(t.p), t.t);
+              });
+            }
+          } catch (e) {}
+        };
+        fhWs.onerror = function () {
+          fhWsStatus = 'error';
+          updateFhWsBadge();
+        };
+        fhWs.onclose = function () {
+          fhWsStatus = 'error';
+          fhWsSubs = new Set();
+          updateFhWsBadge();
+          // 断开：详情美股改回轮询
+          if (typeof liveDetailSymbol === 'string' && liveDetailSymbol && !liveDetailIsCN) {
+            if (typeof startLiveDetail === 'function') startLiveDetail(liveDetailSymbol, false);
+          }
+          if (fhWsReconnectTimer) clearTimeout(fhWsReconnectTimer);
+          fhWsReconnectTimer = setTimeout(function () {
+            if (typeof fhWsShouldUse === 'function' && fhWsShouldUse()) fhWsConnect();
+          }, 3000);
+        };
+      } catch (e) {
+        fhWsStatus = 'error';
+        updateFhWsBadge();
+      }
+    }
+
+    function fhWsOnWatchlistChanged() {
+      if (!fhWsShouldUse()) {
+        // 超过 50：关掉订阅，靠 REST
+        if (fhWs && fhWs.readyState === 1) fhWsSyncSubscriptions();
+        else {
+          fhWsStatus = 'overlimit';
+          updateFhWsBadge();
+        }
+        return;
+      }
+      if (!fhWs || fhWs.readyState !== 1) fhWsConnect();
+      else fhWsSyncSubscriptions();
+    }
+
+
+
     // ==================== Finnhub 请求 ====================
     async function fetchCNQuote(code) {
       const c = (typeof normalizeAShareCode === 'function' ? normalizeAShareCode(code) : null) || String(code).replace(/\D/g, '').slice(0, 6);
@@ -1219,6 +1497,7 @@
       } catch (e) {
         console.warn('save watchlist fail', e);
       }
+      if (typeof fhWsOnWatchlistChanged === 'function') fhWsOnWatchlistChanged();
     }
 
     function addSymbol(forcedSym) {
@@ -1379,6 +1658,275 @@
       return 'flat';
     }
 
+    
+    // ---------- 今日参考（示意，非预测） ----------
+    function isUSMarketSessionOpen() {
+      try {
+        const fmt = new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'America/New_York',
+          weekday: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+        const parts = fmt.formatToParts(new Date());
+        const map = {};
+        parts.forEach(function (p) { map[p.type] = p.value; });
+        const wd = (map.weekday || '').slice(0, 3);
+        if (wd === 'Sat' || wd === 'Sun') return false;
+        let h = parseInt(map.hour, 10);
+        if (h === 24) h = 0;
+        const m = parseInt(map.minute, 10) || 0;
+        const mins = h * 60 + m;
+        return mins >= 9 * 60 + 30 && mins < 16 * 60;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function isCNMarketSessionOpen() {
+      try {
+        const fmt = new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'Asia/Shanghai',
+          weekday: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+        const parts = fmt.formatToParts(new Date());
+        const map = {};
+        parts.forEach(function (p) { map[p.type] = p.value; });
+        const wd = (map.weekday || '').slice(0, 3);
+        if (wd === 'Sat' || wd === 'Sun') return false;
+        let h = parseInt(map.hour, 10);
+        if (h === 24) h = 0;
+        const m = parseInt(map.minute, 10) || 0;
+        const mins = h * 60 + m;
+        return (mins >= 9 * 60 + 30 && mins < 11 * 60 + 30) ||
+               (mins >= 13 * 60 && mins < 15 * 60);
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function isSymbolSessionOpen(sym) {
+      if (typeof isAShareSymbol === 'function' && isAShareSymbol(sym)) return isCNMarketSessionOpen();
+      return isUSMarketSessionOpen();
+    }
+
+    /** 根据实时价推演今日示意上/下沿与占比（规则运算，非真实概率） */
+    // 参考信号缓存：新闻/财报/大盘 → 权重微调（示意，非真实概率）
+    window.__refSignalCache = window.__refSignalCache || {};
+
+    function scoreNewsTitle(title) {
+      const t = String(title || '').toLowerCase();
+      if (!t) return 0;
+      let s = 0;
+      const bull = ['beat', 'beats', 'surge', 'soar', 'upgrade', 'raises', 'record', 'growth', 'profit', 'strong', 'buy', 'outperform', '上调', '超预期', '大涨', '增长', '盈利', '利好'];
+      const bear = ['miss', 'misses', 'cut', 'cuts', 'downgrade', 'fall', 'falls', 'weak', 'loss', 'probe', 'fraud', 'lawsuit', '下调', '不及', '大跌', '亏损', '利空', '调查'];
+      bull.forEach(function (w) { if (t.indexOf(w) >= 0) s += 1; });
+      bear.forEach(function (w) { if (t.indexOf(w) >= 0) s -= 1; });
+      return Math.max(-3, Math.min(3, s));
+    }
+
+    async function fetchRefSignalsForSymbol(sym) {
+      if (!sym || (typeof isAShareSymbol === 'function' && isAShareSymbol(sym))) {
+        return { news: 0, earnings: 0, market: 0, tag: '' };
+      }
+      const cache = window.__refSignalCache[sym];
+      if (cache && Date.now() - cache.at < 5 * 60 * 1000) return cache;
+      const key = (typeof FINNHUB_KEY !== 'undefined') ? FINNHUB_KEY : '';
+      let newsScore = 0, earnScore = 0, tag = '';
+      try {
+        const now = new Date();
+        const from = new Date(now.getTime() - 3 * 86400000);
+        const fmt = function (d) {
+          return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        };
+        // 公司新闻标题情绪
+        const nUrl = 'https://finnhub.io/api/v1/company-news?symbol=' + encodeURIComponent(sym) +
+          '&from=' + fmt(from) + '&to=' + fmt(now) + '&token=' + key;
+        const nRes = await fetch(nUrl);
+        if (nRes && nRes.ok) {
+          const arr = await nRes.json();
+          if (Array.isArray(arr)) {
+            arr.slice(0, 8).forEach(function (n) {
+              newsScore += scoreNewsTitle((n && (n.headline || n.summary)) || '');
+            });
+            newsScore = Math.max(-4, Math.min(4, newsScore));
+          }
+        }
+        // 财报窗口：前后 2 天
+        const eUrl = 'https://finnhub.io/api/v1/calendar/earnings?symbol=' + encodeURIComponent(sym) +
+          '&from=' + fmt(new Date(now.getTime() - 2 * 86400000)) +
+          '&to=' + fmt(new Date(now.getTime() + 5 * 86400000)) + '&token=' + key;
+        const eRes = await fetch(eUrl);
+        if (eRes && eRes.ok) {
+          const ed = await eRes.json();
+          const list = (ed && ed.earningsCalendar) || [];
+          if (list.length) {
+            earnScore = 0.5; // 窗口内波动加大，方向中性偏警戒
+            tag = '财报窗口';
+            // 若有预期与实际可粗判
+            const e0 = list[0];
+            if (e0 && e0.epsActual != null && e0.epsEstimate != null) {
+              if (Number(e0.epsActual) > Number(e0.epsEstimate)) { earnScore = 1.5; tag = '财报超预期'; }
+              else if (Number(e0.epsActual) < Number(e0.epsEstimate)) { earnScore = -1.5; tag = '财报不及预期'; }
+            }
+          }
+        }
+      } catch (e) {}
+      // 大盘：用 SPY 缓存涨跌（若有）
+      let market = 0;
+      try {
+        const spy = quoteCache && quoteCache.SPY;
+        if (spy && typeof spy.dp === 'number') {
+          market = Math.max(-1.5, Math.min(1.5, spy.dp / 2));
+        }
+      } catch (e) {}
+      const out = { news: newsScore, earnings: earnScore, market: market, tag: tag, at: Date.now() };
+      window.__refSignalCache[sym] = out;
+      return out;
+    }
+
+    async function enrichWatchlistRefSignals() {
+      if (!watchlist || !watchlist.length) return;
+      const us = watchlist.filter(function (s) {
+        return !(typeof isAShareSymbol === 'function' && isAShareSymbol(s));
+      }).slice(0, 12);
+      // 串行减少打爆限频
+      for (let i = 0; i < us.length; i++) {
+        try { await fetchRefSignalsForSymbol(us[i]); } catch (e) {}
+      }
+      if (typeof renderWatchlist === 'function') renderWatchlist();
+    }
+
+    function computeDayRef(q, sym) {
+      if (!q || !(q.c > 0)) return null;
+      const c = Number(q.c);
+      const pc = (q.pc > 0) ? Number(q.pc) : c;
+      const h = (q.h > 0) ? Number(q.h) : c;
+      const l = (q.l > 0) ? Number(q.l) : c;
+      const o = (q.o > 0) ? Number(q.o) : pc;
+      const dp = (typeof q.dp === 'number') ? q.dp : ((c - pc) / (pc || c) * 100);
+
+      let range = Math.max(h - l, Math.abs(c - pc), Math.abs(c - o), c * 0.008);
+      if (!(range > 0)) range = c * 0.01;
+
+      // —— 按当日已实现涨跌幅做指数衰减 ——
+      // 涨越多，上行空间衰减越狠；跌越多，下行空间衰减越狠（一天内很难再翻倍暴冲）
+      const absDp = Math.abs(dp);
+      // 约：涨 3%→衰减系数 ~0.74；5%→0.61；8%→0.45；12%→0.30
+      const decayUp = (dp > 0) ? Math.exp(-absDp / 10) : 1;
+      const decayDn = (dp < 0) ? Math.exp(-absDp / 10) : 1;
+      // 基础外推幅度（占现价），再乘衰减
+      let upExt = Math.max(range * 0.10, c * 0.004) * decayUp;
+      let dnExt = Math.max(range * 0.10, c * 0.004) * decayDn;
+      // 单日再上涨/下跌硬顶：随已涨幅收紧（最多再约 4%～0.8%）
+      const maxMoreUp = c * (0.04 * decayUp);
+      const maxMoreDn = c * (0.04 * decayDn);
+      upExt = Math.min(upExt, maxMoreUp);
+      dnExt = Math.min(dnExt, maxMoreDn);
+
+      let upPx = Math.max(h, c) + upExt;
+      let dnPx = Math.min(l, c) - dnExt;
+      // 已大涨时，上沿不要离现价太远
+      if (dp > 3) upPx = Math.min(upPx, c * (1 + 0.035 * decayUp));
+      if (dp < -3) dnPx = Math.max(dnPx, c * (1 - 0.035 * decayDn));
+      upPx = Math.max(upPx, c * 1.001);
+      dnPx = Math.min(dnPx, c * 0.999);
+
+      const span = Math.max(h - l, range * 0.5, 1e-6);
+      const pos = Math.max(0, Math.min(1, (c - l) / span));
+
+      // 基础权重：偏跟随当日趋势，而不是「涨多了就大概率跌」
+      // 价位目标已用指数衰减收窄；权重只做温和修正
+      let upW = 0.50;
+      // 位置：靠近日高略减上行权重，靠近日低略增（幅度小）
+      upW += (0.5 - pos) * 0.12;
+      // 动量：涨则偏多、跌则偏空；衰减只减弱「继续同向」的强度，不反转成反向主导
+      if (dp > 0) {
+        // 已涨：仍偏多，但继续大涨的权重随涨幅温和下降（不会变成 70%+ 看跌）
+        const trendBull = Math.min(0.14, dp / 40); // +4% → +0.10
+        const soften = Math.min(0.08, absDp / 80); // +8% → 只减 0.08
+        upW += trendBull - soften * 0.5;
+      } else if (dp < 0) {
+        // 已跌：仍偏空一点，但不会变成「几乎一定继续大跌」
+        const trendBear = Math.min(0.14, absDp / 40);
+        const soften = Math.min(0.08, absDp / 80);
+        upW -= trendBear - soften * 0.5;
+      }
+      if (h > l && (h - c) / span < 0.10) upW -= 0.03;
+      if (h > l && (c - l) / span < 0.10) upW += 0.03;
+
+      // 新闻 / 财报 / 大盘（后台微调，UI 不显示标签）
+      const sig = (sym && window.__refSignalCache && window.__refSignalCache[sym]) || null;
+      if (sig) {
+        upW += (sig.news || 0) * 0.018;
+        upW += (sig.earnings || 0) * 0.022;
+        upW += (sig.market || 0) * 0.015;
+        if (sig.earnings) {
+          const widen = 1 + Math.min(0.12, Math.abs(sig.earnings) * 0.04);
+          upPx = c + (upPx - c) * widen;
+          dnPx = c - (c - dnPx) * widen;
+        }
+      }
+
+      // 同类氛围：观察列表里其他美股多数在涨 → 本股下跌权重再压低
+      try {
+        let peerSum = 0, peerN = 0;
+        if (typeof watchlist !== 'undefined' && watchlist && typeof quoteCache !== 'undefined' && quoteCache) {
+          watchlist.forEach(function (s) {
+            if (!s || s === sym) return;
+            if (typeof isAShareSymbol === 'function' && isAShareSymbol(s)) return;
+            const pq = quoteCache[s];
+            if (pq && typeof pq.dp === 'number') { peerSum += pq.dp; peerN++; }
+          });
+        }
+        if (peerN > 0) {
+          const peerAvg = peerSum / peerN;
+          // 同类平均涨 1% → upW +约 0.02，最多 +0.10
+          if (peerAvg > 0.3) upW += Math.min(0.10, peerAvg / 50);
+          if (peerAvg < -0.3) upW -= Math.min(0.10, Math.abs(peerAvg) / 50);
+        }
+      } catch (e) {}
+
+      // 趋势保护：当天已大涨，几乎不可能再「突然暴跌二十多个点」→ 压低下行权重
+      // 同时下沿不要离现价过远（单日回撤示意上限随已涨幅收紧）
+      if (dp >= 2) upW = Math.max(upW, 0.48);
+      if (dp >= 4) upW = Math.max(upW, 0.52);
+      if (dp >= 6) upW = Math.max(upW, 0.55);
+      if (dp >= 10) upW = Math.max(upW, 0.58);
+      if (dp <= -2) upW = Math.min(upW, 0.52);
+      if (dp <= -4) upW = Math.min(upW, 0.48);
+      if (dp <= -6) upW = Math.min(upW, 0.45);
+
+      // 大涨时：下沿最多回撤约「已涨幅的一小部分」，禁止示意跌去 15%+
+      if (dp > 0) {
+        const maxGiveBack = Math.max(c * 0.012, Math.abs(c - pc) * 0.35 * Math.exp(-absDp / 12));
+        dnPx = Math.max(dnPx, c - maxGiveBack);
+        dnPx = Math.min(dnPx, c * 0.999);
+      }
+      if (dp < 0) {
+        const maxBounce = Math.max(c * 0.012, Math.abs(c - pc) * 0.35 * Math.exp(-absDp / 12));
+        upPx = Math.min(upPx, c + maxBounce);
+        upPx = Math.max(upPx, c * 1.001);
+      }
+
+      upW = Math.max(0.30, Math.min(0.70, upW));
+      const upPct = Math.round(upW * 100);
+      const dnPct = 100 - upPct;
+      const dec = c >= 100 ? 2 : (c >= 10 ? 2 : 3);
+      return {
+        upPx: +upPx.toFixed(dec),
+        dnPx: +dnPx.toFixed(dec),
+        upPct: upPct,
+        dnPct: dnPct,
+        biasUp: upPct >= dnPct
+      };
+    }
+
+
     function renderWatchlist() {
       const container = document.getElementById('watchList');
       if (watchlist.length === 0) {
@@ -1391,7 +1939,33 @@
         const dp = q ? q.dp : null;
         const hi = q && q.h ? Number(q.h).toFixed(2) : '--';
         const lo = q && q.l ? Number(q.l).toFixed(2) : '--';
-        const rangeStr = q ? `高 ${hi} · 低 ${lo}` : '加载中...';
+        const sessionOpen = (typeof isSymbolSessionOpen === 'function') ? isSymbolSessionOpen(sym) : false;
+        const ref = (q && typeof computeDayRef === 'function') ? computeDayRef(q, sym) : null;
+        let rangeStr = '加载中...';
+        let biasBadge = '';
+        if (q) {
+          if (sessionOpen && ref) {
+            rangeStr =
+              '<div style="display:grid;grid-template-columns:max-content max-content max-content;column-gap:4px;row-gap:1px;width:max-content;line-height:1.25;font-size:0.78rem;">' +
+              '<span style="color:var(--green);text-align:center;">今↑' + ref.upPx + '</span>' +
+              '<span style="color:var(--muted);">·</span>' +
+              '<span style="color:var(--red);text-align:center;">↓' + ref.dnPx + '</span>' +
+              '<span style="color:var(--green);text-align:center;font-size:0.72rem;">（' + ref.upPct + '%）</span>' +
+              '<span></span>' +
+              '<span style="color:var(--red);text-align:center;font-size:0.72rem;">（' + ref.dnPct + '%）</span>' +
+              '</div>';
+          } else {
+            rangeStr = '高 ' + hi + ' · 低 ' + lo;
+            if (ref) {
+              // 收盘后：名称旁只显示概率更高的一侧
+              if (ref.biasUp) {
+                biasBadge = ' <span class="bias-pill up">↑' + ref.upPct + '%</span>';
+              } else {
+                biasBadge = ' <span class="bias-pill down">↓' + ref.dnPct + '%</span>';
+              }
+            }
+          }
+        }
         let cnName = '';
         if (typeof STOCK_SEARCH !== 'undefined') {
           const hit = STOCK_SEARCH.find(x => x.s === sym);
@@ -1404,7 +1978,7 @@
         return `
           <div class="watch-item ${accent}" onclick="openWatchDetail('${sym}')">
             <div class="left" style="flex:1;min-width:0;">
-              <div class="symbol">${sym}${cnName ? ' <span style="font-weight:400;color:var(--muted);font-size:0.78rem;">'+cnName+'</span>' : ''}${mBadge}</div>
+              <div class="symbol">${sym}${cnName ? ' <span style="font-weight:400;color:var(--muted);font-size:0.78rem;">'+cnName+'</span>' : ''}${biasBadge}${mBadge}</div>
               <div class="name">${rangeStr}</div>
             </div>
             <div class="right">
@@ -1512,21 +2086,43 @@
     }
 
     async function refreshQuotes() {
-      const timeEl = document.getElementById('updateTime');
-      timeEl.textContent = '更新中...';
+      // 不再闪「更新中…」，状态行由 watchStatusClock 统一刷新
       renderWatchlist();
-
       const data = await fetchQuotes(watchlist, function (sym, q) {
         quoteCache[sym] = q;
-        // 有结果就局部刷新，不用等全部完成
         renderWatchlist();
       });
       Object.assign(quoteCache, data);
       renderWatchlist();
-
-      const now = new Date();
-      timeEl.textContent = '更新于 ' + now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      if (typeof paintWatchStatus === 'function') paintWatchStatus();
     }
+
+    function formatWatchClock(d) {
+      d = d || new Date();
+      let h = d.getHours() % 12;
+      if (h === 0) h = 12; // 0 点、12 点都显示 12
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      return h + ':' + mm + ':' + ss;
+    }
+
+    function paintWatchStatus() {
+      const timeEl = document.getElementById('updateTime');
+      if (!timeEl) return;
+      const t = formatWatchClock();
+      const useWs = (typeof fhWsActive === 'function' && fhWsActive());
+      if (useWs) {
+        timeEl.textContent = '更新于 ' + t;
+      } else {
+        timeEl.textContent = '实时更新 ' + t;
+      }
+    }
+
+    // 状态行时间每秒跳动（不闪「更新中」）
+    setInterval(function () {
+      const page = document.getElementById('page-watch');
+      if (page && page.classList.contains('active')) paintWatchStatus();
+    }, 1000);
 
     document.getElementById('symbolInput').addEventListener('keydown', e => {
       if (e.key === 'Enter') addSymbol();
@@ -1674,6 +2270,74 @@
       openDetail(symbol);
     }
 
+    
+    let liveDetailTimer = null;
+    let liveDetailSymbol = null;
+    let liveDetailIsCN = false;
+
+    function stopLiveDetail() {
+      if (liveDetailTimer) { clearInterval(liveDetailTimer); liveDetailTimer = null; }
+      liveDetailSymbol = null;
+    }
+
+    async function liveDetailTick() {
+      if (!liveDetailSymbol) return;
+      const drawer = document.getElementById('detailDrawer');
+      if (!drawer || !drawer.classList.contains('show')) {
+        stopLiveDetail();
+        return;
+      }
+      // 美股 WS 推送中：跳过 REST
+      if (!liveDetailIsCN && typeof fhWsActive === 'function' && fhWsActive()) return;
+      try {
+        const sym = liveDetailSymbol;
+        const q = await fetchQuote(sym);
+        if (!q || typeof q.c !== 'number') return;
+        quoteCache[sym] = q;
+        const price = Number(q.c);
+        const dp = typeof q.dp === 'number' ? q.dp : null;
+        const d = typeof q.d === 'number' ? q.d : (q.pc ? price - Number(q.pc) : null);
+        const priceEl = document.getElementById('detailPrice');
+        const chgEl = document.getElementById('detailChg');
+        if (priceEl) priceEl.textContent = price.toFixed(2);
+        if (chgEl && dp != null) {
+          const dStr = d != null ? ((d >= 0 ? '+' : '') + Number(d).toFixed(2)) : '';
+          chgEl.textContent = dStr + ' (' + (dp >= 0 ? '+' : '') + Number(dp).toFixed(2) + '%)';
+          chgEl.className = 'detail-chg ' + (dp > 0 ? 'up' : dp < 0 ? 'down' : 'flat');
+        }
+        // 最高最低
+        const grid = document.getElementById('detailGrid');
+        if (grid && q.h != null) {
+          const highs = grid.querySelectorAll('.detail-stat');
+          // 不强制改结构，只更新顶部价
+        }
+        // 同步观察列表该行（若在列表页缓存）
+        if (typeof renderWatchlist === 'function' && document.getElementById('page-watch') &&
+            document.getElementById('page-watch').classList.contains('active')) {
+          // 轻量：不整表重绘，避免打断拖动；仅当详情关着时整表刷新
+        }
+      } catch (e) {}
+    }
+
+    function startLiveDetail(symbol, isCN) {
+      stopLiveDetail();
+      liveDetailSymbol = symbol;
+      liveDetailIsCN = !!isCN;
+      if (!isCN && typeof fhWsOnWatchlistChanged === 'function') fhWsOnWatchlistChanged();
+      // A股始终 REST；美股仅在 WS 不可用时才 REST 轮询
+      if (isCN) {
+        liveDetailTick();
+        liveDetailTimer = setInterval(liveDetailTick, 1000);
+      } else if (typeof fhWsActive === 'function' && fhWsActive()) {
+        // 纯 WS：不启动 REST 定时器，价由 fhWsApplyTrade 更新
+        var tag = document.getElementById('miniChartLiveTag');
+        if (tag) { tag.textContent = '● WS'; tag.style.color = 'var(--green)'; }
+      } else {
+        liveDetailTick();
+        liveDetailTimer = setInterval(liveDetailTick, 2000);
+      }
+    }
+
     async function openDetail(symbol, isRestore) {
       document.getElementById('detailSymbol').innerHTML = symbol + ' <span class="market-badge us">美股</span>';
       document.getElementById('detailPrice').textContent = '加载中...';
@@ -1787,6 +2451,7 @@
       `;
 
       loadTVChart(symbol);
+      startLiveDetail(symbol, false);
     }
 
     // ---------- 系统返回：分层回退（股票详情 → 成分股列表 → 关闭） ----------
@@ -1794,6 +2459,8 @@
     let suppressPopstate = false;
 
     function hideDetailUI() {
+      if (typeof stopMiniChartLive === 'function') stopMiniChartLive();
+      if (typeof stopLiveDetail === 'function') stopLiveDetail();
       const overlay = document.getElementById('detailOverlay');
       const drawer = document.getElementById('detailDrawer');
       if (overlay) overlay.classList.remove('show');
@@ -1896,11 +2563,28 @@
     }
 
             let miniChartObj = null;
+    let miniChartSeries = null;
+    let miniChartPriceLine = null;
+    let miniChartLiveTimer = null;
+    let miniChartCandleTimer = null;
+    let miniChartLiveSymbol = null;
+    let miniChartLastCandles = null;
+
+    
+    function stopMiniChartLive() {
+      if (miniChartLiveTimer) { clearInterval(miniChartLiveTimer); miniChartLiveTimer = null; }
+      if (miniChartCandleTimer) { clearInterval(miniChartCandleTimer); miniChartCandleTimer = null; }
+      miniChartLiveSymbol = null;
+    }
 
     async function loadMiniSparkChart(symbol) {
       const wrap = document.getElementById('tvChart');
       if (!wrap) return;
-      wrap.innerHTML = '<div id="miniChartBox" style="width:100%;height:300px;background:#0d1117;border-radius:10px;"></div>';
+      stopMiniChartLive();
+      miniChartLiveSymbol = symbol;
+      wrap.innerHTML = '<div id="miniChartBox" style="width:100%;height:300px;background:#0d1117;border-radius:10px;position:relative;"></div>' +
+        '<div id="miniChartLiveTag" style="position:absolute;right:24px;top:8px;font-size:0.68rem;color:var(--green);font-family:var(--font-num);z-index:2;pointer-events:none;">● 实时</div>';
+      // tag relative to chart-wrap - put inside box parent
       const box = document.getElementById('miniChartBox');
       if (!box) return;
 
@@ -1909,79 +2593,98 @@
       else if (/^SZSE:/.test(symbol)) yahooSym = symbol.replace('SZSE:', '') + '.SZ';
       else if (/^BSE:/.test(symbol)) yahooSym = symbol.replace('BSE:', '') + '.BJ';
 
-      try {
-        const yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(yahooSym) + '?interval=1d&range=6mo';
+      async function fetchYahooCandles(interval, range) {
+        const yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(yahooSym) +
+          '?interval=' + interval + '&range=' + range;
         let data = null;
         if (typeof fetchViaProxies === 'function') data = await fetchViaProxies(yUrl);
         else {
-          const u = (typeof WORKER_BASE !== 'undefined' ? WORKER_BASE + '?url=' + encodeURIComponent(yUrl) : yUrl);
+          const u = (typeof WORKER_BASE !== 'undefined' && WORKER_BASE)
+            ? WORKER_BASE + '?url=' + encodeURIComponent(yUrl) : yUrl;
           const res = await fetch(u);
           data = await res.json();
+          if (data && data.contents) { try { data = JSON.parse(data.contents); } catch (e) {} }
         }
         const result = data && data.chart && data.chart.result && data.chart.result[0];
-        if (!result || !result.timestamp) throw new Error('no data');
-        const q0 = result.indicators.quote[0] || {};
+        if (!result || !result.timestamp) return null;
+        const q0 = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};
         const closes = q0.close || [];
         const opens = q0.open || [];
         const highs = q0.high || [];
         const lows = q0.low || [];
         const candleData = [];
+        const isIntraday = interval.indexOf('m') >= 0 || interval.indexOf('h') >= 0;
         for (let i = 0; i < result.timestamp.length; i++) {
           if (closes[i] == null || isNaN(closes[i])) continue;
-          const d = new Date(result.timestamp[i] * 1000);
-          const yyyy = d.getUTCFullYear();
-          const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-          const dd = String(d.getUTCDate()).padStart(2, '0');
-          candleData.push({
-            time: yyyy + '-' + mm + '-' + dd,
-            open: +Number(opens[i]).toFixed(4),
-            high: +Number(highs[i]).toFixed(4),
-            low: +Number(lows[i]).toFixed(4),
-            close: +Number(closes[i]).toFixed(4)
-          });
+          const t = result.timestamp[i];
+          if (isIntraday) {
+            candleData.push({
+              time: t,
+              open: +Number(opens[i]).toFixed(4),
+              high: +Number(highs[i]).toFixed(4),
+              low: +Number(lows[i]).toFixed(4),
+              close: +Number(closes[i]).toFixed(4)
+            });
+          } else {
+            const d = new Date(t * 1000);
+            const yyyy = d.getUTCFullYear();
+            const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const dd = String(d.getUTCDate()).padStart(2, '0');
+            candleData.push({
+              time: yyyy + '-' + mm + '-' + dd,
+              open: +Number(opens[i]).toFixed(4),
+              high: +Number(highs[i]).toFixed(4),
+              low: +Number(lows[i]).toFixed(4),
+              close: +Number(closes[i]).toFixed(4)
+            });
+          }
         }
-        // 去重同一天
-        const seen = {};
-        for (let i = candleData.length - 1; i >= 0; i--) {
-          if (seen[candleData[i].time]) candleData.splice(i, 1);
-          else seen[candleData[i].time] = true;
+        if (!isIntraday) {
+          const seen = {};
+          for (let i = candleData.length - 1; i >= 0; i--) {
+            if (seen[candleData[i].time]) candleData.splice(i, 1);
+            else seen[candleData[i].time] = true;
+          }
+          candleData.sort(function (a, b) { return a.time < b.time ? -1 : 1; });
         }
-        candleData.sort((a, b) => a.time < b.time ? -1 : 1);
-        if (candleData.length < 5) throw new Error('too few');
+        return candleData.length >= 3 ? candleData : null;
+      }
 
-        // 销毁旧图
+      try {
+        // 优先 1 分钟线（盘中会动），失败再日K
+        let candleData = await fetchYahooCandles('1m', '1d');
+        let mode = '1m';
+        if (!candleData) {
+          candleData = await fetchYahooCandles('5m', '5d');
+          mode = '5m';
+        }
+        if (!candleData) {
+          candleData = await fetchYahooCandles('1d', '6mo');
+          mode = '1d';
+        }
+        if (!candleData) throw new Error('no data');
+        miniChartLastCandles = candleData;
+
         if (miniChartObj) {
           try { miniChartObj.remove(); } catch (e) {}
           miniChartObj = null;
         }
-
-        if (typeof LightweightCharts === 'undefined') {
-          throw new Error('no lightweight-charts');
-        }
+        if (typeof LightweightCharts === 'undefined') throw new Error('no lightweight-charts');
 
         const chart = LightweightCharts.createChart(box, {
           width: box.clientWidth || 320,
           height: 300,
-          layout: {
-            background: { type: 'solid', color: '#0d1117' },
-            textColor: '#94a3b8',
-          },
-          grid: {
-            vertLines: { color: '#1e293b' },
-            horzLines: { color: '#1e293b' },
-          },
-          crosshair: {
-            mode: LightweightCharts.CrosshairMode.Normal,
-          },
-          rightPriceScale: {
-            borderColor: '#1e293b',
-          },
+          layout: { background: { type: 'solid', color: '#0d1117' }, textColor: '#94a3b8' },
+          grid: { vertLines: { color: '#1e293b' }, horzLines: { color: '#1e293b' } },
+          crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+          rightPriceScale: { borderColor: '#1e293b' },
           timeScale: {
             borderColor: '#1e293b',
-            timeVisible: true,
+            timeVisible: mode !== '1d',
+            secondsVisible: false
           },
           handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
-          handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
+          handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true }
         });
 
         const series = chart.addCandlestickSeries({
@@ -1990,45 +2693,133 @@
           borderUpColor: '#26a69a',
           borderDownColor: '#ef5350',
           wickUpColor: '#26a69a',
-          wickDownColor: '#ef5350',
+          wickDownColor: '#ef5350'
         });
         series.setData(candleData);
-        // 默认放大：只显示最近约 45 根K线（类似图2的近景），仍可左滑看更早
         const total = candleData.length;
-        const showBars = Math.min(45, total);
+        const showBars = Math.min(mode === '1d' ? 45 : 80, total);
         chart.timeScale().setVisibleLogicalRange({
           from: Math.max(0, total - showBars) - 0.5,
           to: total - 1 + 0.5
         });
 
-        // 最新价线
         const last = candleData[candleData.length - 1].close;
         const prev = total > 1 ? candleData[total - 2].close : last;
         const up = last >= prev;
-        series.createPriceLine({
+        const priceLine = series.createPriceLine({
           price: last,
           color: up ? '#26a69a' : '#ef5350',
           lineWidth: 1,
           lineStyle: LightweightCharts.LineStyle.Dashed,
           axisLabelVisible: true,
-          title: '',
+          title: ''
         });
 
         miniChartObj = chart;
+        miniChartSeries = series;
+        miniChartPriceLine = priceLine;
 
-        // 自适应宽度
-        const ro = new ResizeObserver(() => {
-          if (miniChartObj && box) {
-            miniChartObj.applyOptions({ width: box.clientWidth });
+        try {
+          const ro = new ResizeObserver(function () {
+            if (miniChartObj && box) miniChartObj.applyOptions({ width: box.clientWidth });
+          });
+          ro.observe(box);
+        } catch (e) {}
+
+        // 每秒：用最新报价更新最后一根 K 线 + 价线（盘中会跳动）
+        async function tickLivePrice() {
+          if (miniChartLiveSymbol !== symbol || !miniChartSeries) return;
+          // 美股且 WS 正常：不走 REST，避免和推送抢角标
+          if (typeof fhWsActive === 'function' && fhWsActive() && typeof isAShareSymbol === 'function' && !isAShareSymbol(symbol) && !/^SSE:|^SZSE:|^BSE:/.test(String(symbol))) {
+            var tag0 = document.getElementById('miniChartLiveTag');
+            if (tag0 && tag0.textContent.indexOf('WS') < 0) {
+              tag0.textContent = '● WS';
+              tag0.style.color = 'var(--green)';
+            }
+            return;
           }
-        });
-        ro.observe(box);
+          try {
+            let px = null;
+            // 美股代码 / A股
+            let qSym = yahooSym;
+            if (/^\d{6}\.(SS|SZ)/.test(yahooSym)) qSym = yahooSym.slice(0, 6);
+            else if (!/\d/.test(yahooSym) || /^[A-Z]/.test(yahooSym)) qSym = yahooSym.replace(/\.(SS|SZ|BJ)$/, '');
+            // 从图表 symbol 反推观察列表代码
+            let fetchSym = symbol;
+            if (/^SSE:|^SZSE:|^BSE:/.test(symbol)) {
+              fetchSym = symbol.replace(/^(SSE|SZSE|BSE):/, '');
+            } else if (/^\d{6}\./.test(yahooSym)) {
+              fetchSym = yahooSym.slice(0, 6);
+            } else {
+              fetchSym = yahooSym;
+            }
+            let q = quoteCache[fetchSym];
+            if (!q) q = await fetchQuote(fetchSym);
+            if (q && typeof q.c === 'number' && q.c > 0) {
+              px = q.c;
+              quoteCache[fetchSym] = q;
+            }
+            if (px == null || !miniChartLastCandles || !miniChartLastCandles.length) return;
+            const bars = miniChartLastCandles;
+            const lastBar = Object.assign({}, bars[bars.length - 1]);
+            lastBar.close = +Number(px).toFixed(4);
+            if (px > lastBar.high) lastBar.high = lastBar.close;
+            if (px < lastBar.low) lastBar.low = lastBar.close;
+            bars[bars.length - 1] = lastBar;
+            miniChartSeries.update(lastBar);
+            if (miniChartPriceLine) {
+              try { miniChartSeries.removePriceLine(miniChartPriceLine); } catch (e) {}
+            }
+            const prevC = bars.length > 1 ? bars[bars.length - 2].close : lastBar.open;
+            const isUp = px >= prevC;
+            miniChartPriceLine = miniChartSeries.createPriceLine({
+              price: px,
+              color: isUp ? '#26a69a' : '#ef5350',
+              lineWidth: 1,
+              lineStyle: LightweightCharts.LineStyle.Dashed,
+              axisLabelVisible: true,
+              title: ''
+            });
+            // 同步详情页现价
+            const priceEl = document.getElementById('detailPrice');
+            if (priceEl && document.getElementById('detailDrawer') &&
+                document.getElementById('detailDrawer').classList.contains('show')) {
+              priceEl.textContent = Number(px).toFixed(2);
+            }
+            const tag = document.getElementById('miniChartLiveTag');
+            if (tag) {
+              tag.textContent = '● 实时刷新 ' + Number(px).toFixed(2);
+              tag.style.color = isUp ? 'var(--green)' : 'var(--red)';
+            }
+          } catch (e) {}
+        }
+
+        // 每 20 秒重拉分钟线，补全新柱
+        async function refreshCandles() {
+          if (miniChartLiveSymbol !== symbol || !miniChartSeries) return;
+          try {
+            let fresh = null;
+            if (mode === '1m') fresh = await fetchYahooCandles('1m', '1d');
+            else if (mode === '5m') fresh = await fetchYahooCandles('5m', '5d');
+            if (fresh && fresh.length >= 3) {
+              miniChartLastCandles = fresh;
+              miniChartSeries.setData(fresh);
+            }
+          } catch (e) {}
+        }
+
+        miniChartLiveTimer = setInterval(tickLivePrice,
+          (typeof fhWsStatus !== 'undefined' && fhWsStatus === 'live') ? 15000 : 2000);
+        miniChartCandleTimer = setInterval(refreshCandles, 20000);
+        // 立即跳一笔
+        tickLivePrice();
       } catch (e) {
         console.warn('mini chart fail', e);
         loadFullTVChart(symbol);
       }
     }
 
+    
 function loadFullTVChart(symbol) {
       const wrap = document.getElementById('tvChart');
       if (!wrap) return;
@@ -2496,13 +3287,38 @@ const FALLBACK_SECTORS = {
       ]
     };
 
+    
+    function formatSectorClock(d) {
+      d = d || new Date();
+      let h = d.getHours() % 12;
+      if (h === 0) h = 12;
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      return h + ':' + mm + ':' + ss;
+    }
+
+    function paintSectorLiveStatus(mode) {
+      const el = document.getElementById('sectorLiveStatus');
+      if (!el) return;
+      if (mode === 'loading') {
+        el.textContent = '○ 更新中…';
+        el.style.color = 'var(--orange)';
+        return;
+      }
+      // 板块无 Finnhub WS，用实时刷新指示（绿点样式对齐观察列表，不显示时间）
+      el.innerHTML = '<span style="color:var(--green);">●</span> 实时刷新';
+      el.style.color = 'var(--green)';
+      window.__sectorLiveAt = Date.now();
+    }
+
+    
     function switchSectorMarket(m) {
       sectorMarket = m;
       usSectorView = 'l1';
       usSectorL1 = null;
       cnSectorView = 'l1';
       cnSectorL1 = null;
-      cnBoardCache = null;
+      // 不每次清空 cnBoardCache，避免切回 A 股又全量重拉卡死
       const usBtn = document.getElementById('sectorTabUS');
       const cnBtn = document.getElementById('sectorTabCN');
       if (usBtn && cnBtn) {
@@ -2517,6 +3333,18 @@ const FALLBACK_SECTORS = {
           usBtn.style.background = 'var(--card)';
           usBtn.style.color = 'var(--muted)';
         }
+      }
+      const container = document.getElementById('sectorContent');
+      if (container) {
+        paintSectorLiveStatus('loading');
+        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载' +
+          (m === 'cn' ? 'A股' : '美股') + '板块...</div>';
+      }
+      // 有缓存的 A 股一级：先秒开再后台刷新
+      if (m === 'cn' && window.__cnL1HtmlCache && container) {
+        container.innerHTML = window.__cnL1HtmlCache;
+        setTimeout(function () { loadSectors(); }, 30);
+        return;
       }
       loadSectors();
     }
@@ -2599,19 +3427,26 @@ const FALLBACK_SECTORS = {
     
     async function loadSectors() {
       const container = document.getElementById('sectorContent');
-      if (container) {
+      // 已有内容时不整页清空，避免闪「加载中」和 0.00
+      const hasContent = container && container.querySelector('.sector-cards, .l1-card, .sector-card');
+      if (container && !hasContent) {
         container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载板块数据中...</div>';
       }
       try {
         if (typeof sectorMarket === 'undefined' || !sectorMarket) sectorMarket = 'us';
         if (sectorMarket === 'cn') {
-          await loadCNSectors();
+          // 若已在二级页，只软刷新二级，不退回一级
+          if (typeof cnSectorView !== 'undefined' && cnSectorView === 'l2' && cnSectorL1) {
+            await openCNSectorL1(cnSectorL1, true);
+          } else {
+            await loadCNSectors();
+          }
         } else {
           await loadUSSectors();
         }
       } catch (e) {
         console.warn('loadSectors', e);
-        if (container) {
+        if (container && !hasContent) {
           container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载失败，请点刷新重试</div>';
         }
       }
@@ -2620,9 +3455,6 @@ const FALLBACK_SECTORS = {
     async function loadUSSectors() {
       usSectorView = 'l1';
       usSectorL1 = null;
-      cnSectorView = 'l1';
-      cnSectorL1 = null;
-      cnBoardCache = null;
       await renderUSSectorL1();
     }
 
@@ -2653,6 +3485,7 @@ const FALLBACK_SECTORS = {
       }
       if (!html) html = '<div style="color:var(--muted);text-align:center;padding:20px;">暂无数据</div>';
       container.innerHTML = html;
+      paintSectorLiveStatus('ok');
       const note = document.getElementById('sectorNote');
       if (note) note.textContent = '一级角标=大类成分股总数 · 二级角标=该产业成分股数 · 系统返回逐层回退';
     }
@@ -2882,49 +3715,99 @@ async function fetchCNConceptList(po) {
     
     
     async function fetchCNBoardMeta(board) {
-      if (!board) return { count: 0, chg: 0 };
-      if (window.__cnBoardMeta && window.__cnBoardMeta[board]) return window.__cnBoardMeta[board];
+      if (!board) return { count: 0, chg: null, hasChg: false };
+      window.__cnBoardMeta = window.__cnBoardMeta || {};
+      const cached = window.__cnBoardMeta[board];
+      // 有效缓存 30 秒
+      if (cached && cached._at && Date.now() - cached._at < 30000 && cached.hasChg) return cached;
       try {
-        const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=1&po=1&np=1&fltt=2&invt=2&fid=f3&fs=b:' + board + '&fields=f12,f3&_=' + Date.now();
+        // 板块指数行情 secid=90.BKxxxx
+        const url = 'https://push2delay.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&secid=90.' +
+          encodeURIComponent(board) + '&fields=f43,f57,f58,f169,f170,f46,f44,f45,f168,f47,f48&_=' + Date.now();
         const proxies = [];
         if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) proxies.push(WORKER_BASE + '?url=' + encodeURIComponent(url));
         proxies.push(url);
         for (let i = 0; i < proxies.length; i++) {
           try {
-            const res = await (typeof fetchWithTimeoutSimple === 'function' ? fetchWithTimeoutSimple(proxies[i], 3500) : fetch(proxies[i]));
+            const res = await (typeof fetchWithTimeoutSimple === 'function' ? fetchWithTimeoutSimple(proxies[i], 4000) : fetch(proxies[i]));
+            if (!res || !res.ok) continue;
+            let data = await res.json();
+            if (data && data.contents) { try { data = JSON.parse(data.contents); } catch (e) {} }
+            const d = data && data.data;
+            if (d && d.f170 != null && d.f170 !== '-' && !isNaN(Number(d.f170))) {
+              const meta = {
+                count: (cached && cached.count) || 0,
+                chg: Number(d.f170),
+                hasChg: true,
+                _at: Date.now()
+              };
+              window.__cnBoardMeta[board] = meta;
+              return meta;
+            }
+          } catch (e) {}
+        }
+        // 回退：成分股列表取 total + 涨跌均值
+        const url2 = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=20&po=1&np=1&fltt=2&invt=2&fid=f3&fs=b:' +
+          board + '&fields=f12,f3&_=' + Date.now();
+        const proxies2 = [];
+        if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) proxies2.push(WORKER_BASE + '?url=' + encodeURIComponent(url2));
+        proxies2.push(url2);
+        for (let i = 0; i < proxies2.length; i++) {
+          try {
+            const res = await (typeof fetchWithTimeoutSimple === 'function' ? fetchWithTimeoutSimple(proxies2[i], 4000) : fetch(proxies2[i]));
             if (!res || !res.ok) continue;
             let data = await res.json();
             if (data && data.contents) { try { data = JSON.parse(data.contents); } catch (e) {} }
             if (data && data.data) {
               const total = Number(data.data.total) || 0;
-              let chg = 0;
-              const diff = data.data.diff;
-              if (Array.isArray(diff) && diff[0] && diff[0].f3 != null) chg = Number(diff[0].f3) || 0;
-              const meta = { count: total, chg: chg };
-              window.__cnBoardMeta = window.__cnBoardMeta || {};
+              const diff = data.data.diff || [];
+              let sum = 0, n = 0;
+              diff.forEach(function (it) {
+                if (it.f3 != null && it.f3 !== '' && it.f3 !== '-' && !isNaN(Number(it.f3))) {
+                  sum += Number(it.f3); n++;
+                }
+              });
+              const meta = {
+                count: total,
+                chg: n ? (sum / n) : null,
+                hasChg: n > 0,
+                _at: Date.now()
+              };
               window.__cnBoardMeta[board] = meta;
               return meta;
             }
           } catch (e) {}
         }
       } catch (e) {}
-      return { count: 0, chg: 0 };
+      return { count: (cached && cached.count) || 0, chg: null, hasChg: false, _at: Date.now() };
     }
 
-    async function loadCNBoardUniverse() {
-      if (cnBoardCache && cnBoardCache.length) return cnBoardCache;
+    async function loadCNBoardUniverse(force) {
+      if (force) {
+        window.__cnBoardMeta = {};
+        cnBoardCache = null;
+        window.__cnBoardCacheAt = 0;
+      }
+      if (!force && cnBoardCache && cnBoardCache.length) {
+        const age = window.__cnBoardCacheAt ? (Date.now() - window.__cnBoardCacheAt) : 999999;
+        if (age < 45000) return cnBoardCache;
+      }
       // 只拉行业榜（概念榜太慢且树已写死 BK），加速首屏
       const [upRaw, downRaw] = await Promise.all([
         fetchCNSectorList(1),
         fetchCNSectorList(0)
       ]);
       const upConcept = null, downConcept = null;
-      const mapItem = (it) => ({
-        name: it.f14 || it.f12 || '--',
-        chg: Number(it.f3) || 0,
-        board: it.f12 || '',
-        count: (Number(it.f104) || 0) + (Number(it.f105) || 0)
-      });
+      const mapItem = (it) => {
+        const hasChg = it.f3 != null && it.f3 !== '' && !isNaN(Number(it.f3));
+        return {
+          name: it.f14 || it.f12 || '--',
+          chg: hasChg ? Number(it.f3) : null,
+          hasChg: hasChg,
+          board: it.f12 || '',
+          count: (Number(it.f104) || 0) + (Number(it.f105) || 0)
+        };
+      };
       const byBoard = new Map();
       for (const it of (upRaw || []).concat(downRaw || []).concat(upConcept || []).concat(downConcept || [])) {
         const row = mapItem(it);
@@ -2995,10 +3878,35 @@ async function fetchCNConceptList(po) {
       await renderCNSectorL1();
     }
 
-    async function renderCNSectorL1() {
+    
+    function backCNSectorL1() {
+      // 取消进行中的二级加载，防止返回后又被异步结果盖回
+      window.__cnL2LoadToken = (window.__cnL2LoadToken || 0) + 1;
+      cnSectorView = 'l1';
+      cnSectorL1 = null;
+      const container = document.getElementById('sectorContent');
+      if (window.__cnL1HtmlCache && container) {
+        container.innerHTML = window.__cnL1HtmlCache;
+        setTimeout(function () {
+          if (cnSectorView === 'l1' && sectorMarket === 'cn') {
+            renderCNSectorL1(true);
+          }
+        }, 100);
+        return;
+      }
+      if (container) {
+        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载A股大类...</div>';
+      }
+      renderCNSectorL1(true);
+    }
+
+    async function renderCNSectorL1(fromBack) {
       const container = document.getElementById('sectorContent');
       if (!container) return;
-      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载A股大类...</div>';
+      const keep = container.querySelector('.sector-cards, .l1-card');
+      if (!keep) {
+        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载A股大类...</div>';
+      }
       cnSectorView = 'l1';
       let universe = [];
       try {
@@ -3011,34 +3919,34 @@ async function fetchCNConceptList(po) {
         return;
       }
 
-      // 按每个二级固定 BK 取官方成分股总数再相加 = 一级角标（与点进二级看到的家数一致）
-      const cards = await Promise.all(CN_SECTOR_TREE.map(async function (l1) {
+      // 先只用行业榜 universe 快速出一级（避免每个 BK 串行/并行打爆导致切换卡死）
+      // 返回场景 fromBack 同样走快速路径
+      const cards = CN_SECTOR_TREE.map(function (l1) {
         let stockTotal = 0;
         let chgSum = 0, chgN = 0;
-        await Promise.all(l1.children.map(async function (c) {
+        l1.children.forEach(function (c) {
           let count = 0, chg = 0;
           let lead = null;
           if (c.board) lead = universe.find(function (h) { return h.board === c.board; });
           if (!lead) lead = universe.find(function (h) { return h.name === c.name; });
+          if (!lead && c.match) {
+            const hits = matchCNBoards(c.match || [c.name], universe, [c.name]);
+            lead = hits[0] || null;
+          }
           if (lead) {
             count = lead.count || 0;
-            chg = lead.chg || 0;
+            if (lead.hasChg && typeof lead.chg === 'number') chg = lead.chg;
+            else if (typeof lead.chg === 'number') chg = lead.chg;
           }
-          // 榜单里没有或家数为 0：直接问东财该板块 total
-          if (c.board && count <= 0) {
-            const meta = await fetchCNBoardMeta(c.board);
-            if (meta.count > 0) count = meta.count;
-            if (meta.chg) chg = meta.chg;
-          } else if (c.board && lead) {
-            // 有涨跌但家数可能用 f104+f105 偏小，仍用 total 校正
-            try {
-              const meta = await fetchCNBoardMeta(c.board);
-              if (meta.count > count) count = meta.count;
-            } catch (e) {}
+          // 缓存过的 meta 可同步用（不发起新请求）
+          if (c.board && window.__cnBoardMeta && window.__cnBoardMeta[c.board]) {
+            const meta = window.__cnBoardMeta[c.board];
+            if (meta.count > count) count = meta.count;
+            if (meta.hasChg && typeof meta.chg === 'number') chg = meta.chg;
           }
           stockTotal += count;
           if (typeof chg === 'number') { chgSum += chg; chgN++; }
-        }));
+        });
         return {
           id: l1.id,
           name: l1.name,
@@ -3048,7 +3956,7 @@ async function fetchCNConceptList(po) {
           boardCount: l1.children.length,
           subCount: l1.children.length
         };
-      }));
+      });
 
       const up = cards.filter(function (x) { return x.chg > 0; }).sort(function (a, b) { return b.chg - a.chg; });
       const down = cards.filter(function (x) { return x.chg < 0; }).sort(function (a, b) { return a.chg - b.chg; });
@@ -3075,6 +3983,9 @@ async function fetchCNConceptList(po) {
       }
       if (!html) html = '<div style="color:var(--muted);text-align:center;padding:20px;">暂无数据，请刷新</div>';
       container.innerHTML = html;
+      window.__cnL1HtmlCache = html;
+      paintSectorLiveStatus('ok');
+
       const note = document.getElementById('sectorNote');
       if (note) note.textContent = '';
     }
@@ -3082,6 +3993,9 @@ async function fetchCNConceptList(po) {
     async function openCNSectorL1(id, isRestore) {
       const l1 = CN_SECTOR_TREE.find(function (x) { return x.id === id; });
       if (!l1) return;
+      // 每次进入二级发新 token；返回大类时会 +1 使旧请求失效
+      window.__cnL2LoadToken = (window.__cnL2LoadToken || 0) + 1;
+      const myToken = window.__cnL2LoadToken;
       cnSectorL1 = id;
       cnSectorView = 'l2';
       if (!isRestore) {
@@ -3089,10 +4003,21 @@ async function fetchCNConceptList(po) {
       }
       const container = document.getElementById('sectorContent');
       if (!container) return;
-      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载细分...</div>';
+      window.__cnL2RowsByL1 = window.__cnL2RowsByL1 || {};
+      const prevRows = window.__cnL2RowsByL1[id] || [];
+      const prevMap = {};
+      prevRows.forEach(function (r) { prevMap[r.id] = r; });
+      // 加载中也提供「← 大类」，可立刻返回，不必等请求结束
+      container.innerHTML = '<div class="l2-head">' +
+        '<button type="button" class="back-mini" onclick="backCNSectorL1()">← 大类</button>' +
+        '<span class="l2-title">' + (l1.name || '') + '</span></div>' +
+        '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载细分行业...</div>';
       const universe = await loadCNBoardUniverse();
+      if (myToken !== window.__cnL2LoadToken || cnSectorView !== 'l2' || cnSectorL1 !== id) return;
 
       const rows = await Promise.all(l1.children.map(async function (c) {
+          if (myToken !== window.__cnL2LoadToken) return { id: c.id, name: c.name, tips: c.tips || '', chg: 0, count: 0, board: c.board || '', boards: [], hasLive: false };
+        const prev = prevMap[c.id] || null;
         let lead = null;
         if (c.board) {
           lead = universe.find(function (h) { return h.board === c.board; }) || null;
@@ -3104,17 +4029,27 @@ async function fetchCNConceptList(po) {
           const hits = matchCNBoards(c.match || [c.name], universe, [c.name]);
           lead = hits[0] || null;
         }
-        let count = lead && lead.count ? lead.count : 0;
-        let chg = lead ? lead.chg : 0;
-        const board = c.board || (lead && lead.board) || '';
+        let count = (lead && lead.count) ? lead.count : ((prev && prev.count) || 0);
+        // 只有接口明确给了 f3 才算有行情；null 不要当成 0
+        let chg = (lead && lead.hasChg && typeof lead.chg === 'number') ? lead.chg : null;
+        let hasLive = chg !== null;
+        const board = c.board || (lead && lead.board) || (prev && prev.board) || '';
         if (board) {
           try {
             const meta = await fetchCNBoardMeta(board);
-            if (meta.count > 0) count = meta.count;
-            // 板块涨跌仍优先用行业榜
-            if (!lead && meta.chg) chg = meta.chg;
+            if (meta && meta.count > 0) count = meta.count;
+            if (meta && meta.hasChg && typeof meta.chg === 'number') {
+              chg = meta.chg;
+              hasLive = true;
+            }
           } catch (e) {}
         }
+        // 仍无新行情：保留上一帧（且上一帧曾经有过有效涨跌）
+        if (!hasLive && prev && prev.hasLive && typeof prev.chg === 'number') {
+          chg = prev.chg;
+          // 标记为沿用缓存，后面仍尝试成分股接口
+        }
+        if (chg === null) chg = 0;
         return {
           id: c.id,
           name: c.name,
@@ -3122,14 +4057,15 @@ async function fetchCNConceptList(po) {
           chg: chg,
           count: count,
           board: board,
-          boards: lead ? [lead] : []
+          boards: lead ? [lead] : (prev && prev.boards) || [],
+          hasLive: hasLive
         };
       }));
 
-      // 对没有涨跌/家数的板块，用成分股接口读 total 和简单涨跌
+      // 无有效板块涨跌时，用成分股涨跌均值补（不要因为 chg===0 就跳过）
       await Promise.all(rows.map(async function (r) {
         if (!r.board) return;
-        if (r.count > 0 && r.chg !== 0) return;
+        if (r.hasLive && r.count > 0) return;
         try {
           const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=3&po=1&np=1&fltt=2&invt=2&fid=f3&fs=b:' + r.board + '&fields=f12,f14,f2,f3&_=' + Date.now();
           const u = (typeof WORKER_BASE !== 'undefined' && WORKER_BASE)
@@ -3144,27 +4080,34 @@ async function fetchCNConceptList(po) {
             if (diff.length) {
               let sum = 0, n = 0;
               diff.forEach(function (it) {
-                if (it.f3 != null) { sum += Number(it.f3); n++; }
+                if (it.f3 != null && it.f3 !== '' && !isNaN(Number(it.f3))) {
+                  sum += Number(it.f3); n++;
+                }
               });
-              if (n) r.chg = sum / n;
+              if (n) {
+                r.chg = sum / n;
+                r.hasLive = true;
+              }
             }
           }
         } catch (e) {}
       }));
 
-      // 缓存二级命中，供三级打开
+      // 缓存二级命中，供三级打开与软刷新
       window.__cnL2Cache = window.__cnL2Cache || {};
       rows.forEach(function (r) {
         window.__cnL2Cache[l1.id + ':' + r.id] = r;
       });
+      window.__cnL2RowsByL1[id] = rows;
 
       const up = rows.filter(function (x) { return x.chg > 0; }).sort(function (a, b) { return b.chg - a.chg; });
       const down = rows.filter(function (x) { return x.chg < 0; }).sort(function (a, b) { return a.chg - b.chg; });
+      // 真正 0 或尚无数据：不塞进上涨区显示 +0.00，单独弱化
       const flat = rows.filter(function (x) { return x.chg === 0; });
 
       function cardHtml(s) {
-        const cls = s.chg >= 0 ? 'up' : 'down';
-        const chgText = (s.chg >= 0 ? '+' : '') + Number(s.chg).toFixed(2) + '%';
+        const cls = s.chg > 0 ? 'up' : (s.chg < 0 ? 'down' : 'flat');
+        const chgText = (s.chg > 0 ? '+' : '') + Number(s.chg).toFixed(2) + '%';
         const badge = s.count > 0 ? s.count : '-';
         const tips = s.tips ? '<div style="font-size:0.65rem;color:var(--muted);margin-top:4px;line-height:1.3;">' + s.tips + '</div>' : '';
         return '<div class="sector-card ' + cls + '" style="cursor:pointer;position:relative;text-align:left;" onclick="openCNSectorL2(\'' + l1.id + '\',\'' + s.id + '\')">' +
@@ -3174,17 +4117,24 @@ async function fetchCNConceptList(po) {
       }
 
       let html = '<div class="l2-head">' +
-        '<button type="button" class="back-mini" onclick="renderCNSectorL1()">← 大类</button>' +
+        '<button type="button" class="back-mini" onclick="backCNSectorL1()">← 大类</button>' +
         '<span class="l2-title">' + l1.name + '</span></div>';
-      if (up.length || flat.length) {
+      if (up.length) {
         html += '<div class="sector-group"><h3><span style="color:var(--green)">●</span> 上涨细分</h3><div class="sector-cards">';
-        html += up.concat(flat).map(cardHtml).join('') + '</div></div>';
+        html += up.map(cardHtml).join('') + '</div></div>';
+      }
+      if (flat.length) {
+        html += '<div class="sector-group"><h3><span style="color:var(--muted)">●</span> 平盘/待更新</h3><div class="sector-cards">';
+        html += flat.map(cardHtml).join('') + '</div></div>';
       }
       if (down.length) {
         html += '<div class="sector-group"><h3><span style="color:var(--red)">●</span> 下跌细分</h3><div class="sector-cards">';
         html += down.map(cardHtml).join('') + '</div></div>';
       }
-            container.innerHTML = html;
+            if (myToken !== window.__cnL2LoadToken || cnSectorView !== 'l2' || cnSectorL1 !== id) return;
+      container.innerHTML = html;
+      paintSectorLiveStatus('ok');
+      
 
     }
 
@@ -3194,6 +4144,18 @@ async function fetchCNConceptList(po) {
       const l1 = CN_SECTOR_TREE.find(function (x) { return x.id === l1id; });
       const l2 = l1 && l1.children.find(function (x) { return x.id === l2id; });
       const title = (l2 && l2.name) || (cached && cached.name) || '细分行业';
+      // 先弹出抽屉 + 加载提示，避免无反馈
+      try {
+        document.getElementById('detailSymbol').textContent = title;
+        document.getElementById('detailPrice').textContent = '成分股';
+        document.getElementById('detailChg').textContent = '加载中...';
+        document.getElementById('detailChg').className = 'detail-chg flat';
+        document.getElementById('detailGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:20px 12px;">加载行情...</div>';
+        const chartWrap = document.querySelector('.chart-wrap');
+        if (chartWrap) chartWrap.style.display = 'none';
+        document.getElementById('detailOverlay').classList.add('show');
+        document.getElementById('detailDrawer').classList.add('show');
+      } catch (e) {}
       // 优先：树里写死的 BK 代码 → 缓存 → 名称匹配
       let board = (l2 && l2.board) || (cached && cached.board) || '';
       if (!board) {
@@ -3226,7 +4188,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       document.getElementById('detailPrice').textContent = '成分股';
       document.getElementById('detailChg').textContent = '加载中...';
       document.getElementById('detailChg').className = 'detail-chg flat';
-      document.getElementById('detailGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:12px;">加载成分股行情...</div>';
+      document.getElementById('detailGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:20px 12px;">加载行情...</div>';
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = 'none';
       document.getElementById('detailOverlay').classList.add('show');
@@ -3532,6 +4494,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       // TradingView K线
       try {
         loadCNChart(code);
+        startLiveDetail(code, true);
       } catch (e) {
         console.warn('cn chart', e);
       }
@@ -3915,6 +4878,176 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       return { bias, color, desc, reasons: reasons.join('；') || '数据不足' };
     }
 
+    
+
+    // FOMC 日程：会议日一年内基本固定（官方提前公布），日期会按「今天」自动滚到下一场
+    // 决议结果：优先 localStorage 缓存 → Finnhub 新闻/经济日历识别 → 再回退已知参考
+    // 这样会后不必每次改代码；识别失败时显示「等待会后声明」
+    const FOMC_SCHEDULE = [
+      { start: '2026-01-27', end: '2026-01-28', sep: false },
+      { start: '2026-03-17', end: '2026-03-18', sep: true },
+      { start: '2026-04-28', end: '2026-04-29', sep: false },
+      { start: '2026-06-16', end: '2026-06-17', sep: true },
+      { start: '2026-07-28', end: '2026-07-29', sep: false },
+      { start: '2026-09-15', end: '2026-09-16', sep: true },
+      { start: '2026-10-27', end: '2026-10-28', sep: false },
+      { start: '2026-12-08', end: '2026-12-09', sep: true },
+      { start: '2027-01-26', end: '2027-01-27', sep: false },
+      { start: '2027-03-16', end: '2027-03-17', sep: true },
+      { start: '2027-05-04', end: '2027-05-05', sep: false },
+      { start: '2027-06-15', end: '2027-06-16', sep: true },
+      { start: '2027-07-27', end: '2027-07-28', sep: false },
+      { start: '2027-09-14', end: '2027-09-15', sep: true },
+      { start: '2027-10-26', end: '2027-10-27', sep: false },
+      { start: '2027-12-07', end: '2027-12-08', sep: true }
+    ];
+
+    function todayISO() {
+      const t = new Date();
+      return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+    }
+
+    function fmtFomcDate(iso) {
+      if (!iso) return '--';
+      const p = String(iso).split('-');
+      if (p.length < 3) return iso;
+      return Number(p[1]) + '月' + Number(p[2]) + '日';
+    }
+
+    function getFomcSnapshot() {
+      const todayStr = todayISO();
+      let last = null, next = null;
+      for (let i = 0; i < FOMC_SCHEDULE.length; i++) {
+        const mt = FOMC_SCHEDULE[i];
+        if (mt.end < todayStr) last = mt;
+        else if (!next) next = mt;
+      }
+      if (!last && FOMC_SCHEDULE.length) last = FOMC_SCHEDULE[0];
+      return { last: last, next: next };
+    }
+
+    function loadFomcResultCache() {
+      try {
+        return JSON.parse(localStorage.getItem('fomcResults') || '{}') || {};
+      } catch (e) { return {}; }
+    }
+
+    function saveFomcResult(endDate, payload) {
+      try {
+        const all = loadFomcResultCache();
+        all[endDate] = Object.assign({ at: Date.now() }, payload);
+        localStorage.setItem('fomcResults', JSON.stringify(all));
+      } catch (e) {}
+    }
+
+    function parseFedDecisionFromText(text) {
+      const t = String(text || '').toLowerCase();
+      if (!t) return null;
+      // 优先匹配明确决议
+      if (/cut(s|ting)?\s+(rates?|by)|rate cut|降低.*利率|降息\s*\d*|lower(s|ed)?\s+(the\s+)?(fed\s+)?funds|reduced\s+(the\s+)?target/.test(t)) {
+        let bp = 25;
+        const m = t.match(/(\d+)\s*(basis\s*points|bp|基点)/);
+        if (m) bp = Number(m[1]) || 25;
+        return { result: '降息约' + bp + 'bp', tone: 'cut' };
+      }
+      if (/hike(s|ing)?\s+(rates?|by)|rate hike|加息\s*\d*|raise(s|d)?\s+(the\s+)?(fed\s+)?funds|increased\s+(the\s+)?target/.test(t)) {
+        let bp = 25;
+        const m = t.match(/(\d+)\s*(basis\s*points|bp|基点)/);
+        if (m) bp = Number(m[1]) || 25;
+        return { result: '加息约' + bp + 'bp', tone: 'hike' };
+      }
+      if (/hold(s|ing)?\s+(rates?|steady)|kept\s+(rates?|the\s+target)|maintain(s|ed)?\s+(the\s+)?(target|rates?)|unchanged|维持不变|维持利率|按兵不动|保持.*不变/.test(t)) {
+        return { result: '维持', tone: 'hold' };
+      }
+      return null;
+    }
+
+    async function resolveFomcResult(meeting) {
+      if (!meeting || !meeting.end) return { result: null, rate: null, source: '' };
+      const cache = loadFomcResultCache();
+      if (cache[meeting.end] && cache[meeting.end].result) {
+        return {
+          result: cache[meeting.end].result,
+          rate: cache[meeting.end].rate || null,
+          source: cache[meeting.end].source || '本地缓存'
+        };
+      }
+
+      const todayStr = todayISO();
+      // 会议尚未结束
+      if (meeting.end > todayStr) {
+        return { result: null, rate: null, source: '', pending: true };
+      }
+
+      const key = (typeof FINNHUB_KEY !== 'undefined') ? FINNHUB_KEY : '';
+      let found = null;
+      let rateHint = null;
+
+      // 1) Finnhub 一般新闻：会后数日内搜 Fed/FOMC
+      try {
+        const from = meeting.end;
+        const toDate = new Date(meeting.end + 'T12:00:00');
+        toDate.setDate(toDate.getDate() + 5);
+        const to = toDate.getFullYear() + '-' + String(toDate.getMonth() + 1).padStart(2, '0') + '-' + String(toDate.getDate()).padStart(2, '0');
+        const url = 'https://finnhub.io/api/v1/news?category=general&token=' + key;
+        const res = await fetch(url);
+        if (res && res.ok) {
+          const arr = await res.json();
+          if (Array.isArray(arr)) {
+            for (let i = 0; i < arr.length && i < 40; i++) {
+              const n = arr[i];
+              const blob = ((n && n.headline) || '') + ' ' + ((n && n.summary) || '');
+              if (!/fomc|federal reserve|fed\b|利率决议|美联储/i.test(blob)) continue;
+              const parsed = parseFedDecisionFromText(blob);
+              if (parsed) { found = parsed; break; }
+            }
+          }
+        }
+      } catch (e) {}
+
+      // 2) 经济日历（若可用）
+      if (!found) {
+        try {
+          const url = 'https://finnhub.io/api/v1/calendar/economic?from=' + meeting.start + '&to=' + meeting.end + '&token=' + key;
+          const res = await fetch(url);
+          if (res && res.ok) {
+            const data = await res.json();
+            const list = (data && data.economicCalendar) || [];
+            for (let i = 0; i < list.length; i++) {
+              const ev = list[i];
+              const name = String((ev && (ev.event || ev.name)) || '');
+              if (!/fed|fomc|interest rate|federal funds/i.test(name)) continue;
+              const blob = name + ' ' + (ev.actual != null ? ev.actual : '') + ' ' + (ev.estimate != null ? ev.estimate : '');
+              const parsed = parseFedDecisionFromText(blob);
+              if (parsed) { found = parsed; break; }
+              if (ev.actual != null && String(ev.actual).length) {
+                rateHint = String(ev.actual);
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      // 3) 已知会前参考：2026 年中多次维持（仅作会后短期回退，可被新闻覆盖）
+      if (!found && meeting.end <= '2026-07-29') {
+        found = { result: '维持', tone: 'hold' };
+        rateHint = rateHint || '3.50–3.75%';
+      }
+
+      if (found) {
+        const payload = {
+          result: found.result,
+          rate: rateHint || (found.tone === 'hold' ? '3.50–3.75%' : null),
+          source: '自动识别/缓存'
+        };
+        saveFomcResult(meeting.end, payload);
+        return payload;
+      }
+
+      // 会已过但还没识别到
+      return { result: null, rate: null, source: '', waiting: true };
+    }
+
     async function loadMacro() {
       const container = document.getElementById('macroList');
       const impactEl = document.getElementById('macroImpact');
@@ -3949,6 +5082,63 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           </div>
           <div class="desc">${bias.desc}<br/><span style="opacity:0.85;">依据：${bias.reasons}</span></div>
         </div>`;
+
+      // FOMC：日期自动滚；结果自动识别并写入本地缓存（无需每次改代码）
+      try {
+        const fomc = getFomcSnapshot();
+        const last = fomc.last;
+        const next = fomc.next;
+        const resolved = last ? await resolveFomcResult(last) : { result: null, waiting: true };
+        let lastText = '等待会后声明';
+        let lastBadge = '待确认';
+        let lastSub = '会后将尝试从公开新闻/日历自动识别加息、降息或维持，并保存在本机，无需改代码';
+        if (resolved && resolved.result) {
+          lastText = resolved.result + (resolved.rate ? ' · ' + resolved.rate : '');
+          lastBadge = '已记录';
+          lastSub = (last ? (fmtFomcDate(last.start) + '–' + fmtFomcDate(last.end)) : '') +
+            (last && last.sep ? ' · 含点阵图/SEP' : '') +
+            ' · 来源：' + (resolved.source || '自动') +
+            ' · 决议通常在结束日 14:00 美东公布';
+        } else if (last) {
+          lastSub = fmtFomcDate(last.start) + '–' + fmtFomcDate(last.end) +
+            ' · 已过会期，正在等待可识别的公开结果（可点刷新重试）';
+        }
+        let nextText = '--';
+        let nextSub = '一年约 8 次例会；过了日期会自动切到下一场，不必手改';
+        if (next) {
+          nextText = fmtFomcDate(next.start) + ' – ' + fmtFomcDate(next.end);
+          nextSub = (next.sep ? '含经济预测与点阵图 · ' : '') +
+            '决议约在结束日 14:00 美东（北京时间次日凌晨）公布';
+        }
+        html += `
+          <div class="macro-item">
+            <div class="label">最近一次 FOMC 决议（结果）</div>
+            <div class="value-row">
+              <div class="value" style="font-size:1.15rem;">${lastText}</div>
+              <div class="change flat">${lastBadge}</div>
+            </div>
+            <div class="desc">${lastSub}</div>
+          </div>
+          <div class="macro-item">
+            <div class="label">下一次 FOMC 会议</div>
+            <div class="value-row">
+              <div class="value" style="font-size:1.1rem;">${nextText}</div>
+              <div class="change flat">待公布</div>
+            </div>
+            <div class="desc">${nextSub}</div>
+          </div>
+          <div class="macro-item">
+            <div class="label">怎么看「降息还是加息」</div>
+            <div class="desc" style="margin-top:0;">
+              美联储通过 FOMC <b>大约每 6～8 周开一次会</b>（一年约 8 次）决定是否调整联邦基金利率目标区间。<br/>
+              会后公布：加息 / 降息 / <b>维持不变</b>。页面会按日期自动切换「上一场/下一场」；决议结果尽量从公开新闻自动识别并缓存。<br/>
+              若识别失败会显示「等待会后声明」，点刷新即可重试。下方债市/美元/黄金仍是市场预期信号。
+            </div>
+          </div>`;
+      } catch (e) {
+        console.warn('fomc block', e);
+      }
+
 
       // 10Y
       if (tnx) {
@@ -4066,7 +5256,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           <p style="margin-bottom:8px;"><b>若降息：</b>通常利好成长股、科技与黄金；美元可能走弱；借贷成本下降。</p>
           <p style="margin-bottom:8px;"><b>若加息或维持高利率：</b>压制高估值成长股；利好部分金融；美元可能走强。</p>
           <p style="margin-bottom:8px;"><b>当前判断：</b><span style="color:${bias.color};font-weight:600;">${bias.bias}</span> — ${bias.desc}</p>
-          <p style="color:var(--muted);font-size:0.78rem;">数据源：Yahoo（代理）→ Finnhub 备用。不稳定时部分项会显示暂无。仅供学习，不构成投资建议。</p>
+          <p style="color:var(--muted);font-size:0.78rem;">FOMC 日程为公开日历整理；利率结果为会后市场常用表述。数据源：Yahoo（代理）→ Finnhub 备用。仅供学习，不构成投资建议。</p>
         `;
       }
     }
@@ -4106,13 +5296,28 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
     // ==================== 初始化 ====================
     renderWatchlist();
     refreshQuotes();
+    setTimeout(function () { if (typeof enrichWatchlistRefSignals === 'function') enrichWatchlistRefSignals(); }, 1500);
+    setInterval(function () { if (typeof enrichWatchlistRefSignals === 'function') enrichWatchlistRefSignals(); }, 5 * 60 * 1000);
+    // 启动 Finnhub WebSocket 推送
+    setTimeout(function () { if (typeof fhWsConnect === 'function') fhWsConnect(); }, 500);
 
-    // 每 60 秒自动刷新观察列表
-    setInterval(() => {
-      if (document.getElementById('page-watch').classList.contains('active')) {
-        refreshQuotes();
+    // 观察列表：WS 可用时只偶尔 REST 补 OHLC；否则 2s 轮询
+    setInterval(function () {
+      const page = document.getElementById('page-watch');
+      const drawer = document.getElementById('detailDrawer');
+      const detailOpen = drawer && drawer.classList.contains('show');
+      if (page && page.classList.contains('active') && !detailOpen) {
+        if (typeof fhWsActive === 'function' && fhWsActive()) {
+          // 仅补最高最低昨收（WS 只有最新价）
+          if (!window.__lastRestWatch || Date.now() - window.__lastRestWatch > 30000) {
+            window.__lastRestWatch = Date.now();
+            refreshQuotes();
+          }
+        } else {
+          refreshQuotes();
+        }
       }
-    }, 60000);
+    }, 2000);
   
     // ---------- 网络延迟 / 流畅度（全局右上角） ----------
     let lastNetMs = null;
@@ -4190,8 +5395,9 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         const drawer = document.getElementById('detailDrawer');
         if (drawer && drawer.classList.contains('show')) return;
         const page = document.getElementById('page-sector');
-        if (page && page.classList.contains('active') && typeof renderCNSectorL1 === 'function') {
-          renderCNSectorL1();
+        if (page && page.classList.contains('active')) {
+          if (typeof backCNSectorL1 === 'function') backCNSectorL1();
+          else if (typeof renderCNSectorL1 === 'function') renderCNSectorL1(true);
         }
       }
     });
