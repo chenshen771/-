@@ -2599,16 +2599,30 @@
                   <div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">最高 ${hi} · 最低 ${lo}</div>
                 </div>`;
             }
-            if (last3.length >= 2) {
-              const first = last3[0].c;
+            // 近3日累计：从「前日」再前一天收盘起算（含前日+昨日+今日三段涨跌）
+            // 例：8/12、8/13、8/14 三日 → 基准为 8/11 收盘，不是 8/12 收盘
+            if (last3.length >= 1) {
+              const first = (baseBefore && baseBefore.c != null) ? baseBefore.c : null;
               const last = last3[last3.length - 1].c;
-              const diff = last - first;
-              const pct = first ? (diff / first * 100) : 0;
-              dayRows += `
+              if (first != null && first > 0 && last != null) {
+                const diff = last - first;
+                const pct = (diff / first * 100);
+                dayRows += `
                 <div class="detail-stat" style="grid-column:1/-1;">
                   <div class="label">近${last3.length}日累计</div>
                   <div class="val"><span class="${chgClass(pct)}">${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${formatChg(pct)})</span></div>
                 </div>`;
+              } else if (last3.length >= 2) {
+                // 无更早基准时退回旧算法
+                const f = last3[0].c;
+                const diff = last - f;
+                const pct = f ? (diff / f * 100) : 0;
+                dayRows += `
+                <div class="detail-stat" style="grid-column:1/-1;">
+                  <div class="label">近${last3.length}日累计</div>
+                  <div class="val"><span class="${chgClass(pct)}">${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${formatChg(pct)})</span></div>
+                </div>`;
+              }
             }
           }
         }
