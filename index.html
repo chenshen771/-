@@ -2569,16 +2569,23 @@
           if (last3.length) {
             const labels = ['前日', '昨日', '今日'];
             const offset = 3 - last3.length;
+            // 前日涨跌基准：再往前一天收盘（如 8/12 相对 8/11）
+            const baseBefore = pairs.length > last3.length ? pairs[pairs.length - last3.length - 1] : null;
             for (let i = 0; i < last3.length; i++) {
               const p = last3[i];
               const d = new Date(p.t * 1000);
               const dateStr = (d.getMonth() + 1) + '/' + d.getDate();
               const label = labels[offset + i] || dateStr;
               let chgHtml = '';
+              let prevClose = null;
               if (i > 0) {
-                const prev = last3[i - 1].c;
-                const diff = p.c - prev;
-                const pct = prev ? (diff / prev * 100) : 0;
+                prevClose = last3[i - 1].c;
+              } else if (baseBefore && baseBefore.c != null) {
+                prevClose = baseBefore.c;
+              }
+              if (prevClose != null && prevClose > 0) {
+                const diff = p.c - prevClose;
+                const pct = (diff / prevClose * 100);
                 chgHtml = `<span class="${chgClass(pct)}" style="font-size:0.75rem;margin-left:4px;">${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${formatChg(pct)})</span>`;
               } else {
                 chgHtml = `<span style="font-size:0.72rem;color:var(--muted);margin-left:4px;">基准</span>`;
