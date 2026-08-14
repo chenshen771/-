@@ -645,6 +645,26 @@
     }
     .bias-pill.up { color: #4ade80; background: rgba(34,197,94,0.15); }
     .bias-pill.down { color: #f87171; background: rgba(239,68,68,0.15); }
+    .ref-pct {
+      display: inline-block;
+      padding: 0 5px;
+      border-radius: 5px;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+    .ref-pct.up { color: #4ade80; background: rgba(34,197,94,0.16); }
+    .ref-pct.down { color: #f87171; background: rgba(239,68,68,0.16); }
+    .ref-bar {
+      grid-column: 1 / -1;
+      height: 3px;
+      border-radius: 2px;
+      overflow: hidden;
+      display: flex;
+      margin-top: 4px;
+      background: rgba(255,255,255,0.06);
+    }
+    .ref-bar .seg-up { background: linear-gradient(90deg,#22c55e,#4ade80); }
+    .ref-bar .seg-down { background: linear-gradient(90deg,#f87171,#ef4444); }
     .market-badge.cn {
       background: rgba(239, 83, 80, 0.15);
       color: #ef9a9a;
@@ -1684,6 +1704,54 @@
       }
     }
 
+    // 美股常规交易时段进度（9:30–16:00 美东）
+    // remain01: 1=刚开盘, 0=收盘；elapsed01: 0→1
+    function getUSSessionProgress() {
+      try {
+        const fmt = new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'America/New_York',
+          weekday: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+        const parts = fmt.formatToParts(new Date());
+        const map = {};
+        parts.forEach(function (p) { map[p.type] = p.value; });
+        const wd = (map.weekday || '').slice(0, 3);
+        if (wd === 'Sat' || wd === 'Sun') {
+          return { open: false, elapsed01: 1, remain01: 0, minsLeft: 0, minsOpen: 390 };
+        }
+        let h = parseInt(map.hour, 10);
+        if (map.hour === '24') h = 0;
+        const mi = parseInt(map.minute, 10) || 0;
+        const se = parseInt(map.second, 10) || 0;
+        const mins = h * 60 + mi + se / 60;
+        const openM = 9 * 60 + 30;
+        const closeM = 16 * 60;
+        if (mins < openM) {
+          return { open: false, elapsed01: 0, remain01: 1, minsLeft: closeM - openM, minsOpen: 0, pre: true };
+        }
+        if (mins >= closeM) {
+          return { open: false, elapsed01: 1, remain01: 0, minsLeft: 0, minsOpen: 390, after: true };
+        }
+        const elapsed = mins - openM;
+        const total = closeM - openM; // 390
+        const left = closeM - mins;
+        return {
+          open: true,
+          elapsed01: elapsed / total,
+          remain01: left / total,
+          minsLeft: left,
+          minsOpen: elapsed
+        };
+      } catch (e) {
+        return { open: false, elapsed01: 0.5, remain01: 0.5, minsLeft: 195, minsOpen: 195 };
+      }
+    }
+
+
     function isCNMarketSessionOpen() {
       try {
         const fmt = new Intl.DateTimeFormat('en-GB', {
@@ -1859,6 +1927,46 @@
       if (h > l && (h - c) / span < 0.10) upW -= 0.03;
       if (h > l && (c - l) / span < 0.10) upW += 0.03;
 
+      // —— 高开低走 / 低开高走（相对昨收仍可能绿/红，但分时已从开盘回落或回升）——
+      // gapPct：开盘相对昨收；fromOpenPct：现价相对开盘
+      const gapPct = (pc > 0 && o > 0) ? ((o - pc) / pc * 100) : 0;
+      const fromOpenPct = (o > 0) ? ((c - o) / o * 100) : 0;
+      // 高开低走：开盘明显高于昨收，且现价已明显低于开盘（冲高回落）
+      // 典型：昨收100，开104（+4%），现102（日涨+2%仍绿，但相对开盘已跌）
+      if (gapPct >= 1.0 && fromOpenPct <= -0.6) {
+        // 回落幅度占高开幅度的比例（0~1+）
+        const fadeRatio = Math.min(1.5, Math.abs(fromOpenPct) / Math.max(gapPct, 0.5));
+        // 继续上冲权重下降；回落越深，看跌权重越高
+        upW -= Math.min(0.16, 0.04 + fadeRatio * 0.08);
+        // 上沿：不要再轻易指向开盘/最高之上（获利盘压力）
+        const openCap = o > 0 ? o : h;
+        upPx = Math.min(upPx, Math.max(c * 1.002, openCap * 0.998));
+        // 下沿：允许向开盘回撤路径延伸一点，但不跌破「离谱」
+        const fadeRoom = Math.max(c * 0.004, (o - c) * 0.35);
+        dnPx = Math.min(dnPx, c - fadeRoom);
+        // 若仍相对昨收上涨（绿盘），下沿也不要暗示暴跌穿昨收太深
+        if (c > pc) {
+          dnPx = Math.max(dnPx, pc - Math.abs(c - pc) * 0.25);
+        }
+      }
+      // 低开高走：开盘低于昨收，现价已明显高于开盘（低开反弹）
+      if (gapPct <= -1.0 && fromOpenPct >= 0.6) {
+        const bounceRatio = Math.min(1.5, fromOpenPct / Math.max(Math.abs(gapPct), 0.5));
+        upW += Math.min(0.16, 0.04 + bounceRatio * 0.08);
+        const openFloor = o > 0 ? o : l;
+        dnPx = Math.max(dnPx, Math.min(c * 0.998, openFloor * 1.002));
+        const bounceRoom = Math.max(c * 0.004, (c - o) * 0.35);
+        upPx = Math.max(upPx, c + bounceRoom);
+        if (c < pc) {
+          upPx = Math.min(upPx, pc + Math.abs(pc - c) * 0.25);
+        }
+      }
+      // 弱化版：高开不明显但已从日高明显回落（冲高回落）
+      if (h > l && h > c && (h - c) / span >= 0.35 && fromOpenPct < 0 && gapPct > 0.3) {
+        upW -= 0.04;
+        upPx = Math.min(upPx, c + (h - c) * 0.25);
+      }
+
       // 新闻 / 财报 / 大盘（后台微调，UI 不显示标签）
       const sig = (sym && window.__refSignalCache && window.__refSignalCache[sym]) || null;
       if (sig) {
@@ -1913,7 +2021,69 @@
         upPx = Math.max(upPx, c * 1.001);
       }
 
-      upW = Math.max(0.30, Math.min(0.70, upW));
+      // —— 交易时段衰减：越接近收盘，预测价越贴近现价；主导概率升高 ——
+      // 开盘波动大；午间偏钝；尾盘几乎不可能突然冲到远离现价的目标
+      const sess = (typeof getUSSessionProgress === 'function') ? getUSSessionProgress() : null;
+      if (sess && sess.open) {
+        const remain = Math.max(0, Math.min(1, sess.remain01)); // 1开盘 → 0收盘
+        // 价位向现价收敛：剩余时间平方，尾盘收得更快
+        const pricePull = 1 - Math.pow(remain, 1.35); // 0开盘 → 接近1收盘
+        upPx = c + (upPx - c) * (1 - pricePull * 0.92);
+        dnPx = c - (c - dnPx) * (1 - pricePull * 0.92);
+
+        // 午间（约 11:30–14:00 美东）额外略收窄
+        if (sess.minsOpen >= 120 && sess.minsLeft >= 120) {
+          upPx = c + (upPx - c) * 0.85;
+          dnPx = c - (c - dnPx) * 0.85;
+        }
+
+        // 主导方向：随收盘临近把权重推向「沿当前趋势收盘」一侧（最高约 90%）
+        const biasSide = upW >= 0.5 ? 1 : -1; // 1偏多 -1偏空
+        // 基础：从开盘温和 → 收盘前主导侧升到 ~0.88–0.90
+        const closeBoost = Math.pow(1 - remain, 1.2); // 尾盘加速
+        let targetDom = 0.55 + 0.35 * closeBoost; // 开盘~55% → 收盘~90%
+        // 最后 10 分钟：若仍在同向滑动/突然波动，可再抬一点主导概率与同向空间
+        if (sess.minsLeft <= 10) {
+          const sudden = absDp >= 1.2; // 当日已有一定方向
+          if (sudden) {
+            targetDom = Math.min(0.92, targetDom + 0.04);
+            if (dp > 0.3) {
+              upPx = Math.max(upPx, c * (1 + 0.002 + Math.min(0.008, absDp / 800)));
+              upW = Math.max(upW, 0.62);
+            } else if (dp < -0.3) {
+              dnPx = Math.min(dnPx, c * (1 - 0.002 - Math.min(0.008, absDp / 800)));
+              upW = Math.min(upW, 0.38);
+            }
+          } else {
+            // 尾盘横盘：两侧都更贴现价，主导概率仍升高但不极端
+            upPx = c + (upPx - c) * 0.5;
+            dnPx = c - (c - dnPx) * 0.5;
+          }
+        }
+
+        if (biasSide > 0) {
+          upW = upW * (1 - closeBoost * 0.65) + targetDom * (closeBoost * 0.65);
+        } else {
+          upW = upW * (1 - closeBoost * 0.65) + (1 - targetDom) * (closeBoost * 0.65);
+        }
+
+        // 硬限制：收盘前 30 分钟，单边偏离现价不超过约 1.2%（突然波动时略放宽）
+        if (sess.minsLeft <= 30) {
+          const cap = (sess.minsLeft <= 10 && absDp >= 1.2) ? 0.018 : 0.012;
+          upPx = Math.min(upPx, c * (1 + cap));
+          dnPx = Math.max(dnPx, c * (1 - cap));
+        }
+        if (sess.minsLeft <= 5) {
+          const cap = 0.006;
+          upPx = Math.min(upPx, c * (1 + cap));
+          dnPx = Math.max(dnPx, c * (1 - cap));
+        }
+
+        upPx = Math.max(upPx, c * 1.0005);
+        dnPx = Math.min(dnPx, c * 0.9995);
+      }
+
+      upW = Math.max(0.28, Math.min(0.90, upW));
       const upPct = Math.round(upW * 100);
       const dnPct = 100 - upPct;
       const dec = c >= 100 ? 2 : (c >= 10 ? 2 : 3);
@@ -1946,13 +2116,14 @@
         if (q) {
           if (sessionOpen && ref) {
             rangeStr =
-              '<div style="display:grid;grid-template-columns:max-content max-content max-content;column-gap:4px;row-gap:1px;width:max-content;line-height:1.25;font-size:0.78rem;">' +
+              '<div style="display:grid;grid-template-columns:max-content max-content max-content;column-gap:4px;row-gap:2px;width:max-content;line-height:1.25;font-size:0.78rem;">' +
               '<span style="color:var(--green);text-align:center;">今↑' + ref.upPx + '</span>' +
               '<span style="color:var(--muted);">·</span>' +
               '<span style="color:var(--red);text-align:center;">↓' + ref.dnPx + '</span>' +
-              '<span style="color:var(--green);text-align:center;font-size:0.72rem;">（' + ref.upPct + '%）</span>' +
+              '<span style="text-align:center;font-size:0.72rem;"><span class="ref-pct up">' + ref.upPct + '%</span></span>' +
               '<span></span>' +
-              '<span style="color:var(--red);text-align:center;font-size:0.72rem;">（' + ref.dnPct + '%）</span>' +
+              '<span style="text-align:center;font-size:0.72rem;"><span class="ref-pct down">' + ref.dnPct + '%</span></span>' +
+              '<div class="ref-bar"><div class="seg-up" style="width:' + ref.upPct + '%;"></div><div class="seg-down" style="width:' + ref.dnPct + '%;"></div></div>' +
               '</div>';
           } else {
             rangeStr = '高 ' + hi + ' · 低 ' + lo;
