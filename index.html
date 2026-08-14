@@ -2510,6 +2510,8 @@
     }
 
     async function openDetail(symbol, isRestore) {
+      chartStyle = 'mini';
+      try { localStorage.setItem('tvChartStyle', 'mini'); } catch (e) {}
       document.getElementById('detailSymbol').innerHTML = symbol + ' <span class="market-badge us">美股</span>';
       document.getElementById('detailPrice').textContent = '加载中...';
       document.getElementById('detailChg').textContent = '';
@@ -3053,13 +3055,12 @@ function loadFullTVChart(symbol) {
       const market = (c.startsWith('6') || c.startsWith('5') || c.startsWith('9')) ? '1' : '2';
       const tvSym = (market === '1' ? 'SSE:' : 'SZSE:') + c;
       lastChartSymbol = tvSym;
+      // 每次打开详情默认精简
+      chartStyle = 'mini';
+      try { localStorage.setItem('tvChartStyle', 'mini'); } catch (e) {}
       updateChartStyleButtons();
       // 与美股一致：精简=可拖动K线，完整=TradingView（不再用东财静态图）
-      if (typeof chartStyle !== 'undefined' && chartStyle === 'full') {
-        loadFullTVChart(tvSym);
-      } else {
-        loadMiniSparkChart(tvSym);
-      }
+      loadMiniSparkChart(tvSym);
     }
 
 
@@ -4513,6 +4514,8 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
     }
 
     async function openCNDetail(code, name, isRestore) {
+      chartStyle = 'mini';
+      try { localStorage.setItem('tvChartStyle', 'mini'); } catch (e) {}
       const title = (name ? name + ' ' : '') + code;
       document.getElementById('detailSymbol').textContent = title;
       document.getElementById('detailPrice').textContent = '加载中...';
