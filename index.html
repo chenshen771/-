@@ -295,6 +295,63 @@
       justify-content: space-between;
       align-items: center;
     }
+    .session-progress {
+      margin: -4px 0 14px 0;
+      padding: 9px 11px 8px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .session-progress .sp-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-bottom: 7px;
+    }
+    .session-progress .sp-head .sp-tag {
+      color: var(--blue);
+      font-weight: 700;
+      font-family: var(--font-num);
+    }
+    .sp-track {
+      position: relative;
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.08);
+    }
+    .sp-fill {
+      position: absolute;
+      top: 0; bottom: 0; left: 0;
+      border-radius: 3px;
+      background: linear-gradient(90deg,#4d9fff,#8ecbff);
+      transition: width 0.6s var(--ease-smooth);
+    }
+    .sp-gap {
+      position: absolute;
+      top: 0; bottom: 0;
+      background: repeating-linear-gradient(45deg, rgba(255,255,255,0.10) 0 3px, transparent 3px 6px);
+      border-radius: 2px;
+    }
+    .sp-dot {
+      position: absolute;
+      top: 50%;
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(77,159,255,0.35);
+      transform: translate(-50%,-50%);
+      transition: left 0.6s var(--ease-smooth);
+    }
+    .sp-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.6rem;
+      color: var(--muted);
+      margin-top: 5px;
+      font-family: var(--font-num);
+    }
     .watch-status .refresh-btn {
       background: none;
       border: 1px solid var(--border);
@@ -313,11 +370,19 @@
       padding: 13px 14px;
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      /* 改为 stretch：让 .left / .right 都撑满整行真实高度，
+         这样右侧的拖动手柄才能按「整行高度」放大点击区域，
+         而不是只有视觉图标那一小截能响应触摸 */
+      align-items: stretch;
       box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset;
       transition: background 0.15s;
     }
     .watch-item:active { background: var(--card-hover); }
+    .watch-item .left {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
     .watch-item .left .symbol {
       font-family: var(--font-display);
       font-weight: 700;
@@ -485,9 +550,25 @@
     .watch-item.up-accent::before { background: var(--green); }
     .watch-item.down-accent::before { background: var(--red); }
 
-    .watch-item.dragging { opacity: 0.9; transform: scale(1.02); box-shadow: 0 8px 24px rgba(0,0,0,0.35); z-index: 20; position: relative; border-color: var(--blue); touch-action: none; }
+    .watch-item.dragging { opacity: 0.92; box-shadow: 0 10px 28px rgba(0,0,0,0.4); z-index: 20; position: relative; border-color: var(--blue); touch-action: none; }
     .watch-item.drag-over { border-color: var(--blue); background: var(--card-hover); }
-    .drag-handle { color: var(--muted); font-size: 1.1rem; padding: 8px 10px; cursor: grab; user-select: none; touch-action: none; -webkit-user-select: none; }
+    .drag-handle {
+      color: var(--muted);
+      font-size: 1.1rem;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      /* 撑满整行高度（配合上面 .watch-item{align-items:stretch}），
+         图标始终在这个高度内水平垂直居中，但可点击区域是整条竖直
+         长条，不再只是图标本身那一小块，解决「点手柄上半部分拖不动」 */
+      align-self: stretch;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 40px;
+      padding: 0 10px;
+    }
     .drag-handle:active { cursor: grabbing; }
     body.drag-lock { overflow: hidden; touch-action: none; }
     .watch-item .del-btn { z-index: 2; position: relative; }
@@ -665,6 +746,30 @@
     }
     .ref-bar .seg-up { background: linear-gradient(90deg,#22c55e,#4ade80); }
     .ref-bar .seg-down { background: linear-gradient(90deg,#f87171,#ef4444); }
+    .arrow-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 15px;
+      height: 15px;
+      border-radius: 5px;
+      margin-right: 3px;
+      vertical-align: middle;
+    }
+    .arrow-chip.up { background: rgba(34,197,94,0.18); }
+    .arrow-chip.down { background: rgba(239,68,68,0.18); }
+    .arrow-chip .tri-up {
+      width: 0; height: 0;
+      border-left: 3.5px solid transparent;
+      border-right: 3.5px solid transparent;
+      border-bottom: 6px solid #4ade80;
+    }
+    .arrow-chip .tri-down {
+      width: 0; height: 0;
+      border-left: 3.5px solid transparent;
+      border-right: 3.5px solid transparent;
+      border-top: 6px solid #f87171;
+    }
     .market-badge.cn {
       background: rgba(239, 83, 80, 0.15);
       color: #ef9a9a;
@@ -777,6 +882,15 @@
     </div>
     <div class="watch-status">
       <span id="updateTime">准备就绪</span>
+    </div>
+    <div class="session-progress" id="sessionProgress" style="display:none;">
+      <div class="sp-head"><span class="sp-tag" id="spTag"></span><span id="spRemain"></span></div>
+      <div class="sp-track" id="spTrack">
+        <div class="sp-fill" id="spFill"></div>
+        <div class="sp-gap" id="spGap" style="display:none;"></div>
+        <div class="sp-dot" id="spDot"></div>
+      </div>
+      <div class="sp-labels"><span id="spStart"></span><span id="spEnd"></span></div>
     </div>
     <div class="watch-list" id="watchList">
       <div class="watch-empty">添加股票代码开始观察</div>
@@ -1752,6 +1866,69 @@
     }
 
 
+    // A股（沪深）交易时段进度：9:30–11:30、13:00–15:00（北京时间）
+    // 午休不计交易进度；逻辑与美股一致，仅时间窗口不同
+    function getCNSessionProgress() {
+      try {
+        const fmt = new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'Asia/Shanghai',
+          weekday: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+        const parts = fmt.formatToParts(new Date());
+        const map = {};
+        parts.forEach(function (p) { map[p.type] = p.value; });
+        const wd = (map.weekday || '').slice(0, 3);
+        if (wd === 'Sat' || wd === 'Sun') {
+          return { open: false, elapsed01: 1, remain01: 0, minsLeft: 0, minsOpen: 240 };
+        }
+        let h = parseInt(map.hour, 10);
+        if (map.hour === '24') h = 0;
+        const mi = parseInt(map.minute, 10) || 0;
+        const se = parseInt(map.second, 10) || 0;
+        const mins = h * 60 + mi + se / 60;
+        const amOpen = 9 * 60 + 30, amClose = 11 * 60 + 30;
+        const pmOpen = 13 * 60, pmClose = 15 * 60;
+        const total = 240; // 4h
+
+        function pack(elapsed, left, isOpen) {
+          return {
+            open: !!isOpen,
+            elapsed01: Math.max(0, Math.min(1, elapsed / total)),
+            remain01: Math.max(0, Math.min(1, left / total)),
+            minsLeft: left,
+            minsOpen: elapsed
+          };
+        }
+
+        if (mins < amOpen) {
+          return pack(0, total, false);
+        }
+        if (mins >= amOpen && mins < amClose) {
+          const elapsed = mins - amOpen;
+          const left = (amClose - mins) + 120; // 还含下午整段
+          return pack(elapsed, left, true);
+        }
+        // 午休：不算开盘波动时段，进度停在上午结束
+        if (mins >= amClose && mins < pmOpen) {
+          return pack(120, 120, false);
+        }
+        if (mins >= pmOpen && mins < pmClose) {
+          const elapsed = 120 + (mins - pmOpen);
+          const left = pmClose - mins;
+          return pack(elapsed, left, true);
+        }
+        // 已收盘
+        return pack(total, 0, false);
+      } catch (e) {
+        return { open: false, elapsed01: 0.5, remain01: 0.5, minsLeft: 120, minsOpen: 120 };
+      }
+    }
+
+
     function isCNMarketSessionOpen() {
       try {
         const fmt = new Intl.DateTimeFormat('en-GB', {
@@ -2022,17 +2199,20 @@
       }
 
       // —— 交易时段衰减：越接近收盘，预测价越贴近现价；主导概率升高 ——
-      // 开盘波动大；午间偏钝；尾盘几乎不可能突然冲到远离现价的目标
-      const sess = (typeof getUSSessionProgress === 'function') ? getUSSessionProgress() : null;
+      // 美股：美东 9:30–16:00；A股：北京 9:30–11:30 / 13:00–15:00（逻辑相同，时段不同）
+      const isCN = (typeof isAShareSymbol === 'function' && sym && isAShareSymbol(sym));
+      const sess = isCN
+        ? ((typeof getCNSessionProgress === 'function') ? getCNSessionProgress() : null)
+        : ((typeof getUSSessionProgress === 'function') ? getUSSessionProgress() : null);
       if (sess && sess.open) {
         const remain = Math.max(0, Math.min(1, sess.remain01)); // 1开盘 → 0收盘
-        // 价位向现价收敛：剩余时间平方，尾盘收得更快
+        // 价位向现价收敛：剩余时间幂次，尾盘收得更快
         const pricePull = 1 - Math.pow(remain, 1.35); // 0开盘 → 接近1收盘
         upPx = c + (upPx - c) * (1 - pricePull * 0.92);
         dnPx = c - (c - dnPx) * (1 - pricePull * 0.92);
 
-        // 午间（约 11:30–14:00 美东）额外略收窄
-        if (sess.minsOpen >= 120 && sess.minsLeft >= 120) {
+        // 中段偏钝：美股约开盘后2h且距收盘>2h；A股约上午后半 / 下午前半
+        if (sess.minsOpen >= 90 && sess.minsLeft >= 90) {
           upPx = c + (upPx - c) * 0.85;
           dnPx = c - (c - dnPx) * 0.85;
         }
@@ -2098,6 +2278,16 @@
 
 
     function renderWatchlist() {
+      // 拖拽过程中不重建列表 DOM，避免行情刷新打断正在进行的拖拽（错位/重叠）
+      // 但如果「松手」事件因某些机型/浏览器异常没有送达，导致拖拽状态卡住超过
+      // 4 秒还没结束，判定为异常并自动清理，避免整个列表被永久卡住不刷新
+      if (dragState) {
+        if (Date.now() - (dragState.startedAt || 0) > 4000) {
+          forceCleanupDrag();
+        } else {
+          return;
+        }
+      }
       const container = document.getElementById('watchList');
       if (watchlist.length === 0) {
         container.innerHTML = '<div class="watch-empty">添加股票代码开始观察</div>';
@@ -2117,9 +2307,9 @@
           if (sessionOpen && ref) {
             rangeStr =
               '<div style="display:grid;grid-template-columns:max-content max-content max-content;column-gap:4px;row-gap:2px;width:max-content;line-height:1.25;font-size:0.78rem;">' +
-              '<span style="color:var(--green);text-align:center;">今↑' + ref.upPx + '</span>' +
+              '<span style="color:var(--green);text-align:center;">今<span class="arrow-chip up"><span class="tri-up"></span></span>' + ref.upPx + '</span>' +
               '<span style="color:var(--muted);">·</span>' +
-              '<span style="color:var(--red);text-align:center;">↓' + ref.dnPx + '</span>' +
+              '<span style="color:var(--red);text-align:center;"><span class="arrow-chip down"><span class="tri-down"></span></span>' + ref.dnPx + '</span>' +
               '<span style="text-align:center;font-size:0.72rem;"><span class="ref-pct up">' + ref.upPct + '%</span></span>' +
               '<span></span>' +
               '<span style="text-align:center;font-size:0.72rem;"><span class="ref-pct down">' + ref.dnPct + '%</span></span>' +
@@ -2130,9 +2320,9 @@
             if (ref) {
               // 收盘后：名称旁只显示概率更高的一侧
               if (ref.biasUp) {
-                biasBadge = ' <span class="bias-pill up">↑' + ref.upPct + '%</span>';
+                biasBadge = ' <span class="bias-pill up">预↑' + ref.upPct + '%</span>';
               } else {
-                biasBadge = ' <span class="bias-pill down">↓' + ref.dnPct + '%</span>';
+                biasBadge = ' <span class="bias-pill down">预↓' + ref.dnPct + '%</span>';
               }
             }
           }
@@ -2147,7 +2337,7 @@
         const mBadge = isCN ? '<span class="market-badge cn" style="font-size:0.65rem;margin-left:4px;">A股</span>' : '';
         const accent = (dp > 0) ? 'up-accent' : (dp < 0) ? 'down-accent' : '';
         return `
-          <div class="watch-item ${accent}" onclick="openWatchDetail('${sym}')">
+          <div class="watch-item ${accent}" data-sym="${sym}" onclick="if(this.dataset.suppressClick){this.dataset.suppressClick='';return;} openWatchDetail('${sym}')">
             <div class="left" style="flex:1;min-width:0;">
               <div class="symbol">${sym}${cnName ? ' <span style="font-weight:400;color:var(--muted);font-size:0.78rem;">'+cnName+'</span>' : ''}${biasBadge}${mBadge}</div>
               <div class="name">${rangeStr}</div>
@@ -2170,90 +2360,284 @@
     // ===== 拖动排序（可跨多位） =====
     let dragState = null;
 
+    // 从触摸 / 鼠标 / 指针事件中统一取出当前的 Y / X 坐标
+    function getEventY(e) {
+      if (e.touches && e.touches.length) return e.touches[0].clientY;
+      if (e.changedTouches && e.changedTouches.length) return e.changedTouches[0].clientY;
+      return e.clientY;
+    }
+    function getEventX(e) {
+      if (e.touches && e.touches.length) return e.touches[0].clientX;
+      if (e.changedTouches && e.changedTouches.length) return e.changedTouches[0].clientX;
+      return e.clientX;
+    }
+
+    // 之前把监听器直接挂在 ⋮⋮ 手柄这个小元素上，靠负 margin 把它的可点击区域
+    // 往上下「借」出父级 padding 的那部分高度来放大热区——但这部分借出去的区域
+    // 是否真的能响应触摸，取决于浏览器对「被裁切/延伸出去的区域」命中测试的
+    // 实现细节，不同机型表现不一致，于是出现「摸手柄上半部分是一种结果，
+    // 摸下半部分是另一种结果」，本质上是同一个手柄被人为切成了两半。
+    // 现在改成把监听器统一挂在整张卡片（.watch-item）上，只用「触点的 X 坐标
+    // 是否落在手柄所在的那一列」来判断是否开始拖拽，完全不依赖 Y 方向的精确
+    // 命中——因为监听器所在的元素就是整行本身，天然保证了整行高度都是同一个、
+    // 唯一的热区，不再有上下之分。
     function bindWatchDrag() {
       const list = document.getElementById('watchList');
       if (!list) return;
-      list.querySelectorAll('.drag-handle').forEach(handle => {
-        handle.addEventListener('pointerdown', onDragStart, { passive: false });
-        handle.addEventListener('touchstart', (ev) => { ev.preventDefault(); }, { passive: false });
+      list.querySelectorAll('.watch-item').forEach(item => {
+        item.addEventListener('touchstart', onDragStart, { passive: false });
+        item.addEventListener('mousedown', onDragStart);
       });
     }
 
     function onDragStart(e) {
+      // 触摸场景下，同一次按下有概率同时收到多路事件，防止重复初始化
+      if (dragState) return;
+      const item = e.currentTarget;
+      const handle = item.querySelector('.drag-handle');
+      if (!handle) return;
+      // 只看触点横坐标是否落在手柄那一列（留一点容错边距），
+      // 不在这一列内就完全不拦截，交还给整行原本的点击 / 上下滚动
+      const hr = handle.getBoundingClientRect();
+      const TOL = 10;
+      const x = getEventX(e);
+      if (x < hr.left - TOL || x > hr.right + TOL) return;
+
       e.preventDefault();
       e.stopPropagation();
-      const handle = e.currentTarget;
-      const item = handle.closest('.watch-item');
-      if (!item) return;
-      const idx = Number(handle.dataset.idx);
-      dragState = { from: idx, over: idx, item, pointerId: e.pointerId, handle };
+
+      const items = [...document.getElementById('watchList').querySelectorAll('.watch-item')];
+      const idx = items.indexOf(item);
+      if (idx < 0) return;
+
+      // 拖拽开始时，先把此刻每一行的真实位置（未被任何 transform 影响）拍下来，
+      // 后续「让位动画」和「判断悬停在第几行」都用这份快照计算，
+      // 不再用拖拽过程中会被 transform 干扰的实时 rect，避免抖动/误判
+      const layout = items.map(el => {
+        const r = el.getBoundingClientRect();
+        return { el, top: r.top, height: r.height };
+      });
+      const rowStep = layout.length > 1 ? (layout[1].top - layout[0].top) : (layout[0].height + 8);
+
+      const isTouch = e.type === 'touchstart';
+      const y = getEventY(e);
+      dragState = { from: idx, over: idx, item, layout, rowStep, startY: y, pointerY: y, startedAt: Date.now(), scrollDelta: 0, isTouch: isTouch };
       item.classList.add('dragging');
+      // 防止松手时这次拖拽被当成一次「点击」误触发打开详情页
+      item.dataset.suppressClick = '1';
+      item.style.transition = 'transform 0.15s var(--ease-smooth), box-shadow 0.15s';
+      item.style.transform = 'scale(1.03)';
+      // 其余行统一开启 transform 过渡，配合下面 updatePushPreview() 做「让位」动画
+      items.forEach(el => { if (el !== item) el.style.transition = 'transform 0.18s var(--ease-smooth)'; });
       document.body.classList.add('drag-lock');
-      try { handle.setPointerCapture(e.pointerId); } catch (_) {}
-      // 同时绑到 document，避免手指移出手柄丢失事件
-      document.addEventListener('pointermove', onDragMove, { passive: false });
-      document.addEventListener('pointerup', onDragEnd);
-      document.addEventListener('pointercancel', onDragEnd);
+      if (isTouch) {
+        document.addEventListener('touchmove', onDragMove, { passive: false });
+        document.addEventListener('touchend', onDragEnd, { passive: false });
+        document.addEventListener('touchcancel', onDragEnd, { passive: false });
+      } else {
+        document.addEventListener('mousemove', onDragMove);
+        document.addEventListener('mouseup', onDragEnd);
+      }
+      // 兜底：某些机型/浏览器在长按不动或缓慢拖动时可能整体丢失结束事件，
+      // 多绑一路窗口失焦信号，任意一路触发都能正常收尾拖拽
+      window.addEventListener('blur', onDragEnd);
+      startAutoScroll();
     }
 
-    function getOverIndex(clientY) {
-      const list = document.getElementById('watchList');
-      const items = [...list.querySelectorAll('.watch-item')];
-      if (!items.length) return 0;
-      // 落在哪一行的垂直范围内，就以那一行为目标
-      for (let i = 0; i < items.length; i++) {
-        const rect = items[i].getBoundingClientRect();
-        if (clientY >= rect.top && clientY <= rect.bottom) return i;
+    // 卡片跟手指走的位移量 = 手指本身的位移 + 页面被自动滚动掉的量。
+    // 之前只用「手指位移」算 transform，一旦触发边缘自动翻页、手指没再动，
+    // 卡片的 transform 就不再更新，而底下的行却随页面滚动继续移动，
+    // 视觉上卡片就像脱手一样「跟着页面跑」。这里把累计滚动量也计入位移。
+    function applyDragItemTransform() {
+      if (!dragState) return;
+      const dy = (dragState.pointerY - dragState.startY) + dragState.scrollDelta;
+      dragState.item.style.transform = 'translateY(' + dy + 'px) scale(1.03)';
+    }
+
+    // 拖拽时靠近屏幕上/下边缘自动翻页，距边缘越近滚动越快（分级平滑加速，而不是一到边缘就顶速）
+    let autoScrollRAF = null;
+    function startAutoScroll() {
+      if (autoScrollRAF) return;
+      const EDGE_ZONE = 110;   // 触发自动滚动的边缘感应区（像素）
+      const MIN_SPEED = 2;     // 刚进入感应区时的滚动速度
+      const MAX_SPEED = 16;    // 贴到屏幕边缘时的最快滚动速度
+      function tick() {
+        if (!dragState) { autoScrollRAF = null; return; }
+        const y = dragState.pointerY;
+        const vh = window.innerHeight;
+        let dy = 0;
+        if (y < EDGE_ZONE) {
+          const t = 1 - Math.max(0, y) / EDGE_ZONE; // 0→1，越靠近顶边越接近1
+          dy = -(MIN_SPEED + (MAX_SPEED - MIN_SPEED) * t);
+        } else if (y > vh - EDGE_ZONE) {
+          const t = 1 - Math.max(0, vh - y) / EDGE_ZONE;
+          dy = (MIN_SPEED + (MAX_SPEED - MIN_SPEED) * t);
+        }
+        if (dy !== 0) {
+          // 页面可能已经滚到顶/底，scrollBy 请求的量不一定能全部生效，
+          // 用滚动前后 scrollY 的实际差值累加，而不是直接假设 dy 全部生效
+          const beforeY = window.scrollY;
+          window.scrollBy(0, dy);
+          const actualDy = window.scrollY - beforeY;
+          dragState.scrollDelta += actualDy;
+          // 卡片跟着这部分滚动量同步位移，保持贴在手指下方，不再产生位移误差
+          applyDragItemTransform();
+          // 页面滚动后卡片位置变化，需要用最新指针位置重新计算目标行
+          dragState.over = getOverIndex(dragState.pointerY);
+          updatePushPreview();
+        }
+        autoScrollRAF = requestAnimationFrame(tick);
       }
-      if (clientY < items[0].getBoundingClientRect().top) return 0;
-      return items.length - 1;
+      autoScrollRAF = requestAnimationFrame(tick);
+    }
+    function stopAutoScroll() {
+      if (autoScrollRAF) { cancelAnimationFrame(autoScrollRAF); autoScrollRAF = null; }
+    }
+
+    // 用拖拽开始时拍下的静态快照（未被 transform 影响）算目标行，
+    // 而不是每次都重新读取实时 rect —— 因为「让位动画」会给别的行加 transform，
+    // 实时 rect 会被这些 transform 污染，导致判断出的目标行来回跳动。
+    function getOverIndex(clientY) {
+      if (!dragState) return 0;
+      const { layout, scrollDelta } = dragState;
+      if (!layout.length) return 0;
+      for (let i = 0; i < layout.length; i++) {
+        const mid = (layout[i].top - scrollDelta) + layout[i].height / 2;
+        if (clientY < mid) return i;
+      }
+      return layout.length - 1;
+    }
+
+    // 插入位置：向下拖时目标行右边的项都要往前挪一位，所以要减 1 才能精确落位；
+    // 向上拖则不需要偏移。让位预览动画和松手后的真实重排用的是同一套算法，
+    // 保证动画结束的落点跟实际排序结果完全一致，不会有一帧的跳变。
+    function computeInsertAt(from, over) {
+      return (from < over) ? over - 1 : over;
+    }
+
+    // 拖拽过程中的实时「让位」动画：目标位置和被拖动卡片之间的行，
+    // 整体让开一格，视觉上就像下面的股票自动往上让、或上面的股票自动往下让
+    function updatePushPreview() {
+      if (!dragState) return;
+      const { layout, from, over, rowStep } = dragState;
+      const insertAt = computeInsertAt(from, over);
+      layout.forEach((entry, i) => {
+        if (i === from) return;
+        let shift = 0;
+        if (from < over && i > from && i <= insertAt) shift = -1;
+        else if (from > over && i >= insertAt && i < from) shift = 1;
+        entry.el.style.transform = shift ? ('translateY(' + (shift * rowStep) + 'px)') : '';
+      });
     }
 
     function onDragMove(e) {
       if (!dragState) return;
       e.preventDefault();
       e.stopPropagation();
-      const over = getOverIndex(e.clientY);
-      dragState.over = over;
-      document.querySelectorAll('#watchList .watch-item').forEach((el, i) => {
-        el.classList.toggle('drag-over', i === over && i !== dragState.from);
-      });
-      // 仅在列表内部边缘轻滚，避免整页乱滚
-      const list = document.getElementById('watchList');
-      if (list) {
-        const rect = list.getBoundingClientRect();
-        if (e.clientY < rect.top + 40) list.scrollTop -= 8;
-        if (e.clientY > rect.bottom - 40) list.scrollTop += 8;
-      }
+      const y = getEventY(e);
+      dragState.pointerY = y;
+      dragState.over = getOverIndex(y);
+      updatePushPreview();
+      // 卡片跟随手指垂直移动（拿起来的即时反馈，不做过渡以保证跟手）
+      dragState.item.style.transition = 'none';
+      applyDragItemTransform();
+    }
+
+    // 统一移除拖拽相关的全部监听（触摸 + 鼠标两套都清一遍最保险，
+    // 移除一个本来没绑过的监听不会报错，多清不会有副作用）
+    function removeDragListeners() {
+      document.removeEventListener('touchmove', onDragMove);
+      document.removeEventListener('touchend', onDragEnd);
+      document.removeEventListener('touchcancel', onDragEnd);
+      document.removeEventListener('mousemove', onDragMove);
+      document.removeEventListener('mouseup', onDragEnd);
+      window.removeEventListener('blur', onDragEnd);
     }
 
     function onDragEnd(e) {
       if (!dragState) return;
-      const { from, over, item, handle, pointerId } = dragState;
+      if (e) { try { e.preventDefault(); e.stopPropagation(); } catch (_) {} }
+      stopAutoScroll();
+      const { from, over, item } = dragState;
+
+      // 在清除拖拽视觉状态之前，先记录所有卡片的真实位置（含被拖动卡片跟手指位移到的位置）
+      const listEl = document.getElementById('watchList');
+      const firstRects = new Map();
+      if (listEl) {
+        listEl.querySelectorAll('.watch-item').forEach(el => {
+          firstRects.set(el.dataset.sym, el.getBoundingClientRect());
+        });
+      }
+
       item.classList.remove('dragging');
+      item.style.transition = 'transform 0.22s var(--ease-smooth), box-shadow 0.15s';
+      item.style.transform = '';
       document.body.classList.remove('drag-lock');
       document.querySelectorAll('.watch-item').forEach(el => el.classList.remove('drag-over'));
-      document.removeEventListener('pointermove', onDragMove);
-      document.removeEventListener('pointerup', onDragEnd);
-      document.removeEventListener('pointercancel', onDragEnd);
-      try { handle.releasePointerCapture(pointerId); } catch (_) {}
+      removeDragListeners();
       dragState = null;
-      if (from === over || over == null || isNaN(over)) return;
+      if (from === over || over == null || isNaN(over)) {
+        // 没有实际移动位置：清掉让位预览动画留下的 transform，恢复原样
+        document.querySelectorAll('#watchList .watch-item').forEach(el => { el.style.transform = ''; el.style.transition = ''; });
+        return;
+      }
 
-      // 目标：把 from 挪到 over，最终列表中该股票下标就是 over
+      // 目标：把 from 挪到 over，让卡片精确落在手指松开时对应的那一行，
+      // 而不是往下拖时系统性地多落一格。
+      // over 是「基于原始顺序」算出的目标下标；如果是向下拖（from < over），
+      // 先删除 from 会让 over 右边的元素整体左移一位，所以要用 over-1 才能
+      // 精确插回视觉上松手的那个位置；向上拖（from > over）则不需要偏移。
+      const insertAt = (from < over) ? over - 1 : over;
       const next = watchlist.slice();
       const [moved] = next.splice(from, 1);
-      // 删除后插入位置：
-      // - 向下拖 (from < over): 删掉后 over 右侧左移，插到 over-1，最终下标变成 over-1
-      //   若希望最终下标 = over，应插 over（删后数组中 over 位置是原 over+1 的元素之前）
-      // 实测：next.splice(from,1); next.splice(over, 0, moved)
-      // from=0 over=3 [A,B,C,D,E] → 删A [B,C,D,E] 插3 → [B,C,D,A,E] 最终下标3 ✓
-      // from=3 over=0 [A,B,C,D,E] → 删D [A,B,C,E] 插0 → [D,A,B,C,E] 最终下标0 ✓
-      // from=1 over=2 [A,B,C,D] → 删B [A,C,D] 插2 → [A,C,B,D] 最终下标2 ✓
-      next.splice(over, 0, moved);
+      next.splice(insertAt, 0, moved);
+
+      // FLIP 动画：用刚才（重排前）记录的位置，跟重排后的新位置算位移差，转场过渡
       watchlist = next;
       saveWatchlist();
       renderWatchlist();
+
+      if (listEl) {
+        listEl.querySelectorAll('.watch-item').forEach(el => {
+          const firstRect = firstRects.get(el.dataset.sym);
+          if (!firstRect) return;
+          const lastRect = el.getBoundingClientRect();
+          const dy = firstRect.top - lastRect.top;
+          if (Math.abs(dy) < 1) return;
+          el.style.transition = 'none';
+          el.style.transform = 'translateY(' + dy + 'px)';
+          el.getBoundingClientRect(); // 强制回流，确保下面的过渡生效
+          requestAnimationFrame(() => {
+            el.style.transition = 'transform 0.28s var(--ease-smooth)';
+            el.style.transform = '';
+            el.addEventListener('transitionend', function te() {
+              el.style.transition = '';
+              el.removeEventListener('transitionend', te);
+            });
+          });
+        });
+      }
+    }
+
+    // 极端兜底：某些机型/浏览器在长按不动或缓慢拖动时，松手事件可能整体丢失，
+    // 导致 dragState 卡死、列表被永久锁住不再刷新。这里只做最小化的状态清理，
+    // 不执行重排（避免用一个已经过时很久的位置信息做出错误的排序结果）。
+    function forceCleanupDrag() {
+      if (!dragState) return;
+      stopAutoScroll();
+      const { item, layout } = dragState;
+      try {
+        item.classList.remove('dragging');
+        item.style.transition = '';
+        item.style.transform = '';
+      } catch (_) {}
+      try {
+        (layout || []).forEach(entry => { entry.el.style.transform = ''; entry.el.style.transition = ''; });
+      } catch (_) {}
+      document.body.classList.remove('drag-lock');
+      document.querySelectorAll('.watch-item').forEach(el => el.classList.remove('drag-over'));
+      removeDragListeners();
+      dragState = null;
     }
 
     async function refreshQuotes() {
@@ -2277,6 +2661,90 @@
       return h + ':' + mm + ':' + ss;
     }
 
+    function fmt12h(hour, min) {
+      const ap = hour >= 12 ? 'PM' : 'AM';
+      let h = hour % 12;
+      if (h === 0) h = 12;
+      return h + ':' + String(min || 0).padStart(2, '0') + ' ' + ap;
+    }
+
+    function fmtMinsLeft(mins) {
+      mins = Math.max(0, Math.round(mins));
+      const h = Math.floor(mins / 60), m = mins % 60;
+      if (h > 0) return '剩 ' + h + '小时' + m + '分';
+      return '剩 ' + m + '分钟';
+    }
+
+    function renderSessionProgress() {
+      const wrap = document.getElementById('sessionProgress');
+      if (!wrap) return;
+      const usOpen = (typeof isUSMarketSessionOpen === 'function') && isUSMarketSessionOpen();
+      const cnOpen = (typeof isCNMarketSessionOpen === 'function') && isCNMarketSessionOpen();
+
+      if (!usOpen && !cnOpen) {
+        wrap.style.display = 'none';
+        return;
+      }
+      wrap.style.display = 'block';
+
+      const fill = document.getElementById('spFill');
+      const gap = document.getElementById('spGap');
+      const dot = document.getElementById('spDot');
+      const tag = document.getElementById('spTag');
+      const remainEl = document.getElementById('spRemain');
+      const startEl = document.getElementById('spStart');
+      const endEl = document.getElementById('spEnd');
+
+      if (usOpen) {
+        const p = getUSSessionProgress();
+        const pct = Math.max(0, Math.min(1, p.elapsed01)) * 100;
+        gap.style.display = 'none';
+        fill.style.width = pct + '%';
+        dot.style.left = pct + '%';
+        tag.textContent = '● 美股盘中';
+        remainEl.textContent = fmtMinsLeft(p.minsLeft);
+        startEl.textContent = fmt12h(9, 30);
+        endEl.textContent = fmt12h(16, 0);
+      } else {
+        // A股：9:30–11:30 交易，11:30–13:00 午休（灰色间隔），13:00–15:00 交易
+        const fmtCN = new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+        });
+        const parts = {};
+        fmtCN.formatToParts(new Date()).forEach(function (p) { parts[p.type] = p.value; });
+        let h = parseInt(parts.hour, 10); if (h === 24) h = 0;
+        const mi = parseInt(parts.minute, 10) || 0;
+        const se = parseInt(parts.second, 10) || 0;
+        const mins = h * 60 + mi + se / 60;
+
+        const amOpen = 9 * 60 + 30, amClose = 11 * 60 + 30;
+        const pmOpen = 13 * 60, pmClose = 15 * 60;
+        const totalSpan = pmClose - amOpen; // 330 分钟，含午休
+        const amWidthPct = (amClose - amOpen) / totalSpan * 100;
+        const gapWidthPct = (pmOpen - amClose) / totalSpan * 100;
+
+        gap.style.display = 'block';
+        gap.style.left = amWidthPct + '%';
+        gap.style.width = gapWidthPct + '%';
+
+        let elapsedSpan, minsLeft;
+        if (mins < amClose) {
+          elapsedSpan = mins - amOpen;
+          minsLeft = (amClose - mins) + (pmClose - pmOpen);
+        } else {
+          elapsedSpan = (amClose - amOpen) + (mins - pmOpen);
+          minsLeft = pmClose - mins;
+        }
+        const pct = Math.max(0, Math.min(1, elapsedSpan / totalSpan)) * 100;
+        fill.style.width = pct + '%';
+        dot.style.left = pct + '%';
+        tag.textContent = '● A股盘中';
+        remainEl.textContent = fmtMinsLeft(minsLeft);
+        startEl.textContent = fmt12h(9, 30);
+        endEl.textContent = fmt12h(15, 0);
+      }
+    }
+
     function paintWatchStatus() {
       const timeEl = document.getElementById('updateTime');
       if (!timeEl) return;
@@ -2287,6 +2755,7 @@
       } else {
         timeEl.textContent = '实时更新 ' + t;
       }
+      renderSessionProgress();
     }
 
     // 状态行时间每秒跳动（不闪「更新中」）
@@ -2458,11 +2927,34 @@
         stopLiveDetail();
         return;
       }
+      if (typeof detailUIMode !== 'undefined' && detailUIMode !== 'stock') {
+        stopLiveDetail();
+        return;
+      }
+      // 已回到成分股列表等非个股层时，禁止再改写标题/价格
+      try {
+        if (typeof appNavStack !== 'undefined' && appNavStack.length) {
+          const top = appNavStack[appNavStack.length - 1];
+          if (top && top.type !== 'stock-us' && top.type !== 'stock-cn') {
+            stopLiveDetail();
+            return;
+          }
+        }
+      } catch (e) {}
       // 美股 WS 推送中：跳过 REST
       if (!liveDetailIsCN && typeof fhWsActive === 'function' && fhWsActive()) return;
       try {
         const sym = liveDetailSymbol;
         const q = await fetchQuote(sym);
+        // await 之后必须再检查：快速返回成分股后禁止写回股价
+        if (!liveDetailSymbol || liveDetailSymbol !== sym) return;
+        if (typeof detailUIMode !== 'undefined' && detailUIMode !== 'stock') return;
+        try {
+          if (typeof appNavStack !== 'undefined' && appNavStack.length) {
+            const top = appNavStack[appNavStack.length - 1];
+            if (top && top.type !== 'stock-us' && top.type !== 'stock-cn') return;
+          }
+        } catch (e) {}
         if (!q || typeof q.c !== 'number') return;
         quoteCache[sym] = q;
         const price = Number(q.c);
@@ -2512,6 +3004,7 @@
     async function openDetail(symbol, isRestore) {
       chartStyle = 'mini';
       try { localStorage.setItem('tvChartStyle', 'mini'); } catch (e) {}
+      beginDetailUI('stock');
       document.getElementById('detailSymbol').innerHTML = symbol + ' <span class="market-badge us">美股</span>';
       document.getElementById('detailPrice').textContent = '加载中...';
       document.getElementById('detailChg').textContent = '';
@@ -2651,10 +3144,27 @@
     // ---------- 系统返回：分层回退（股票详情 → 成分股列表 → 关闭） ----------
     let appNavStack = []; // { type: 'sector-us'|'sector-cn'|'stock-us'|'stock-cn', ... }
     let suppressPopstate = false;
+    // 详情抽屉当前用途：防止个股异步/定时器写回覆盖「成分股」标题
+    // stock | sector-cn | sector-us | none
+    let detailUIMode = 'none';
+    let detailUIToken = 0;
+    function beginDetailUI(mode) {
+      detailUIMode = mode || 'none';
+      detailUIToken += 1;
+      return detailUIToken;
+    }
+    function isDetailUI(mode, token) {
+      if (mode && detailUIMode !== mode) return false;
+      if (token != null && token !== detailUIToken) return false;
+      return true;
+    }
+
 
     function hideDetailUI() {
       if (typeof stopMiniChartLive === 'function') stopMiniChartLive();
       if (typeof stopLiveDetail === 'function') stopLiveDetail();
+      detailUIMode = 'none';
+      detailUIToken += 1;
       const overlay = document.getElementById('detailOverlay');
       const drawer = document.getElementById('detailDrawer');
       if (overlay) overlay.classList.remove('show');
@@ -3783,6 +4293,8 @@ const FALLBACK_SECTORS = {
       const overlay = document.getElementById('detailOverlay');
       const drawer = document.getElementById('detailDrawer');
       document.getElementById('detailSymbol').textContent = l2.name;
+      if (typeof stopLiveDetail === 'function') stopLiveDetail();
+      if (typeof stopMiniChartLive === 'function') stopMiniChartLive();
       document.getElementById('detailPrice').textContent = '成分股';
       document.getElementById('detailChg').textContent = l1.name + ' · ' + symbols.length + ' 只';
       document.getElementById('detailChg').className = 'detail-chg flat';
@@ -4255,10 +4767,10 @@ async function fetchCNConceptList(po) {
         };
       }));
 
-      // 无有效板块涨跌时，用成分股涨跌均值补（不要因为 chg===0 就跳过）
+      // 用成分股列表 total 校正角标只数；无有效涨跌时再用均值补
+      // 注意：有行情时也不能跳过 total，否则外面 140、里面 144 会对不上
       await Promise.all(rows.map(async function (r) {
         if (!r.board) return;
-        if (r.hasLive && r.count > 0) return;
         try {
           const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=3&po=1&np=1&fltt=2&invt=2&fid=f3&fs=b:' + r.board + '&fields=f12,f14,f2,f3&_=' + Date.now();
           const u = (typeof WORKER_BASE !== 'undefined' && WORKER_BASE)
@@ -4268,18 +4780,28 @@ async function fetchCNConceptList(po) {
           let data = await res.json();
           if (data && data.contents) { try { data = JSON.parse(data.contents); } catch (e) {} }
           if (data && data.data) {
-            if (data.data.total) r.count = data.data.total;
-            const diff = data.data.diff || [];
-            if (diff.length) {
-              let sum = 0, n = 0;
-              diff.forEach(function (it) {
-                if (it.f3 != null && it.f3 !== '' && !isNaN(Number(it.f3))) {
-                  sum += Number(it.f3); n++;
+            if (data.data.total != null && Number(data.data.total) > 0) {
+              r.count = Number(data.data.total);
+              try {
+                window.__cnBoardMeta = window.__cnBoardMeta || {};
+                const prevM = window.__cnBoardMeta[r.board] || {};
+                window.__cnBoardMeta[r.board] = Object.assign({}, prevM, { count: r.count, _at: Date.now() });
+              } catch (e) {}
+            }
+            // 仅在没有板块指数涨跌时，用抽样成分股均值补涨跌；只数已用 total 校正
+            if (!r.hasLive) {
+              const diff = data.data.diff || [];
+              if (diff.length) {
+                let sum = 0, n = 0;
+                diff.forEach(function (it) {
+                  if (it.f3 != null && it.f3 !== '' && !isNaN(Number(it.f3))) {
+                    sum += Number(it.f3); n++;
+                  }
+                });
+                if (n) {
+                  r.chg = sum / n;
+                  r.hasLive = true;
                 }
-              });
-              if (n) {
-                r.chg = sum / n;
-                r.hasLive = true;
               }
             }
           }
@@ -4377,8 +4899,24 @@ async function fetchCNConceptList(po) {
     }
 
 async function openCNSectorStocks(boardCode, sectorName, isRestore) {
-      document.getElementById('detailSymbol').textContent = sectorName || 'A股板块';
-      document.getElementById('detailPrice').textContent = '成分股';
+      if (typeof stopLiveDetail === 'function') stopLiveDetail();
+      if (typeof stopMiniChartLive === 'function') stopMiniChartLive();
+      const uiTok = beginDetailUI('sector-cn');
+      function pinSectorHeader() {
+        if (!isDetailUI('sector-cn', uiTok)) return;
+        const pe = document.getElementById('detailPrice');
+        const se = document.getElementById('detailSymbol');
+        if (se) se.textContent = sectorName || 'A股板块';
+        if (pe && pe.textContent !== '成分股') pe.textContent = '成分股';
+      }
+      pinSectorHeader();
+      // 快速返回时个股 await 可能晚到：短时看守把标题钉回「成分股」
+      let pinN = 0;
+      const pinTimer = setInterval(function () {
+        pinN++;
+        pinSectorHeader();
+        if (pinN >= 40 || !isDetailUI('sector-cn', uiTok)) clearInterval(pinTimer);
+      }, 120);
       document.getElementById('detailChg').textContent = '加载中...';
       document.getElementById('detailChg').className = 'detail-chg flat';
       document.getElementById('detailGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:20px 12px;">加载行情...</div>';
@@ -4452,6 +4990,10 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           });
           var upTri2 = '<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid var(--green);vertical-align:middle;margin-right:3px;"></span>';
           var downTri2 = '<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid var(--red);vertical-align:middle;margin-right:3px;"></span>';
+          // 再次钉死标题，防止个股异步回写抢占
+          if (typeof isDetailUI === 'function' && !isDetailUI('sector-cn', uiTok)) return;
+          document.getElementById('detailPrice').textContent = '成分股';
+          document.getElementById('detailSymbol').textContent = sectorName || 'A股板块';
           document.getElementById('detailChg').innerHTML =
             '共' + (totalHint || stocks.length) + '只 · 已加载' + stocks.length + '只 · ' +
             '<span style="white-space:nowrap;">' + upTri2 + '<span style="color:var(--green);font-weight:700;">' + upCnt + '</span></span>' +
@@ -4516,6 +5058,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
     async function openCNDetail(code, name, isRestore) {
       chartStyle = 'mini';
       try { localStorage.setItem('tvChartStyle', 'mini'); } catch (e) {}
+      const uiTok = beginDetailUI('stock');
       const title = (name ? name + ' ' : '') + code;
       document.getElementById('detailSymbol').textContent = title;
       document.getElementById('detailPrice').textContent = '加载中...';
@@ -4568,6 +5111,8 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       if (chgAmt != null && Math.abs(chgAmt) > 100) chgAmt = chgAmt / 100;
       const cnName = (quote && quote.f58) ? quote.f58 : (name || '');
 
+      // 必须先检查：快速返回成分股后，禁止任何个股标题/价格写回（与美股层栈逻辑一致）
+      if (!isDetailUI('stock', uiTok)) return;
       const badge = ' <span class="market-badge cn">A股</span>';
       if (cnName) document.getElementById('detailSymbol').innerHTML = cnName + ' ' + code + badge;
       else document.getElementById('detailSymbol').innerHTML = code + badge;
@@ -4650,12 +5195,16 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           }
           const last3 = rows.slice(-3);
           const labels = last3.length === 3 ? ['前日', '昨日', '今日'] : (last3.length === 2 ? ['昨日', '今日'] : ['今日']);
+          // 前日涨跌与近3日累计基准：再往前一天收盘（与美股详情一致）
+          const baseBefore = rows.length > last3.length ? rows[rows.length - last3.length - 1] : null;
           last3.forEach((row, i) => {
             let chgHtml = '<span style="color:var(--muted);">基准</span>';
-            if (i > 0) {
-              const prevC = last3[i - 1].c;
+            let prevC = null;
+            if (i > 0) prevC = last3[i - 1].c;
+            else if (baseBefore && baseBefore.c != null) prevC = baseBefore.c;
+            if (prevC != null && prevC > 0) {
               const dayDiff = row.c - prevC;
-              const dayPct = prevC ? (dayDiff / prevC * 100) : 0;
+              const dayPct = (dayDiff / prevC * 100);
               const cls = dayDiff > 0 ? 'up' : dayDiff < 0 ? 'down' : 'flat';
               chgHtml = '<span class="' + cls + '">' + (dayDiff >= 0 ? '+' : '') + dayDiff.toFixed(2) + ' (' + (dayPct >= 0 ? '+' : '') + dayPct.toFixed(2) + '%)</span>';
             }
@@ -4665,13 +5214,17 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
               '<div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">最高 ' + (row.h != null ? Number(row.h).toFixed(2) : '--') +
               ' · 最低 ' + (row.l != null ? Number(row.l).toFixed(2) : '--') + '</div></div>';
           });
-          if (last3.length >= 2) {
-            const first = last3[0].c, last = last3[last3.length - 1].c;
-            const tot = last - first;
-            const totPct = first ? (tot / first * 100) : 0;
-            const cls = tot > 0 ? 'up' : tot < 0 ? 'down' : 'flat';
-            dayRows += '<div class="detail-stat" style="grid-column:1/-1;"><div class="label">近' + last3.length + '日累计</div><div class="val ' + cls + '">' +
-              (tot >= 0 ? '+' : '') + tot.toFixed(2) + ' (' + (totPct >= 0 ? '+' : '') + totPct.toFixed(2) + '%)</div></div>';
+          // 近N日累计：从「前日」再前一天收盘起算，含完整 N 段涨跌
+          if (last3.length >= 1) {
+            const first = (baseBefore && baseBefore.c != null) ? baseBefore.c : (last3.length >= 2 ? last3[0].c : null);
+            const last = last3[last3.length - 1].c;
+            if (first != null && first > 0 && last != null) {
+              const tot = last - first;
+              const totPct = (tot / first * 100);
+              const cls = tot > 0 ? 'up' : tot < 0 ? 'down' : 'flat';
+              dayRows += '<div class="detail-stat" style="grid-column:1/-1;"><div class="label">近' + last3.length + '日累计</div><div class="val ' + cls + '">' +
+                (tot >= 0 ? '+' : '') + tot.toFixed(2) + ' (' + (totPct >= 0 ? '+' : '') + totPct.toFixed(2) + '%)</div></div>';
+            }
           }
         }
         if (dayRows) {
@@ -4686,8 +5239,9 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         console.warn('cn 3day fail', e);
       }
 
-      // TradingView K线
+      // TradingView K线（仅仍在个股详情层时）
       try {
+        if (!isDetailUI('stock', uiTok)) return;
         loadCNChart(code);
         startLiveDetail(code, true);
       } catch (e) {
@@ -5479,14 +6033,99 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
         if (target === 'watch') refreshQuotes();
-        if (target === 'val') refreshIndexes();
-        if (target === 'asset') refreshAssets();
-        if (target === 'hot') loadNews();
-        if (target === 'sector') loadSectors();
-        if (target === 'cal') loadCalendar();
-        if (target === 'macro') loadMacro();
+        else ensurePageLoaded(target);
       });
     });
+
+    // ==================== 后台预加载 ====================
+    // 观察列表（首屏）加载完之后，不用等用户点开其它分栏才去请求数据，
+    // 而是在后台按顺序把「估值/资产/宏观/热点/日历/板块」都提前加载好、
+    // 写进各自的隐藏页面容器里。之后用户切到哪个分栏，只要预加载已经
+    // 跑到过它，就直接显示已经渲染好的内容，不用再等一次网络请求；
+    // 如果预加载还没轮到（比如切得比预加载快）或者预加载失败了，
+    // 也会照常按原来的逻辑正常加载一次，不影响功能，只是快慢的区别。
+    const pageLoaders = {
+      val: refreshIndexes,
+      asset: refreshAssets,
+      macro: loadMacro,
+      hot: loadNews,
+      cal: loadCalendar,
+      sector: loadSectors,
+    };
+    const preloadedPages = new Set(['watch']); // 观察列表在初始化时就会加载，无需再预加载一遍
+    const loadingPages = new Set();
+
+    async function ensurePageLoaded(page, force) {
+      const loader = pageLoaders[page];
+      if (!loader) return;
+      if (preloadedPages.has(page) && !force) return; // 已经加载过，直接用现成内容
+      if (loadingPages.has(page)) return; // 正在加载（可能后台预加载正好跑到这一项），避免重复触发
+      loadingPages.add(page);
+      try {
+        await loader();
+        preloadedPages.add(page);
+      } catch (e) {
+        // 这一项加载失败不标记为已完成，下次切进来会按原逻辑重新尝试
+      } finally {
+        loadingPages.delete(page);
+      }
+    }
+
+    async function runBackgroundPreload() {
+      const order = ['val', 'asset', 'macro', 'hot', 'cal', 'sector'];
+      for (const page of order) {
+        // 每一项之间稍微停顿一下，避免跟观察列表的实时行情请求抢带宽，
+        // 也避免短时间内同时打一堆请求给各个数据源
+        await ensurePageLoaded(page);
+        await new Promise(r => setTimeout(r, 400));
+      }
+    }
+
+    // ---------- 板块页往下钻的预热：只热身「共享数据缓存」，不碰任何 DOM/页面状态 ----------
+    // 板块动态下面还有两层：点大类看细分行业、点细分行业看成分股行情。
+    // 这两层用的都是同一份全局行情缓存（quoteCache）/ 同一份板块缓存
+    // （cnBoardCache），跟顶层的板块列表是共用的，所以不用另外重新做一遍
+    // 「渲染 + 缓存」的整套逻辑——只要提前把这份共享缓存悄悄填满，
+    // 用户真的点进去的时候，原来的代码会自动先查缓存、查到了就不用再等网络。
+    //
+    // 美股细分行业里一共 ~170 个成分股代码，逐个悄悄拉一遍行情、
+    // 写进 quoteCache（不设过期时间，填过了就一直有效，不怕预热早了白热）；
+    // A股这边则是把行业榜/大类概览接口（loadCNBoardUniverse）预热一次。
+    //
+    // 没做、也不建议做的：把「点开某个细分行业看到的成分股列表」这一层
+    // 每一个都提前跑一遍——美股有约 30 个细分行业、A股也有类似数量，
+    // 全量跑一遍意味着几百次额外请求，一是会明显拖慢、抢占前面几个
+    // 分栏预加载和观察列表实时刷新的带宽，二是容易把行情接口的免费
+    // 额度打满导致真正在看的数据反而刷不出来，三是这些细分行业绝大部分
+    // 你可能根本不会点进去，白热身。所以这层还是保持「点开当次才加载」，
+    // 但因为上面的行情缓存已经热好了，点开的时候能明显更快、不再是干等。
+    function collectUSSectorSymbols() {
+      const set = new Set();
+      if (typeof US_SECTOR_TREE !== 'undefined') {
+        US_SECTOR_TREE.forEach(function (l1) {
+          (l1.children || []).forEach(function (c) {
+            (c.stocks || []).forEach(function (s) { set.add(s); });
+          });
+        });
+      }
+      return Array.from(set);
+    }
+
+    let sectorQuoteWarmed = false;
+    async function warmUSSectorQuoteCache() {
+      if (sectorQuoteWarmed) return;
+      sectorQuoteWarmed = true;
+      const symbols = collectUSSectorSymbols();
+      for (const sym of symbols) {
+        if (quoteCache[sym]) continue; // 已经有行情缓存（比如本来就在观察列表里），不用再请求
+        try {
+          const q = await fetchQuote(sym);
+          if (q) quoteCache[sym] = q;
+        } catch (e) {}
+        // 一个一个悄悄来，给行情接口留点余量，也不跟观察列表的实时刷新抢带宽
+        await new Promise(function (r) { setTimeout(r, 900); });
+      }
+    }
 
     // ==================== 初始化 ====================
     renderWatchlist();
@@ -5495,6 +6134,15 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
     setInterval(function () { if (typeof enrichWatchlistRefSignals === 'function') enrichWatchlistRefSignals(); }, 5 * 60 * 1000);
     // 启动 Finnhub WebSocket 推送
     setTimeout(function () { if (typeof fhWsConnect === 'function') fhWsConnect(); }, 500);
+    // 观察列表首屏出来之后，再在后台把其余分栏悄悄预加载好
+    setTimeout(function () {
+      runBackgroundPreload().then(function () {
+        // 几个主要分栏都预加载完之后，再顺手把「板块」页往下钻会用到的
+        // 共享数据缓存也热一遍（细节见上面的注释）
+        if (typeof warmUSSectorQuoteCache === 'function') warmUSSectorQuoteCache();
+        if (typeof loadCNBoardUniverse === 'function') loadCNBoardUniverse().catch(function () {});
+      });
+    }, 1200);
 
     // 观察列表：WS 可用时只偶尔 REST 补 OHLC；否则 2s 轮询
     setInterval(function () {
