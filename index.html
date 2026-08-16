@@ -607,6 +607,54 @@
       color: inherit;
     }
 
+    /* 热点日期索引（右侧） */
+    #newsDayRail {
+      position: fixed;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 35;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      max-height: 62vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 6px 4px;
+      background: rgba(15, 20, 28, 0.88);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    }
+    #newsDayRail.show { display: flex; }
+    #newsDayRail .rail-item {
+      min-width: 28px;
+      padding: 4px 5px;
+      text-align: center;
+      font-family: var(--font-num);
+      font-size: 0.62rem;
+      font-weight: 600;
+      color: var(--muted);
+      border-radius: 6px;
+      cursor: pointer;
+      line-height: 1.15;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #newsDayRail .rail-item:active,
+    #newsDayRail .rail-item.active {
+      background: var(--blue);
+      color: #fff;
+    }
+    #newsDayRail .rail-item .rail-m {
+      display: block;
+      font-size: 0.55rem;
+      opacity: 0.85;
+      font-weight: 500;
+    }
+    #newsList { padding-right: 38px; }
 
     .sector-card { cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
     .sector-card:active { transform: scale(0.97); opacity: 0.9; }
@@ -963,13 +1011,14 @@
       <div style="display:flex;gap:6px;align-items:center;">
         <button id="newsTabCN" onclick="switchNewsLang('cn')" style="background:var(--blue);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.75rem;cursor:pointer;">中文</button>
         <button id="newsTabEN" onclick="switchNewsLang('en')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:0.75rem;cursor:pointer;">英文</button>
-        <button class="refresh-btn" onclick="loadNews()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
+        <button class="refresh-btn" onclick="loadNews(true)" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
       </div>
     </div>
     <div id="newsList" class="hot-cards">
       <div style="text-align:center;color:var(--muted);padding:30px 0;">加载新闻中...</div>
     </div>
-    <div class="page-note">中文=东方财富 · 英文=Finnhub · 可切换 · 点击标题打开原文</div>
+    <div id="newsDayRail" aria-label="日期索引"></div>
+    <div class="page-note">中文=东方财富多栏目近约30天 · 英文=Finnhub · 可切换 · 点击标题打开原文</div>
   </div>
 
   <!-- ========== 下周日历 ========== -->
@@ -3595,19 +3644,86 @@ function loadFullTVChart(symbol) {
     function renderNewsItems(list) {
       const container = document.getElementById('newsList');
       if (!container) return;
+      const rail = document.getElementById('newsDayRail');
       if (!list || !list.length) {
         container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">暂无新闻数据</div>';
+        if (rail) { rail.innerHTML = ''; rail.classList.remove('show'); }
         return;
       }
-      container.innerHTML = list.map(item => `
-        <div class="news-item">
-          <a href="${item.link}" target="_blank" rel="noopener">
-            <div class="news-time">${item.time} · ${item.source}</div>
-            <div class="news-title">${item.title}</div>
-            <div class="news-summary">${item.summary || ''}</div>
-          </a>
-        </div>
-      `).join('');
+      // 按日期分组，日与日之间加分界线；右侧日期索引可点击跳转
+      let html = '';
+      let lastDay = null;
+      const dayKeys = [];
+      for (let i = 0; i < list.length; i++) {
+        const item = list[i];
+        const dayKey = item.dayKey || (typeof parseNewsDayKey === 'function' ? parseNewsDayKey(item.time) : '');
+        if (dayKey !== lastDay) {
+          lastDay = dayKey;
+          dayKeys.push(dayKey);
+          const label = (typeof formatNewsDayLabel === 'function') ? formatNewsDayLabel(dayKey) : dayKey;
+          const sepId = 'news-day-' + String(dayKey).replace(/[^0-9]/g, '');
+          html += '<div class="news-day-sep" id="' + sepId + '" data-day="' + dayKey + '" style="display:flex;align-items:center;gap:10px;margin:' +
+            (i === 0 ? '4px' : '18px') + ' 0 10px;color:var(--muted);font-size:0.78rem;font-weight:600;scroll-margin-top:72px;">' +
+            '<span style="white-space:nowrap;">' + label + '</span>' +
+            '<span style="flex:1;height:1px;background:var(--border);"></span></div>';
+        }
+        const timeShow = item.time || '';
+        html += '<div class="news-item">' +
+          '<a href="' + (item.link || '#') + '" target="_blank" rel="noopener">' +
+          '<div class="news-time">' + timeShow + ' · ' + (item.source || '') + '</div>' +
+          '<div class="news-title">' + (item.title || '') + '</div>' +
+          '<div class="news-summary">' + (item.summary || '') + '</div>' +
+          '</a></div>';
+      }
+      container.innerHTML = html;
+      renderNewsDayRail(dayKeys);
+    }
+
+    function renderNewsDayRail(dayKeys) {
+      const rail = document.getElementById('newsDayRail');
+      if (!rail) return;
+      if (!dayKeys || !dayKeys.length) {
+        rail.innerHTML = '';
+        rail.classList.remove('show');
+        return;
+      }
+      let html = '';
+      for (let i = 0; i < dayKeys.length; i++) {
+        const dk = dayKeys[i];
+        const parts = String(dk).split('-');
+        const mo = parts.length >= 2 ? String(Number(parts[1])) : '';
+        const da = parts.length >= 3 ? String(Number(parts[2])) : String(dk);
+        const sepId = 'news-day-' + String(dk).replace(/[^0-9]/g, '');
+        html += '<div class="rail-item" data-target="' + sepId + '" data-day="' + dk + '" title="' + dk + '">' +
+          (mo ? '<span class="rail-m">' + mo + '月</span>' : '') +
+          da + '</div>';
+      }
+      rail.innerHTML = html;
+      // 仅在热点页显示
+      const page = document.getElementById('page-hot');
+      if (page && page.classList.contains('active')) rail.classList.add('show');
+      else rail.classList.remove('show');
+
+      rail.querySelectorAll('.rail-item').forEach(function (el) {
+        el.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const tid = el.getAttribute('data-target');
+          const target = tid ? document.getElementById(tid) : null;
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            rail.querySelectorAll('.rail-item').forEach(function (x) { x.classList.remove('active'); });
+            el.classList.add('active');
+          }
+        });
+      });
+    }
+
+    function setNewsDayRailVisible(show) {
+      const rail = document.getElementById('newsDayRail');
+      if (!rail) return;
+      if (show && rail.innerHTML) rail.classList.add('show');
+      else rail.classList.remove('show');
     }
 
     
@@ -3643,28 +3759,30 @@ function loadFullTVChart(symbol) {
       }
     }
 
-    async function loadChineseNews() {
-      const emUrl = 'https://np-listapi.eastmoney.com/comm/web/getNewsByColumns?client=web&biz=web_news_col&column=350&order=1&needInteractData=0&page_index=1&page_size=15&req_trace=' + Date.now() + '&fields=code,showTime,title,mediaName,summary,url,uniqueUrl';
+    async function fetchEastMoneyNewsPage(column, pageIndex, pageSize) {
+      const emUrl = 'https://np-listapi.eastmoney.com/comm/web/getNewsByColumns?client=web&biz=web_news_col&column=' +
+        encodeURIComponent(column) + '&order=1&needInteractData=0&page_index=' +
+        pageIndex + '&page_size=' + pageSize + '&req_trace=' + Date.now() +
+        '&fields=code,showTime,title,mediaName,summary,url,uniqueUrl';
       const urls = [];
       if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
         urls.push(WORKER_BASE + '?url=' + encodeURIComponent(emUrl));
       }
       urls.push('https://api.allorigins.win/raw?url=' + encodeURIComponent(emUrl));
       urls.push(emUrl);
-
       for (let i = 0; i < urls.length; i++) {
         try {
           const res = await Promise.race([
             fetch(urls[i], { cache: 'no-store' }),
             new Promise(function (_, reject) {
-              setTimeout(function () { reject(new Error('timeout')); }, 5000);
+              setTimeout(function () { reject(new Error('timeout')); }, 10000);
             })
           ]);
           if (!res || !res.ok) continue;
           const raw = await Promise.race([
             res.text(),
             new Promise(function (_, reject) {
-              setTimeout(function () { reject(new Error('body-timeout')); }, 5000);
+              setTimeout(function () { reject(new Error('body-timeout')); }, 10000);
             })
           ]);
           let data;
@@ -3673,22 +3791,120 @@ function loadFullTVChart(symbol) {
             try { data = JSON.parse(data.contents); } catch (e) {}
           }
           const list = data && data.data && data.data.list;
-          if (Array.isArray(list) && list.length) {
-            return list.slice(0, 12).map(function (item) {
-              return {
-                time: item.showTime || '',
-                source: item.mediaName || '东方财富',
-                title: item.title || '无标题',
-                summary: item.summary || '',
-                link: item.uniqueUrl || item.url || '#'
-              };
-            });
-          }
+          if (Array.isArray(list) && list.length) return list;
         } catch (e) {
-          console.warn('cn news', i, e && e.message);
+          console.warn('cn news', column, pageIndex, i, e && e.message);
         }
       }
       return null;
+    }
+
+    function parseNewsDayKey(timeStr) {
+      if (!timeStr) return '未知日期';
+      const s = String(timeStr).trim();
+      // 2026-08-17 01:33:40 / 2026/08/17 / 08-17
+      let m = s.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+      if (m) {
+        return m[1] + '-' + String(m[2]).padStart(2, '0') + '-' + String(m[3]).padStart(2, '0');
+      }
+      m = s.match(/(\d{1,2})[-\/](\d{1,2})/);
+      if (m) {
+        const y = new Date().getFullYear();
+        return y + '-' + String(m[1]).padStart(2, '0') + '-' + String(m[2]).padStart(2, '0');
+      }
+      try {
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) {
+          return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+      } catch (e) {}
+      return s.slice(0, 10) || '未知日期';
+    }
+
+    function formatNewsDayLabel(dayKey) {
+      if (!dayKey || dayKey === '未知日期') return dayKey || '未知日期';
+      const p = dayKey.split('-');
+      if (p.length < 3) return dayKey;
+      const y = Number(p[0]), mo = Number(p[1]), da = Number(p[2]);
+      const dt = new Date(y, mo - 1, da);
+      const weeks = ['日', '一', '二', '三', '四', '五', '六'];
+      const today = new Date();
+      const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const diff = Math.round((t0 - dt) / 86400000);
+      let tag = '';
+      if (diff === 0) tag = ' · 今天';
+      else if (diff === 1) tag = ' · 昨天';
+      else if (diff > 1 && diff < 7) tag = ' · ' + diff + '天前';
+      return mo + '月' + da + '日 周' + weeks[dt.getDay()] + tag;
+    }
+
+    async function loadChineseNews(onBatch) {
+      // 多栏目 + 多页；边拉边回调 onBatch，先出第一页再补全近约 30 天
+      const columns = [350, 344, 351, 355, 403];
+      const pageSize = 25;
+      const maxPages = 12;
+      const merged = [];
+      const seen = {};
+      const cutoff = Date.now() - 31 * 86400000;
+
+      function mapAndFilter() {
+        const mapped = merged.map(function (item) {
+          const time = item.showTime || '';
+          const dayKey = parseNewsDayKey(time);
+          let ts = 0;
+          try {
+            const d = new Date(time.replace(/-/g, '/'));
+            if (!isNaN(d.getTime())) ts = d.getTime();
+          } catch (e) {}
+          return {
+            time: time,
+            dayKey: dayKey,
+            ts: ts,
+            source: item.mediaName || '东方财富',
+            title: item.title || '无标题',
+            summary: item.summary || '',
+            link: item.uniqueUrl || item.url || '#'
+          };
+        }).filter(function (it) {
+          if (!it.ts) return true;
+          return it.ts >= cutoff;
+        });
+        mapped.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
+        return mapped;
+      }
+
+      for (let c = 0; c < columns.length; c++) {
+        const col = columns[c];
+        for (let page = 1; page <= maxPages; page++) {
+          const list = await fetchEastMoneyNewsPage(col, page, pageSize);
+          if (!list || !list.length) break;
+          let added = 0;
+          let oldestTs = Date.now();
+          for (let k = 0; k < list.length; k++) {
+            const item = list[k];
+            const key = (item.uniqueUrl || item.url || '') + '|' + (item.title || '');
+            if (seen[key]) continue;
+            seen[key] = 1;
+            merged.push(item);
+            added++;
+            try {
+              const d = new Date(String(item.showTime || '').replace(/-/g, '/'));
+              if (!isNaN(d.getTime()) && d.getTime() < oldestTs) oldestTs = d.getTime();
+            } catch (e) {}
+          }
+          if (added > 0 && typeof onBatch === 'function') {
+            try { onBatch(mapAndFilter(), false); } catch (e) {}
+          }
+          if (added === 0) break;
+          if (oldestTs < cutoff - 2 * 86400000) break;
+        }
+      }
+
+      const finalList = mapAndFilter();
+      if (finalList.length && typeof onBatch === 'function') {
+        try { onBatch(finalList, true); } catch (e) {}
+      }
+      return finalList.length ? finalList : null;
     }
 
     async function loadEnglishNews() {
@@ -3697,15 +3913,21 @@ function loadFullTVChart(symbol) {
         const res = await fetch(url);
         const data = await res.json();
         if (!Array.isArray(data) || !data.length) return null;
-        return data.slice(0, 12).map(item => ({
-          time: item.datetime ? new Date(item.datetime * 1000).toLocaleString('zh-CN', {
-            month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        return data.slice(0, 40).map(item => {
+          const dt = item.datetime ? new Date(item.datetime * 1000) : null;
+          const dayKey = dt ? (dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0')) : '';
+          return {
+          time: dt ? dt.toLocaleString('zh-CN', {
+            year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
           }) : '',
+          dayKey: dayKey,
+          ts: dt ? dt.getTime() : 0,
           source: item.source || '',
           title: item.headline || 'No title',
           summary: item.summary || '',
           link: item.url || '#'
-        }));
+          };
+        });
       } catch (e) {
         console.warn('en news fail', e);
         return null;
@@ -3713,11 +3935,113 @@ function loadFullTVChart(symbol) {
     }
 
     let newsLoadId = 0;
-    async function loadNews() {
+        // 新闻缓存：仅保存「完整加载」结果，避免半截列表当旧缓存
+    window.__newsCache = window.__newsCache || {
+      cn: null, en: null, cnAt: 0, enAt: 0, cnComplete: false, enComplete: false
+    };
+    const NEWS_CACHE_MS = 60 * 60 * 1000;
+    const NEWS_LS_KEY = 'marketNewsCacheV2';
+    let newsAutoTimer = null;
+
+    function newsDaySpan(list) {
+      const s = {};
+      (list || []).forEach(function (it) {
+        const k = it.dayKey || (typeof parseNewsDayKey === 'function' ? parseNewsDayKey(it.time) : '');
+        if (k) s[k] = 1;
+      });
+      return Object.keys(s).length;
+    }
+
+    function isCompleteNewsList(list, completeFlag) {
+      if (!list || !list.length) return false;
+      if (completeFlag) return true;
+      // 兼容旧数据：条数多且跨多日才当完整
+      return list.length >= 100 && newsDaySpan(list) >= 12;
+    }
+
+    function readNewsCacheFromDisk() {
+      try {
+        const raw = localStorage.getItem(NEWS_LS_KEY) || localStorage.getItem('marketNewsCacheV1');
+        if (!raw) return;
+        const o = JSON.parse(raw);
+        if (!o || typeof o !== 'object') return;
+        if (Array.isArray(o.cn) && o.cn.length && isCompleteNewsList(o.cn, o.cnComplete)) {
+          window.__newsCache.cn = o.cn;
+          window.__newsCache.cnAt = o.cnAt || 0;
+          window.__newsCache.cnComplete = true;
+        }
+        if (Array.isArray(o.en) && o.en.length && isCompleteNewsList(o.en, o.enComplete)) {
+          window.__newsCache.en = o.en;
+          window.__newsCache.enAt = o.enAt || 0;
+          window.__newsCache.enComplete = true;
+        }
+      } catch (e) {}
+    }
+
+    function writeNewsCacheToDisk() {
+      try {
+        const c = window.__newsCache || {};
+        // 只落盘完整缓存
+        const payload = {
+          cn: (c.cnComplete && c.cn) ? c.cn.slice(0, 500) : [],
+          en: (c.enComplete && c.en) ? c.en.slice(0, 100) : [],
+          cnAt: c.cnAt || 0,
+          enAt: c.enAt || 0,
+          cnComplete: !!c.cnComplete,
+          enComplete: !!c.enComplete
+        };
+        localStorage.setItem(NEWS_LS_KEY, JSON.stringify(payload));
+      } catch (e) {}
+    }
+
+    function saveNewsCache(lang, list, complete) {
+      if (!list || !list.length) return;
+      // 未完成的批次：只用于当前屏即时展示，不覆盖完整旧缓存、不写盘
+      if (!complete) {
+        return;
+      }
+      if (!isCompleteNewsList(list, true) && list.length < 30) return;
+      window.__newsCache = window.__newsCache || {};
+      if (lang === 'cn') {
+        window.__newsCache.cn = list;
+        window.__newsCache.cnAt = Date.now();
+        window.__newsCache.cnComplete = true;
+      } else {
+        window.__newsCache.en = list;
+        window.__newsCache.enAt = Date.now();
+        window.__newsCache.enComplete = true;
+      }
+      writeNewsCacheToDisk();
+    }
+
+    function setNewsLoadingHint(show, text) {
+      let el = document.getElementById('newsLoadingHint');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'newsLoadingHint';
+        el.style.cssText = 'display:none;position:fixed;left:50%;top:72px;transform:translateX(-50%);z-index:45;' +
+          'padding:6px 14px;border-radius:20px;font-size:0.75rem;font-weight:600;letter-spacing:0.02em;' +
+          'background:rgba(15,22,32,0.72);color:#d7e6f7;border:1px solid rgba(77,159,255,0.35);' +
+          'backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(0,0,0,0.28);pointer-events:none;';
+        document.body.appendChild(el);
+      }
+      const page = document.getElementById('page-hot');
+      const onHot = page && page.classList.contains('active');
+      if (show && onHot) {
+        el.textContent = text || '新闻更新中…';
+        el.style.display = 'block';
+      } else {
+        el.style.display = 'none';
+      }
+    }
+
+    readNewsCacheFromDisk();
+
+    async function loadNews(force) {
       const container = document.getElementById('newsList');
       if (!container) return;
       const loadId = ++newsLoadId;
-      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载新闻中...</div>';
+      const lang = newsLang === 'cn' ? 'cn' : 'en';
       try {
         const cn = document.getElementById('newsTabCN');
         const en = document.getElementById('newsTabEN');
@@ -3730,27 +4054,144 @@ function loadFullTVChart(symbol) {
             cn.style.background = 'none'; cn.style.color = 'var(--muted)'; cn.style.border = '1px solid var(--border)';
           }
         }
-        let list = null;
-        if (newsLang === 'cn') {
-          list = await loadChineseNews();
-          if (!list) list = await loadEnglishNews();
+
+        const cache = window.__newsCache;
+        const cachedList = lang === 'cn' ? cache.cn : cache.en;
+        const cachedAt = lang === 'cn' ? cache.cnAt : cache.enAt;
+        const cachedComplete = lang === 'cn' ? !!cache.cnComplete : !!cache.enComplete;
+        const hasGoodCache = cachedList && cachedList.length && isCompleteNewsList(cachedList, cachedComplete);
+        const cacheFresh = hasGoodCache && (Date.now() - cachedAt < NEWS_CACHE_MS);
+
+        // 只展示完整旧缓存，避免半截日期/错误信息
+        if (hasGoodCache && !force) {
+          if (loadId === newsLoadId) renderNewsItems(cachedList);
+        } else if (hasGoodCache && force) {
+          if (loadId === newsLoadId) renderNewsItems(cachedList);
         } else {
-          list = await loadEnglishNews();
-          if (!list) list = await loadChineseNews();
+          container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载新闻中...</div>';
+          if (typeof setNewsDayRailVisible === 'function') setNewsDayRailVisible(false);
         }
-        if (loadId !== newsLoadId) return;
-        if (!list || !list.length) {
-          container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">新闻加载失败，请点刷新重试</div>';
+
+        if (!force && cacheFresh) {
+          // 仍后台轻量检查更新（不挡阅读）
+          setTimeout(function () {
+            if (newsLoadId === loadId) quietRefreshNews(lang);
+          }, 800);
           return;
         }
-        renderNewsItems(list);
+
+        setNewsLoadingHint(true, hasGoodCache ? '正在补充更新…' : '新闻加载中…');
+
+        let list = null;
+        if (newsLang === 'cn') {
+          list = await loadChineseNews(function (batch, done) {
+            if (loadId !== newsLoadId) return;
+            if (!batch || !batch.length) return;
+            // 无完整缓存时：边下边显；有完整缓存时：等完成再替换，避免日期变少
+            if (!hasGoodCache || done) {
+              renderNewsItems(batch);
+            }
+            if (done) saveNewsCache('cn', batch, true);
+          });
+          if ((!list || !list.length) && !hasGoodCache) {
+            list = await loadEnglishNews();
+            if (list && list.length) saveNewsCache('en', list, true);
+          }
+        } else {
+          list = await loadEnglishNews();
+          if (list && list.length && loadId === newsLoadId) {
+            renderNewsItems(list);
+            saveNewsCache('en', list, true);
+          }
+          if ((!list || !list.length) && !hasGoodCache) {
+            list = await loadChineseNews(function (batch, done) {
+              if (loadId !== newsLoadId) return;
+              if (batch && batch.length && (!hasGoodCache || done)) renderNewsItems(batch);
+              if (done && batch && batch.length) saveNewsCache('cn', batch, true);
+            });
+          }
+        }
+        if (loadId !== newsLoadId) return;
+        if (list && list.length) {
+          saveNewsCache(lang === 'cn' ? 'cn' : 'en', list, true);
+          renderNewsItems(list);
+        } else if (!hasGoodCache) {
+          container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">新闻加载失败，请点刷新重试</div>';
+          if (typeof setNewsDayRailVisible === 'function') setNewsDayRailVisible(false);
+        }
       } catch (err) {
         console.warn('loadNews error', err);
         if (loadId === newsLoadId) {
-          container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载出错，请点刷新</div>';
+          const cache = window.__newsCache;
+          const fallback = (newsLang === 'cn' ? cache.cn : cache.en);
+          const ok = fallback && isCompleteNewsList(fallback, newsLang === 'cn' ? cache.cnComplete : cache.enComplete);
+          if (ok) renderNewsItems(fallback);
+          else container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载出错，请点刷新</div>';
         }
+      } finally {
+        if (loadId === newsLoadId) setNewsLoadingHint(false);
       }
     }
+
+    // 静默刷新：有新内容才替换完整缓存
+    async function quietRefreshNews(lang) {
+      try {
+        setNewsLoadingHint(true, '检查新新闻…');
+        if (lang === 'cn' || !lang) {
+          const list = await loadChineseNews(null);
+          if (list && list.length) {
+            const old = window.__newsCache.cn;
+            const oldTop = old && old[0] ? (old[0].title + '|' + old[0].time) : '';
+            const newTop = list[0].title + '|' + list[0].time;
+            saveNewsCache('cn', list, true);
+            const page = document.getElementById('page-hot');
+            if (page && page.classList.contains('active') && newsLang === 'cn' && newTop !== oldTop) {
+              renderNewsItems(list);
+            } else if (page && page.classList.contains('active') && newsLang === 'cn') {
+              // 无新标题也可能补了更旧日期
+              if (!old || list.length > old.length || newsDaySpan(list) > newsDaySpan(old)) {
+                renderNewsItems(list);
+              }
+            }
+          }
+        }
+      } catch (e) {
+      } finally {
+        setNewsLoadingHint(false);
+      }
+    }
+
+    function startNewsAutoRefresh() {
+      if (newsAutoTimer) return;
+      newsAutoTimer = setInterval(function () {
+        const page = document.getElementById('page-hot');
+        // 热点页打开时自动检查；即使不在热点页也预热完整缓存
+        quietRefreshNews(newsLang === 'en' ? 'en' : 'cn');
+      }, 10 * 60 * 1000); // 每 10 分钟
+    }
+
+    function preloadNewsInBackground() {
+      try {
+        const cache = window.__newsCache || {};
+        if (cache.cnComplete && cache.cn && cache.cn.length && Date.now() - (cache.cnAt || 0) < NEWS_CACHE_MS) {
+          startNewsAutoRefresh();
+          return;
+        }
+        setNewsLoadingHint(false);
+        loadChineseNews(function (batch, done) {
+          if (done && batch && batch.length) saveNewsCache('cn', batch, true);
+        }).then(function () {
+          startNewsAutoRefresh();
+        }).catch(function () {
+          startNewsAutoRefresh();
+        });
+      } catch (e) {
+        startNewsAutoRefresh();
+      }
+    }
+
+
+
 
 
     // ==================== 板块（美股 / A股可切换） ====================
@@ -6032,6 +6473,12 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         document.getElementById('pageSub').textContent = titles[target].sub;
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
+        if (typeof setNewsDayRailVisible === 'function') {
+          setNewsDayRailVisible(target === 'hot');
+        }
+        if (typeof setNewsLoadingHint === 'function' && target !== 'hot') {
+          setNewsLoadingHint(false);
+        }
         if (target === 'watch') refreshQuotes();
         else ensurePageLoaded(target);
       });
@@ -6136,6 +6583,8 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
     setTimeout(function () { if (typeof fhWsConnect === 'function') fhWsConnect(); }, 500);
     // 观察列表首屏出来之后，再在后台把其余分栏悄悄预加载好
     setTimeout(function () {
+      // 尽早后台预拉中文新闻，进热点可秒开/边下边显
+      if (typeof preloadNewsInBackground === 'function') preloadNewsInBackground();
       runBackgroundPreload().then(function () {
         // 几个主要分栏都预加载完之后，再顺手把「板块」页往下钻会用到的
         // 共享数据缓存也热一遍（细节见上面的注释）
