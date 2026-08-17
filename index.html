@@ -511,6 +511,9 @@
       background: var(--bg);
       border-radius: 10px;
       padding: 10px 12px;
+      position: relative;
+      overflow: hidden;
+      min-height: 52px;
     }
     .detail-stat .label {
       font-size: 0.72rem;
@@ -521,6 +524,38 @@
       font-family: var(--font-num);
       font-size: 0.95rem;
       font-weight: 600;
+    }
+    .detail-stat.is-loading .val {
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 0.78rem;
+    }
+    .detail-stat.is-loading::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(110deg, transparent 30%, rgba(77,159,255,0.10) 50%, transparent 70%);
+      background-size: 200% 100%;
+      animation: detailShimmer 1.2s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes detailShimmer {
+      0% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+    .detail-stat .load-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--blue);
+      margin-right: 5px;
+      vertical-align: middle;
+      animation: loadPulse 0.9s ease-in-out infinite;
+      opacity: 0.85;
+    }
+    @keyframes loadPulse {
+      0%, 100% { opacity: 0.35; transform: scale(0.85); }
+      50% { opacity: 1; transform: scale(1); }
     }
     .chart-wrap {
       background: var(--bg);
@@ -1039,7 +1074,7 @@
       <span>板块动态</span>
       <div style="display:flex;align-items:center;gap:10px;">
         <span id="sectorLiveStatus" style="font-size:0.72rem;font-family:var(--font-num);color:var(--muted);white-space:nowrap;">○ 待更新</span>
-        <button class="refresh-btn" onclick="window.__cnBoardCacheAt=0;cnBoardCache=null;window.__cnBoardMeta={};paintSectorLiveStatus('loading');loadSectors()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
+        <button class="refresh-btn" onclick="window.__cnBoardCacheAt=0;cnBoardCache=null;window.__cnBoardMeta={};paintSectorLiveStatus('loading');loadSectors(true)" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:14px;">
@@ -1323,6 +1358,105 @@
       return out;
     })(watchlist);
     let quoteCache = {};
+    const QUOTE_LS_KEY = 'usQuoteCacheV1';
+    const QUOTE_CACHE_TTL = 30 * 60 * 1000;
+
+    function loadQuoteCacheFromDisk() {
+      try {
+        const raw = localStorage.getItem(QUOTE_LS_KEY);
+        if (!raw) return;
+        const o = JSON.parse(raw);
+        if (!o || typeof o !== 'object') return;
+        Object.keys(o).forEach(function (sym) {
+          const item = o[sym];
+          if (!item || !item.q || !(item.q.c > 0)) return;
+          quoteCache[sym] = item.q;
+          quoteCache[sym]._cachedAt = item.at || 0;
+        });
+      } catch (e) {}
+    }
+    function saveQuoteCacheToDisk() {
+      try {
+        const out = {};
+        Object.keys(quoteCache).forEach(function (sym) {
+          const q = quoteCache[sym];
+          if (!q || !(q.c > 0)) return;
+          out[sym] = {
+            q: { c: q.c, dp: q.dp, d: q.d, h: q.h, l: q.l, o: q.o, pc: q.pc },
+            at: q._cachedAt || Date.now()
+          };
+        });
+        const keys = Object.keys(out);
+        if (keys.length > 800) {
+          keys.sort(function (a, b) { return (out[b].at || 0) - (out[a].at || 0); });
+          const keep = {};
+          keys.slice(0, 800).forEach(function (k) { keep[k] = out[k]; });
+          localStorage.setItem(QUOTE_LS_KEY, JSON.stringify(keep));
+        } else {
+          localStorage.setItem(QUOTE_LS_KEY, JSON.stringify(out));
+        }
+      } catch (e) {}
+    }
+    function putQuoteCache(sym, q) {
+      if (!sym || !q || !(q.c > 0)) return;
+      q._cachedAt = Date.now();
+      quoteCache[sym] = q;
+    }
+    function getQuoteCacheFresh(sym) {
+      const q = quoteCache[sym];
+      if (!q || !(q.c > 0)) return null;
+      return q;
+    }
+    loadQuoteCacheFromDisk();
+
+    // 全局半透明加载/更新提示（一级/二级/三级通用）
+    let sectorToastHideTimer = null;
+    function setSectorToast(show, msg, autoHideMs) {
+      let el = document.getElementById('sectorToast');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'sectorToast';
+        el.style.cssText = 'display:none;position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:90;' +
+          'padding:8px 16px;border-radius:20px;font-size:0.78rem;font-weight:600;' +
+          'background:rgba(15,22,32,0.78);color:#d7e6f7;border:1px solid rgba(77,159,255,0.35);' +
+          'backdrop-filter:blur(10px);box-shadow:0 6px 18px rgba(0,0,0,0.35);pointer-events:none;' +
+          'max-width:86vw;text-align:center;white-space:nowrap;';
+        document.body.appendChild(el);
+      }
+      try { if (sectorToastHideTimer) { clearTimeout(sectorToastHideTimer); sectorToastHideTimer = null; } } catch (e) {}
+      if (show) {
+        // 个股详情页：绝不显示板块加载提示
+        try {
+          if (typeof detailUIMode !== 'undefined' && detailUIMode === 'stock') {
+            el.style.display = 'none';
+            return;
+          }
+          const drawer = document.getElementById('detailDrawer');
+          if (drawer && drawer.classList.contains('show')) {
+            if (typeof detailUIMode === 'undefined' ||
+                (detailUIMode !== 'sector-us' && detailUIMode !== 'sector-cn')) {
+              el.style.display = 'none';
+              return;
+            }
+          }
+        } catch (e) {}
+        el.textContent = msg || '加载中…';
+        el.style.display = 'block';
+        // 完成类提示自动消失，避免一直卡在屏幕上
+        const hideAfter = (autoHideMs != null) ? autoHideMs : 0;
+        if (hideAfter > 0) {
+          sectorToastHideTimer = setTimeout(function () {
+            try {
+              const t = document.getElementById('sectorToast');
+              if (t) t.style.display = 'none';
+            } catch (e) {}
+            sectorToastHideTimer = null;
+          }, hideAfter);
+        }
+      } else {
+        el.style.display = 'none';
+      }
+    }
 
     // ==================== Finnhub WebSocket 实时推送 ====================
     let fhWs = null;
@@ -1615,35 +1749,95 @@
       return null;
     }
 
-    async function fetchQuote(symbol) {
+    async function fetchQuote(symbol, opts) {
+      opts = opts || {};
+      const preferFinnhubOnly = !!opts.finnhubOnly;
       try {
         if (typeof isAShareSymbol === 'function' && isAShareSymbol(symbol)) {
           return await fetchCNQuote(symbol);
         }
-        const url = 'https://finnhub.io/api/v1/quote?symbol=' + encodeURIComponent(symbol) + '&token=' + FINNHUB_KEY;
-        const proxies = [];
-        if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
-          proxies.push(WORKER_BASE + '?url=' + encodeURIComponent(url));
-        }
-        proxies.push(url);
-        for (let i = 0; i < proxies.length; i++) {
-          try {
-            const res = await (typeof fetchWithTimeoutSimple === 'function'
-              ? fetchWithTimeoutSimple(proxies[i], 5000)
-              : Promise.race([
-                  fetch(proxies[i], { cache: 'no-store' }),
-                  new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, 5000); })
-                ]));
-            if (!res || !res.ok) continue;
-            let data = await res.json();
-            if (data && data.contents) {
-              try { data = JSON.parse(data.contents); } catch (e) {}
-            }
-            if (data && typeof data.c === 'number') return data;
-          } catch (e) {
-            console.warn('finnhub try fail', symbol, e && e.message);
+        const sym = String(symbol || '').toUpperCase();
+        const url = 'https://finnhub.io/api/v1/quote?symbol=' + encodeURIComponent(sym) + '&token=' + FINNHUB_KEY;
+
+        // Finnhub 优先：直连 → Worker 代理，可重试（应对免费额度限流）
+        async function tryFinnhubOnce() {
+          const proxies = [url];
+          if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
+            proxies.unshift(WORKER_BASE + '?url=' + encodeURIComponent(url));
           }
+          for (let i = 0; i < proxies.length; i++) {
+            try {
+              const res = await (typeof fetchWithTimeoutSimple === 'function'
+                ? fetchWithTimeoutSimple(proxies[i], 7000)
+                : Promise.race([
+                    fetch(proxies[i], { cache: 'no-store' }),
+                    new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, 7000); })
+                  ]));
+              if (!res) continue;
+              if (res.status === 429) {
+                // 限流：稍等再试
+                await new Promise(function (r) { setTimeout(r, 800); });
+                continue;
+              }
+              if (!res.ok) continue;
+              let data = await res.json();
+              if (data && data.contents) {
+                try { data = JSON.parse(data.contents); } catch (e) {}
+              }
+              // Finnhub 无数据时常返回 c:0
+              if (data && typeof data.c === 'number' && data.c > 0) return data;
+            } catch (e) {
+              console.warn('finnhub try fail', sym, e && e.message);
+            }
+          }
+          return null;
         }
+
+        let q = await tryFinnhubOnce();
+        if (!q) {
+          await new Promise(function (r) { setTimeout(r, 350); });
+          q = await tryFinnhubOnce();
+        }
+        if (!q) {
+          await new Promise(function (r) { setTimeout(r, 600); });
+          q = await tryFinnhubOnce();
+        }
+        if (q) return q;
+        if (preferFinnhubOnly) return null;
+
+        // 最后才 Yahoo 备用（可关）
+        try {
+          const yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(sym) +
+            '?interval=1d&range=5d';
+          const yProxies = [];
+          if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
+            yProxies.push(WORKER_BASE + '?url=' + encodeURIComponent(yUrl));
+          }
+          yProxies.push('https://api.allorigins.win/raw?url=' + encodeURIComponent(yUrl));
+          for (let yi = 0; yi < yProxies.length; yi++) {
+            try {
+              const res = await (typeof fetchWithTimeoutSimple === 'function'
+                ? fetchWithTimeoutSimple(yProxies[yi], 6000)
+                : Promise.race([
+                    fetch(yProxies[yi], { cache: 'no-store' }),
+                    new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, 6000); })
+                  ]));
+              if (!res || !res.ok) continue;
+              let data = await res.json();
+              if (data && data.contents) {
+                try { data = JSON.parse(data.contents); } catch (e) {}
+              }
+              const meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+              if (meta && meta.regularMarketPrice != null) {
+                const c = Number(meta.regularMarketPrice);
+                if (!(c > 0)) continue;
+                const pc = Number(meta.chartPreviousClose || meta.previousClose || 0);
+                const dp = pc ? ((c - pc) / pc) * 100 : 0;
+                return { c: c, dp: dp, h: meta.regularMarketDayHigh, l: meta.regularMarketDayLow, o: meta.regularMarketOpen, pc: pc, _src: 'yahoo' };
+              }
+            } catch (e) {}
+          }
+        } catch (e) {}
         return null;
       } catch (e) {
         console.error('fetchQuote error', symbol, e);
@@ -3053,25 +3247,33 @@
     async function openDetail(symbol, isRestore) {
       chartStyle = 'mini';
       try { localStorage.setItem('tvChartStyle', 'mini'); } catch (e) {}
-      beginDetailUI('stock');
+      // 切换到个股详情：作废板块成分股的异步 paint，避免标题/列表串台
+      if (typeof stopLiveDetail === 'function') stopLiveDetail();
+      if (typeof stopMiniChartLive === 'function') stopMiniChartLive();
+      const uiTok = beginDetailUI('stock');
       document.getElementById('detailSymbol').innerHTML = symbol + ' <span class="market-badge us">美股</span>';
       document.getElementById('detailPrice').textContent = '加载中...';
       document.getElementById('detailChg').textContent = '';
-      document.getElementById('detailGrid').innerHTML = '';
+      document.getElementById('detailChg').className = 'detail-chg flat';
+      document.getElementById('detailGrid').innerHTML =
+        '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:16px;">加载个股详情...</div>';
       document.getElementById('detailOverlay').classList.add('show');
       document.getElementById('detailDrawer').classList.add('show');
       if (!isRestore) pushDetailHistory({ type: 'stock-us', symbol: symbol });
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = '';
 
-      // Finnhub 常规报价
+      // Finnhub 常规报价（c<=0 视为无效）
       let q = quoteCache[symbol];
+      if (q && !(q.c > 0)) q = null;
       if (!q) {
         q = await fetchQuote(symbol);
-        if (q) quoteCache[symbol] = q;
+        if (q && q.c > 0) quoteCache[symbol] = q;
+        else q = null;
       }
+      if (!isDetailUI('stock', uiTok)) return;
 
-      if (q && q.c) {
+      if (q && q.c > 0) {
         document.getElementById('detailPrice').textContent = Number(q.c).toFixed(2);
         const dp = q.dp;
         const d = q.d;
@@ -3081,7 +3283,11 @@
         chgEl.className = 'detail-chg ' + chgClass(dp);
       } else {
         document.getElementById('detailPrice').textContent = '--';
-        document.getElementById('detailChg').textContent = '暂无报价';
+        document.getElementById('detailChg').textContent = '暂无有效报价';
+        document.getElementById('detailChg').className = 'detail-chg flat';
+        // 清掉可能被板块残留的网格
+        document.getElementById('detailGrid').innerHTML =
+          '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:16px;">该代码暂无公开行情或已退市/并购，请换其它标的</div>';
       }
 
       // 近三日对比：收盘 + 最高/最低（Yahoo 日线，经 Worker）
@@ -3200,6 +3406,13 @@
     function beginDetailUI(mode) {
       detailUIMode = mode || 'none';
       detailUIToken += 1;
+      // 进个股详情时立刻关掉板块提示
+      if (mode === 'stock') {
+        try {
+          const el = document.getElementById('sectorToast');
+          if (el) el.style.display = 'none';
+        } catch (e) {}
+      }
       return detailUIToken;
     }
     function isDetailUI(mode, token) {
@@ -3210,8 +3423,10 @@
 
 
     function hideDetailUI() {
+      const wasCNDetail = !!liveDetailIsCN;
       if (typeof stopMiniChartLive === 'function') stopMiniChartLive();
       if (typeof stopLiveDetail === 'function') stopLiveDetail();
+      try { if (typeof setSectorToast === 'function') setSectorToast(false); } catch (e) {}
       detailUIMode = 'none';
       detailUIToken += 1;
       const overlay = document.getElementById('detailOverlay');
@@ -3220,6 +3435,13 @@
       if (drawer) drawer.classList.remove('show');
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = '';
+      // A股详情页靠自己的1秒/2秒定时轮询把价格缓存一直保持最新，但外面
+      // 观察列表因为「详情打开时暂停刷新」这条规则一直没画出来——这里关闭的
+      // 瞬间直接把列表补画一次（不发新请求，读的就是详情页刚攒好的缓存），
+      // 不用再等列表自己那个2秒轮询的下一拍才更新。
+      // 美股有 Finnhub WS 直接推着列表实时画，不受「详情打开时暂停」影响，
+      // 本来就是热的，不需要这一下。
+      if (wasCNDetail && typeof renderWatchlist === 'function') renderWatchlist();
     }
 
     function pushDetailHistory(layer) {
@@ -3341,10 +3563,14 @@
       const box = document.getElementById('miniChartBox');
       if (!box) return;
 
-      let yahooSym = symbol;
-      if (/^SSE:/.test(symbol)) yahooSym = symbol.replace('SSE:', '') + '.SS';
-      else if (/^SZSE:/.test(symbol)) yahooSym = symbol.replace('SZSE:', '') + '.SZ';
-      else if (/^BSE:/.test(symbol)) yahooSym = symbol.replace('BSE:', '') + '.BJ';
+      let yahooSym = String(symbol || '');
+      if (/^SSE:/.test(yahooSym)) yahooSym = yahooSym.replace(/^SSE:/, '') + '.SS';
+      else if (/^SZSE:/.test(yahooSym)) yahooSym = yahooSym.replace(/^SZSE:/, '') + '.SZ';
+      else if (/^BSE:/.test(yahooSym)) yahooSym = yahooSym.replace(/^BSE:/, '') + '.BJ';
+      else {
+        // 去掉 NASDAQ:/NYSE: 等前缀，Yahoo 只要代码本身
+        yahooSym = yahooSym.replace(/^(NASDAQ|NYSE|AMEX|OTC):/i, '');
+      }
 
       async function fetchYahooCandles(interval, range) {
         const yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(yahooSym) +
@@ -3424,8 +3650,14 @@
         }
         if (typeof LightweightCharts === 'undefined') throw new Error('no lightweight-charts');
 
+        let cw = box.clientWidth || 0;
+        if (cw < 40) {
+          // 抽屉刚展开时宽度可能为 0，短等再量
+          await new Promise(function (r) { setTimeout(r, 80); });
+          cw = box.clientWidth || 320;
+        }
         const chart = LightweightCharts.createChart(box, {
-          width: box.clientWidth || 320,
+          width: cw || 320,
           height: 300,
           layout: { background: { type: 'solid', color: '#0d1117' }, textColor: '#94a3b8' },
           grid: { vertLines: { color: '#1e293b' }, horzLines: { color: '#1e293b' } },
@@ -3568,7 +3800,11 @@
         tickLivePrice();
       } catch (e) {
         console.warn('mini chart fail', e);
-        loadFullTVChart(symbol);
+        try {
+          const b = document.getElementById('miniChartBox') || document.getElementById('tvChart');
+          if (b) b.innerHTML = '<div style="color:var(--muted);text-align:center;padding:40px 12px;font-size:0.85rem;">精简图加载失败，切换完整图…</div>';
+        } catch (e2) {}
+        try { loadFullTVChart(symbol); } catch (e3) {}
       }
     }
 
@@ -3602,6 +3838,21 @@ function loadFullTVChart(symbol) {
       else if (/^\d{6}\.BJ$/i.test(raw)) raw = 'BSE:' + raw.slice(0, 6);
       else if (/^\d{6}$/.test(raw)) {
         raw = (raw.startsWith('6') || raw.startsWith('5') || raw.startsWith('9')) ? ('SSE:' + raw) : ('SZSE:' + raw);
+      } else if (!/^(SSE|SZSE|BSE|NASDAQ|NYSE|AMEX|OTC):/i.test(raw)) {
+        // 歧义代码强制美股交易所，避免 TV 匹配到外股（如 SPR→SpyroSoft）
+        const NYSE_HINT = {
+          SPR: 'NYSE:SPR', BA: 'NYSE:BA', LMT: 'NYSE:LMT', RTX: 'NYSE:RTX', NOC: 'NYSE:NOC',
+          GD: 'NYSE:GD', CAT: 'NYSE:CAT', DE: 'NYSE:DE', GE: 'NYSE:GE', F: 'NYSE:F',
+          GM: 'NYSE:GM', V: 'NYSE:V', MA: 'NYSE:MA', JPM: 'NYSE:JPM', BAC: 'NYSE:BAC',
+          WFC: 'NYSE:WFC', C: 'NYSE:C', GS: 'NYSE:GS', MS: 'NYSE:MS', IBM: 'NYSE:IBM',
+          DIS: 'NYSE:DIS', MCD: 'NYSE:MCD', KO: 'NYSE:KO', PG: 'NYSE:PG', XOM: 'NYSE:XOM',
+          CVX: 'NYSE:CVX', T: 'NYSE:T', VZ: 'NYSE:VZ', AIR: 'NYSE:AIR', CW: 'NYSE:CW',
+          HWM: 'NYSE:HWM', LHX: 'NYSE:LHX', TDG: 'NYSE:TDG', HEI: 'NYSE:HEI',
+          TXT: 'NYSE:TXT', HII: 'NYSE:HII', PL: 'NYSE:PL', BAH: 'NYSE:BAH', LDOS: 'NYSE:LDOS'
+        };
+        const u = raw.toUpperCase();
+        if (NYSE_HINT[u]) raw = NYSE_HINT[u];
+        else raw = 'NASDAQ:' + u; // 默认纳斯达克；不对时用户仍能看 Yahoo 精简图
       }
       lastChartSymbol = raw;
       updateChartStyleButtons();
@@ -4196,6 +4447,7 @@ function loadFullTVChart(symbol) {
 
     // ==================== 板块（美股 / A股可切换） ====================
     let sectorMarket = 'us'; // us | cn
+    let sectorMarketToken = 0; // 切换美股/A股时递增，作废另一边的异步写回
 
     
     // 美股三级：一级大类 → 二级细分 → 三级个股
@@ -4203,71 +4455,80 @@ function loadFullTVChart(symbol) {
       {
         id: 'tech', name: '科技与电子', en: 'Technology',
         children: [
-          { id: 'semi', name: '半导体与芯片', stocks: ['NVDA','TSM','AVGO','AMD','ASML','MU','QCOM','AMAT','LRCX','KLAC','INTC','SNDK'] },
-          { id: 'optical', name: '光模块', stocks: ['COHR','LITE','AAOI','CIEN','FN'] },
-          { id: 'hardware', name: 'IT硬件与设备', stocks: ['SMCI','DELL','ANET','HPQ','NTAP','WDC','STX'] },
-          { id: 'storage', name: '存储芯片', stocks: ['MU','WDC','STX','SNDK'] },
-          { id: 'datacenter', name: '数据中心', stocks: ['VRT','EQIX','DLR','ANET','SMCI','DELL'] },
-          { id: 'software', name: '软件与云计算', stocks: ['MSFT','ORCL','CRM','ADBE','NOW','SNOW','INTU'] },
-          { id: 'cyber', name: '网络安全', stocks: ['CRWD','PANW','ZS','FTNT','S'] }
+          { id: 'semi', name: '半导体与芯片', stocks: ['NVDA','TSM','AVGO','AMD','ASML','MU','QCOM','AMAT','LRCX','KLAC','INTC','TXN','ADI','NXPI','MRVL','ON','MCHP','SWKS','MPWR','TER','ENTG','LSCC','ARM','GFS','STM','UMC','ASX','WOLF','CRUS','SLAB','RMBS','ALGM','SMTC','FORM','ACLS','POWI','DIOD','SITM','VSH','AOSL','ALAB','CRDO','RMBS','GFS','TSEM','SIMO','SYNA','QRVO','MKSI','COHU','PLAB','UCTT','AMKR','JBL','FLEX'] },
+          { id: 'optical', name: '光模块与光通信', stocks: ['COHR','LITE','AAOI','CIEN','FN','VIAV','EXTR','CSCO','JNPR','ANET','HPE','COMM','INFN','GLW','ALAB','CRDO','VSH','MTSI','POET','BDC','CLFD','ADTN','NTGR'] },
+          { id: 'hardware', name: 'IT硬件与设备', stocks: ['AAPL','SMCI','DELL','HPQ','HPE','ANET','NTAP','WDC','STX','PSTG','IBM','CSCO','FFIV','LOGI','ZBRA','KEYS','TDY','TRMB','CIEN','ANET'] },
+          { id: 'storage', name: '存储与硬盘', stocks: ['MU','WDC','STX','SNDK','NTAP','PSTG','IBM','CRWV','VRT'] },
+          { id: 'datacenter', name: '数据中心与算力', stocks: ['VRT','EQIX','DLR','ANET','SMCI','DELL','NVDA','AMD','AVGO','MSFT','GOOGL','AMZN','ORCL','IRM','CCI','AMT','ALAB','CRDO','LITE','AAOI','COHR','GLW','PLTR','NOW','META','TSM','MU','WDC','STX'] },
+          { id: 'software', name: '软件与云计算', stocks: ['MSFT','ORCL','CRM','ADBE','NOW','SNOW','INTU','SAP','ADSK','WDAY','TEAM','DDOG','NET','CFLT','MDB','PLTR','HUBS','VEEV','ZM','DOCU','OKTA','TWLO','ESTC','PANW','CRWD','ZS'] },
+          { id: 'cyber', name: '网络安全', stocks: ['CRWD','PANW','ZS','FTNT','S','OKTA','RPD','QLYS','TENB','CYBR','SAIL','NET','CHKP','GEN','RBRK'] },
+          { id: 'eda', name: 'EDA与半导体设备', stocks: ['ASML','AMAT','LRCX','KLAC','SNPS','CDNS','TER','ENTG','ACLS','ONTO','CAMT','VECO'] }
         ]
       },
       {
         id: 'internet', name: '互联网与通信', en: 'Internet & Telecom',
         children: [
-          { id: 'platform', name: '互联网平台', stocks: ['META','GOOGL','AMZN','NFLX','SHOP','UBER','BKNG'] },
-          { id: 'china_net', name: '中概互联网', stocks: ['BABA','PDD','JD','BIDU','TME','BILI'] },
-          { id: 'telecom', name: '电信与5G', stocks: ['T','VZ','TMUS','QCOM','ERIC','NOK','CSCO'] }
+          { id: 'platform', name: '互联网平台', stocks: ['META','GOOGL','GOOG','AMZN','NFLX','SHOP','UBER','BKNG','ABNB','SNAP','PINS','RDDT','SPOT','ETSY','EBAY','MELI','SE','CPNG'] },
+          { id: 'china_net', name: '中概互联网', stocks: ['BABA','PDD','JD','BIDU','TME','BILI','NTES','VIPS','IQ','WB','ATHM','TAL','EDU','BZ','YMM','LI','NIO','XPEV'] },
+          { id: 'telecom', name: '电信与5G', stocks: ['T','VZ','TMUS','QCOM','ERIC','NOK','CSCO','JNPR','CCI','AMT','SBAC','VOD','TEF','ORAN','CHTR','CMCSA'] },
+          { id: 'media', name: '流媒体与数字娱乐', stocks: ['NFLX','DIS','WBD','PARA','SPOT','ROKU','TTWO','EA','RBLX','U','SONY','LYV'] }
         ]
       },
       {
         id: 'mfg', name: '先进制造与工业', en: 'Industrials',
         children: [
-          { id: 'ev', name: '新能源与汽车', stocks: ['TSLA','LI','NIO','XPEV','F','GM','RIVN'] },
-          { id: 'battery', name: '锂电池', stocks: ['ALB','SQM','TSLA','LCID'] },
-          { id: 'robot', name: '高端装备与机器人', stocks: ['ISRG','ROK','PATH','CGNX','GE','CAT'] },
-          { id: 'defense', name: '航天国防', stocks: ['LMT','RTX','BA','NOC','GD'] },
-          { id: 'logistics', name: '交运与物流', stocks: ['UPS','FDX','DAL','UAL','UNP','CSX'] }
+          { id: 'ev', name: '新能源与汽车', stocks: ['TSLA','LI','NIO','XPEV','F','GM','RIVN','LCID','STLA','TM','HMC','RACE','MBLY','APTV','BWA','LEA','ALV','GNTX'] },
+          { id: 'battery', name: '锂电池与材料', stocks: ['ALB','SQM','LAC','PLL','MP','ENVX','QS','TSLA','LCID'] },
+          { id: 'robot', name: '高端装备与机器人', stocks: ['ISRG','ROK','PATH','CGNX','GE','CAT','DE','EMR','ETN','HON','ITW','PH','DOV','XYL','IR','TT','JCI','CARR','OTIS'] },
+          { id: 'defense', name: '航天国防', stocks: ['LMT','RTX','BA','NOC','GD','LHX','HII','TXT','TDG','HEI','AXON','KTOS','AVAV','RKLB','PL','ASTS','VSAT','SPCX','BKSY','LUNR','RDW','SPIR','IRDM','BAH','LDOS','SAIC','CW','HWM','SPR','AIR'] },
+          { id: 'logistics', name: '交运与物流', stocks: ['UPS','FDX','DAL','UAL','AAL','LUV','UNP','CSX','NSC','ODFL','XPO','JBHT','CHRW','EXPD','ZTO','CPA'] }
         ]
       },
       {
         id: 'energy', name: '资源与能源', en: 'Energy & Materials',
         children: [
-          { id: 'oil', name: '油气开采', stocks: ['XOM','CVX','COP','OXY','DVN','EOG'] },
-          { id: 'energy_eq', name: '能源设备', stocks: ['XLE','SLB','HAL','BKR'] },
-          { id: 'solar', name: '光伏与新能源', stocks: ['ENPH','FSLR','SEDG','RUN'] },
-          { id: 'metals', name: '有色与采矿', stocks: ['FCX','SCCO','NEM','GOLD','NUE'] },
-          { id: 'gold', name: '黄金股', stocks: ['NEM','GOLD','AEM','KGC'] }
+          { id: 'oil', name: '油气开采', stocks: ['XOM','CVX','COP','OXY','DVN','EOG','MPC','VLO','PSX','FANG','CTRA','APA','OVV','EQT','PR','MTDR'] },
+          { id: 'energy_eq', name: '能源设备与服务', stocks: ['SLB','HAL','BKR','NOV','FTI','WFRD','HP','LBRT','RIG','VAL','TDW'] },
+          { id: 'solar', name: '光伏风电与清洁能源', stocks: ['ENPH','FSLR','SEDG','RUN','CSIQ','JKS','DQ','ARRY','SHLS','NEE','CEG','VST','AES','BE','CWEN','BEP'] },
+          { id: 'metals', name: '有色与采矿', stocks: ['FCX','SCCO','NEM','GOLD','NUE','CLF','STLD','AA','RIO','BHP','VALE','TECK','HBM','ERO','CMP','RS'] },
+          { id: 'gold', name: '黄金与贵金属', stocks: ['NEM','GOLD','AEM','KGC','WPM','FNV','RGLD','AG','PAAS','HL','CDE','SSR'] }
         ]
       },
       {
         id: 'fin', name: '金融与商业服务', en: 'Financials',
         children: [
-          { id: 'bank', name: '银行与资本市场', stocks: ['JPM','BAC','WFC','C','GS','MS'] },
-          { id: 'asset', name: '资管与券商', stocks: ['BLK','SCHW','BX','KKR'] },
-          { id: 'fintech', name: '金融科技与支付', stocks: ['V','MA','PYPL','SQ','COIN','HOOD'] }
+          { id: 'bank', name: '银行与资本市场', stocks: ['JPM','BAC','WFC','C','GS','MS','USB','PNC','TFC','SCHW','BK','STT','CFG','KEY','RF','FITB','HBAN','MTB'] },
+          { id: 'asset', name: '资管保险与券商', stocks: ['BLK','BX','KKR','APO','ARES','TROW','BEN','IVZ','AMP','MET','PRU','AIG','PGR','TRV','ALL','CB','AFL'] },
+          { id: 'fintech', name: '金融科技与支付', stocks: ['V','MA','PYPL','SQ','COIN','HOOD','AXP','DFS','SYF','SOFI','UPST','AFRM','NU','MELI','ADYEY','FIS','FISV','GPN','XYZ'] }
         ]
       },
       {
         id: 'health', name: '医疗与大健康', en: 'Healthcare',
         children: [
-          { id: 'biopharma', name: '生物医药', stocks: ['LLY','NVO','MRNA','PFE','JNJ','ABBV','MRK'] },
-          { id: 'biotech', name: '生物科技', stocks: ['VRTX','REGN','GILD','AMGN','BIIB'] },
-          { id: 'device', name: '医疗器械与服务', stocks: ['ISRG','TMO','ABT','UNH','ISRG'] }
+          { id: 'biopharma', name: '生物医药', stocks: ['LLY','NVO','PFE','JNJ','ABBV','MRK','AZN','BMY','AMGN','GILD','SNY','GSK','TAK','VTRS','OGN'] },
+          { id: 'biotech', name: '生物科技', stocks: ['VRTX','REGN','GILD','AMGN','BIIB','MRNA','BNTX','ILMN','ALNY','SGEN','INCY','BMRN','EXAS','NBIX','UTHR'] },
+          { id: 'device', name: '医疗器械与服务', stocks: ['ISRG','TMO','ABT','UNH','DHR','SYK','MDT','BSX','EW','ZBH','BDX','BAX','HOLX','IDXX','DXCM','PODD','RMD'] },
+          { id: 'hcare_svc', name: '医疗服务与保险', stocks: ['UNH','ELV','CI','CVS','HUM','CNC','MOH','HCA','UHS','THC','DVA','AMED'] }
         ]
       },
       {
         id: 'consumer', name: '大消费与地产', en: 'Consumer & RE',
         children: [
-          { id: 'staples', name: '日常消费', stocks: ['PG','KO','PEP','COST','WMT','PM'] },
-          { id: 'discretionary', name: '可选消费', stocks: ['AMZN','HD','MCD','NKE','SBUX','LOW'] },
-          { id: 'reit', name: '地产与数据中心REIT', stocks: ['EQIX','DLR','PLD','AMT','SPG','O'] }
+          { id: 'staples', name: '日常消费', stocks: ['PG','KO','PEP','COST','WMT','PM','MO','CL','KMB','GIS','K','HSY','SYY','KR','TGT','DG','DLTR'] },
+          { id: 'discretionary', name: '可选消费', stocks: ['AMZN','HD','MCD','NKE','SBUX','LOW','TJX','ROST','CMG','DPZ','YUM','MAR','HLT','BKNG','ABNB','LULU','DECK','POOL'] },
+          { id: 'reit', name: '地产与基础设施REIT', stocks: ['EQIX','DLR','PLD','AMT','CCI','SBAC','SPG','O','PSA','EXR','AVB','EQR','WELL','VTR','INVH','MAA','IRM'] },
+          { id: 'luxury', name: '奢侈品与品牌', stocks: ['LVMUY','HESAY','PPRUY','TPR','CPRI','RL','VFC','PVH','NKE','LULU'] }
         ]
       }
     ];
 
     let usSectorL1 = null; // 当前一级 id
     let usSectorView = 'l1'; // l1 | l2
+    // 美股二级页的「过期请求」令牌：每次真正进入/刷新一级或二级页就 +1，
+    // 拿到结果准备写回页面前先比对令牌还对不对得上——对不上说明这段时间
+    // 用户已经退出去或者点了别的大类，这份结果就是「过期」的，直接丢掉、
+    // 不再写回页面，避免把用户已经退出去的画面强行盖回来
+    let usSectorLoadToken = 0;
 
     // A股三级：一级大类 → 二级申万/东财风格 → 三级成分股
     const CN_SECTOR_TREE = [
@@ -4365,7 +4626,7 @@ function loadFullTVChart(symbol) {
       { symbol: 'HACK', name: '网络安全', stocks: ['CRWD','PANW','ZS','FTNT','S'] },
       { symbol: 'SKYY', name: '云计算', stocks: ['MSFT','AMZN','GOOGL','ORCL','CRM','SNOW'] },
       { symbol: 'IBB', name: '生物医药', stocks: ['VRTX','GILD','AMGN','REGN','MRNA'] },
-      { symbol: 'XME', name: '金属矿产', stocks: ['FCX','NEM','NUE','STLD','X'] },
+      { symbol: 'XME', name: '金属矿产', stocks: ['FCX','NEM','NUE','STLD','RS'] },
       { symbol: 'COHR', name: '光模块', stocks: ['COHR','LITE','AAOI','CIEN','FN'] },
       { symbol: 'VRT', name: '数据中心', stocks: ['VRT','EQIX','DLR','ANET','SMCI','DELL'] },
       { symbol: 'MU', name: '存储芯片', stocks: ['MU','WDC','STX','SNDK'] },
@@ -4458,6 +4719,8 @@ const FALLBACK_SECTORS = {
     
     function switchSectorMarket(m) {
       sectorMarket = m;
+      sectorMarketToken += 1;
+      const switchTok = sectorMarketToken;
       usSectorView = 'l1';
       usSectorL1 = null;
       cnSectorView = 'l1';
@@ -4481,13 +4744,27 @@ const FALLBACK_SECTORS = {
       const container = document.getElementById('sectorContent');
       if (container) {
         paintSectorLiveStatus('loading');
+        // 先清空另一市场残留，避免 A股卡片短暂留在美股页
         container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载' +
           (m === 'cn' ? 'A股' : '美股') + '板块...</div>';
       }
-      // 有缓存的 A 股一级：先秒开再后台刷新
+      if (m === 'us') {
+        // 立刻画出美股大类骨架，不等异步，避免闪回 A 股结构
+        try {
+          if (typeof renderUSSectorL1 === 'function') {
+            renderUSSectorL1(false);
+            return;
+          }
+        } catch (e) {}
+      }
+      // 有缓存的 A 股一级：先秒开再后台刷新（仍校验当前市场）
       if (m === 'cn' && window.__cnL1HtmlCache && container) {
-        container.innerHTML = window.__cnL1HtmlCache;
-        setTimeout(function () { loadSectors(); }, 30);
+        if (sectorMarket === 'cn' && switchTok === sectorMarketToken) {
+          container.innerHTML = window.__cnL1HtmlCache;
+        }
+        setTimeout(function () {
+          if (sectorMarket === 'cn' && switchTok === sectorMarketToken) loadSectors();
+        }, 30);
         return;
       }
       loadSectors();
@@ -4541,13 +4818,16 @@ const FALLBACK_SECTORS = {
     }
 
     
-    async function avgStocksChg(symbols) {
+    async function avgStocksChg(symbols, force) {
       if (!symbols || !symbols.length) return { chg: 0, n: 0 };
       let sum = 0, n = 0;
       const slice = symbols.slice(0, 3); // 少取几只，加快板块页
       const tasks = slice.map(async function (sym) {
         try {
-          let q = quoteCache[sym];
+          // force=true 时跳过缓存，强制拿一次新数据——手动点刷新、
+          // 或者停留在板块页时的自动刷新都需要真的看到数字在变，
+          // 而不是每次都读到同一份从没过期过的旧缓存
+          let q = force ? null : quoteCache[sym];
           if (!q) {
             q = await Promise.race([
               fetchQuote(sym),
@@ -4569,7 +4849,7 @@ const FALLBACK_SECTORS = {
     }
 
     
-    async function loadSectors() {
+    async function loadSectors(force) {
       const container = document.getElementById('sectorContent');
       // 已有内容时不整页清空，避免闪「加载中」和 0.00
       const hasContent = container && container.querySelector('.sector-cards, .l1-card, .sector-card');
@@ -4586,7 +4866,12 @@ const FALLBACK_SECTORS = {
             await loadCNSectors();
           }
         } else {
-          await loadUSSectors();
+          // 美股同理：已在二级页（细分行业列表）就原地软刷新，不要跳回一级大类
+          if (typeof usSectorView !== 'undefined' && usSectorView === 'l2' && usSectorL1) {
+            await openUSSectorL1(usSectorL1, true, force);
+          } else {
+            await loadUSSectors(force);
+          }
         }
       } catch (e) {
         console.warn('loadSectors', e);
@@ -4596,10 +4881,10 @@ const FALLBACK_SECTORS = {
       }
     }
 
-    async function loadUSSectors() {
+    async function loadUSSectors(force) {
       usSectorView = 'l1';
       usSectorL1 = null;
-      await renderUSSectorL1();
+      await renderUSSectorL1(force);
     }
 
     function paintUSSectorL1Cards(cards) {
@@ -4612,7 +4897,7 @@ const FALLBACK_SECTORS = {
         const cls = s.chg > 0 ? 'up' : (s.chg < 0 ? 'down' : 'up');
         const chgText = (s.chg >= 0 ? '+' : '') + Number(s.chg).toFixed(2) + '%';
         const chgCls = s.chg >= 0 ? 'up' : 'down';
-        return '<div class="l1-card sector-card ' + cls + '" onclick="openUSSectorL1(\'' + s.id + '\')">' +
+        return '<div class="l1-card sector-card ' + cls + '" data-mkt="us" onclick="openUSSectorL1(\'' + s.id + '\')">' +
           '<span class="s-badge">' + s.count + '</span>' +
           '<div class="l1-name">' + s.name + '</div>' +
           '<div class="l1-en"><span>' + s.en + '</span><span class="sub-tag">' + s.subCount + ' 个细分</span></div>' +
@@ -4634,10 +4919,20 @@ const FALLBACK_SECTORS = {
       if (note) note.textContent = '一级角标=大类成分股总数 · 二级角标=该产业成分股数 · 系统返回逐层回退';
     }
 
-    async function renderUSSectorL1() {
+    async function renderUSSectorL1(force) {
       const container = document.getElementById('sectorContent');
       if (!container) return;
+      if (sectorMarket !== 'us') return;
+      const myMktTok = sectorMarketToken;
       usSectorView = 'l1';
+      usSectorLoadToken += 1;
+      const myToken = usSectorLoadToken;
+      try {
+        const _d = document.getElementById('detailDrawer');
+        if (!(_d && _d.classList.contains('show'))) {
+          setSectorToast(true, force ? '刷新美股大类…' : '加载美股大类…', 8000);
+        }
+      } catch (e) {}
       // 先立刻画出结构（不阻塞），再补涨跌
       const baseCards = US_SECTOR_TREE.map(function (l1) {
         let all = [];
@@ -4653,47 +4948,103 @@ const FALLBACK_SECTORS = {
           _syms: all.slice(0, 3)
         };
       });
-      paintUSSectorL1Cards(baseCards);
+      // 已经有内容（比如这是一次自动/手动刷新）时不用先画 0.00 的骨架再刷一遍，
+      // 免得眼前的数字先跳回 0 再跳回真实值，反而显得在「闪烁」——
+      // 只有真的第一次进来、什么都还没画出来时，才需要这个骨架垫一下
+      // 若当前没有「美股」大类卡（可能还残留 A 股结构），立刻画美股骨架
+      if (!document.querySelector('#sectorContent .l1-card[data-mkt="us"]')) {
+        paintUSSectorL1Cards(baseCards);
+      }
 
       const cards = await Promise.all(baseCards.map(async function (card) {
-        let avg = { chg: 0 };
-        try { avg = await avgStocksChg(card._syms || []); } catch (e) {}
+        let avg = { chg: 0, n: 0 };
+        try { avg = await avgStocksChg(card._syms || [], force); } catch (e) {}
+        // 强制刷新时会跳过缓存直接发新请求，网络一慢或者接口一时限流就可能
+        // 超时拿不到数据——avgStocksChg 这时候会返回 n=0（没拿到任何一只的
+        // 真实行情），如果直接把这个「没拿到」当成「真的是0.00%」画出来，
+        // 就会出现你看到的那种「刷新一下所有数字先变成0.00%，过一下才变回真实
+        // 数字」的假闪烁。这里改成：这一轮真的没拿到数据时，就沿用上一次
+        // 成功拿到的数字，不用0覆盖它，画面上就感觉不到「刷新」这个动作，
+        // 数字只会在真的有新数据时才跳
+        window.__usL1PrevCards = window.__usL1PrevCards || {};
+        let chg = avg.chg || 0;
+        if (!avg.n) {
+          const prev = window.__usL1PrevCards[card.id];
+          if (prev) chg = prev;
+        } else {
+          window.__usL1PrevCards[card.id] = chg;
+        }
         return {
           id: card.id,
           name: card.name,
           en: card.en,
-          chg: avg.chg || 0,
+          chg: chg,
           count: card.count,
           subCount: card.subCount
         };
       }));
+      // 这份结果出来的时候，用户可能已经点进了某个大类的二级页、
+      // 或者又触发了新一轮刷新——令牌对不上就说明画面已经不是当初这一次了，
+      // 这份「过期」的一级数据不能再写回去，否则会把用户已经离开的一级页
+      // 强行盖回来
+      if (sectorMarket !== 'us' || myMktTok !== sectorMarketToken) return;
+      if (myToken !== usSectorLoadToken || usSectorView !== 'l1') return;
       paintUSSectorL1Cards(cards);
+      try {
+        setSectorToast(true, '大类已更新', 800);
+      } catch (e) {}
     }
 
-    async function openUSSectorL1(id, isRestore) {
+    async function openUSSectorL1(id, isRestore, force) {
       const l1 = US_SECTOR_TREE.find(function (x) { return x.id === id; });
       if (!l1) return;
       usSectorL1 = id;
       usSectorView = 'l2';
+      usSectorLoadToken += 1;
+      const myToken = usSectorLoadToken;
+      try {
+        const _d = document.getElementById('detailDrawer');
+        if (!(_d && _d.classList.contains('show'))) {
+          setSectorToast(true, '加载「' + (l1.name || '') + '」细分…', 10000);
+        }
+      } catch (e) {}
       if (!isRestore) {
         try { history.pushState({ usSectorL1: id }, ''); } catch (e) {}
       }
       const container = document.getElementById('sectorContent');
       if (!container) return;
-      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载细分行业...</div>';
+      // 同理：已经显示着这个大类的细分行业时（自动/手动刷新触发的重入），
+      // 不要先清空成「加载细分行业...」再画一遍，原地更新数字就好
+      const alreadyShown = container.querySelector('.sector-cards') && container.dataset.l1Id === id;
+      if (!alreadyShown) {
+        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载细分行业...</div>';
+      }
 
       const rows = [];
+      window.__usL2PrevRows = window.__usL2PrevRows || {};
+      const prevRows = window.__usL2PrevRows[id] || [];
+      const prevMap = {};
+      prevRows.forEach(function (r) { prevMap[r.id] = r; });
       for (let i = 0; i < l1.children.length; i++) {
         const c = l1.children[i];
-        const avg = await avgStocksChg(c.stocks || []);
+        const avg = await avgStocksChg(c.stocks || [], force);
+        // 每拉完一只就检查一次令牌：用户可能在这个循环还没跑完的时候
+        // 就已经点了「← 大类」退出去了，一旦发现过期，立刻停手，
+        // 不用再把剩下几个细分行业也拉完——反正结果也不会被用到
+        if (myToken !== usSectorLoadToken || usSectorView !== 'l2' || usSectorL1 !== id) return;
+        // 同上：强制刷新没拿到真实数据（n=0）时沿用上一次的数字，
+        // 不要用0覆盖，避免刷新瞬间所有卡片先跳成0.00%再跳回来的假闪烁
+        let chg = avg.chg;
+        if (!avg.n && prevMap[c.id]) chg = prevMap[c.id].chg;
         rows.push({
           id: c.id,
           name: c.name,
           stocks: c.stocks || [],
-          chg: avg.chg,
+          chg: chg,
           count: (c.stocks || []).length
         });
       }
+      window.__usL2PrevRows[id] = rows;
       const up = rows.filter(function (x) { return x.chg > 0; }).sort(function (a, b) { return b.chg - a.chg; });
       const down = rows.filter(function (x) { return x.chg < 0; }).sort(function (a, b) { return a.chg - b.chg; });
       const flat = rows.filter(function (x) { return x.chg === 0; });
@@ -4719,7 +5070,11 @@ const FALLBACK_SECTORS = {
         html += '<div class="sector-group"><h3><span style="color:var(--red)">●</span> 下跌细分</h3><div class="sector-cards">';
         html += down.map(cardHtml).join('') + '</div></div>';
       }
+      // 最后写回页面前再确认一次令牌——循环里每一步都在检查，这里是保险，
+      // 双重确认没有在最后一步跟用户操作撞上
+      if (myToken !== usSectorLoadToken || usSectorView !== 'l2' || usSectorL1 !== id) return;
       container.innerHTML = html;
+      container.dataset.l1Id = id;
     }
 
     async function openUSSectorL2(l1id, l2id, isRestore) {
@@ -4733,27 +5088,105 @@ const FALLBACK_SECTORS = {
       const symbols = l2.stocks || [];
       const overlay = document.getElementById('detailOverlay');
       const drawer = document.getElementById('detailDrawer');
+      // 板块成分股模式：后续异步 paint 不得覆盖个股详情
+      const sectorTok = (typeof beginDetailUI === 'function') ? beginDetailUI('sector-us') : 0;
       document.getElementById('detailSymbol').textContent = l2.name;
       if (typeof stopLiveDetail === 'function') stopLiveDetail();
       if (typeof stopMiniChartLive === 'function') stopMiniChartLive();
       document.getElementById('detailPrice').textContent = '成分股';
       document.getElementById('detailChg').textContent = l1.name + ' · ' + symbols.length + ' 只';
       document.getElementById('detailChg').className = 'detail-chg flat';
-      document.getElementById('detailGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:12px;">加载行情...</div>';
+      document.getElementById('detailGrid').innerHTML = '';
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = 'none';
       if (overlay) overlay.classList.add('show');
       if (drawer) drawer.classList.add('show');
 
-      let html = '';
-      let upCnt = 0, downCnt = 0;
-      for (let i = 0; i < symbols.length; i++) {
-        const sym = symbols[i];
+      // 边加载边展示：每只股票独立半透明加载态；后台缓存与当前页更新分离
+      window.__usSectorLoadState = window.__usSectorLoadState || {};
+      const stateKey = String(l1id) + ':' + String(l2id);
+      const prevState = window.__usSectorLoadState[stateKey] || {};
+      const quoteMap = Object.assign({}, prevState.quoteMap || {});
+      const loadingSet = {};
+      // 不恢复旧的 loadingList，避免失败票一直卡在「加载中」
+      const CONC = 2; // 降低并发，减少 Finnhub 限流
+      symbols.forEach(function (sym) {
+        const cq = getQuoteCacheFresh(sym);
+        if (cq && cq.c > 0) quoteMap[sym] = cq;
+        else if (quoteMap[sym] && quoteMap[sym].c > 0) { /* keep */ }
+        else if (quoteMap[sym] && quoteMap[sym]._failed) {
+          // 已知拉失败，先显示 --，仍会再试一次
+        } else {
+          loadingSet[sym] = 1;
+        }
+      });
+      function persistSectorState() {
+        window.__usSectorLoadState[stateKey] = {
+          quoteMap: quoteMap,
+          loadingList: Object.keys(loadingSet),
+          at: Date.now()
+        };
+      }
+      async function fetchOneUS(sym, forceNet) {
+        loadingSet[sym] = 1;
+        persistSectorState();
         try {
-          let q = quoteCache[sym] || await fetchQuote(sym);
-          if (q) quoteCache[sym] = q;
-          const price = q && q.c != null ? Number(q.c).toFixed(2) : '--';
-          const dp = q ? q.dp : null;
+          if (!forceNet) {
+            const cq = getQuoteCacheFresh(sym);
+            if (cq && cq.c > 0) {
+              const age = Date.now() - (cq._cachedAt || 0);
+              if (age < QUOTE_CACHE_TTL) {
+                quoteMap[sym] = cq;
+                delete loadingSet[sym];
+                return cq;
+              }
+            }
+          }
+          // Finnhub 一次 → 立刻 Yahoo 兜底，避免长时间卡在「加载中」
+          let q = await fetchQuote(sym, { finnhubOnly: true });
+          if (!q || !(q.c > 0)) {
+            await new Promise(function (r) { setTimeout(r, 120); });
+            q = await fetchQuote(sym, { finnhubOnly: false });
+          }
+          if (!q || !(q.c > 0)) {
+            await new Promise(function (r) { setTimeout(r, 200); });
+            q = await fetchQuote(sym, { finnhubOnly: false });
+          }
+          if (q && q.c > 0) {
+            putQuoteCache(sym, q);
+            quoteMap[sym] = q;
+            delete loadingSet[sym];
+            return q;
+          }
+          if (quoteCache[sym] && quoteCache[sym].c > 0) {
+            quoteMap[sym] = quoteCache[sym];
+            delete loadingSet[sym];
+            return quoteCache[sym];
+          }
+          // 彻底失败：记一笔，界面显示 --，不再一直「加载中」
+          quoteMap[sym] = { c: 0, _failed: true };
+          delete loadingSet[sym];
+          return null;
+        } catch (e) {
+          quoteMap[sym] = { c: 0, _failed: true };
+          delete loadingSet[sym];
+          return null;
+        } finally {
+          persistSectorState();
+        }
+      }
+      function paintUSSectorGrid() {
+        if (typeof isDetailUI === 'function' && !isDetailUI('sector-us', sectorTok)) return;
+        let html = '';
+        let upCnt = 0, downCnt = 0, got = 0, loadingCnt = 0;
+        for (let i = 0; i < symbols.length; i++) {
+          const sym = symbols[i];
+          const q = quoteMap[sym] || getQuoteCacheFresh(sym);
+          const isLoading = !!loadingSet[sym] && !(q && q.c > 0);
+          if (isLoading) loadingCnt++;
+          const price = q && q.c > 0 ? Number(q.c).toFixed(2) : (isLoading ? '' : '--');
+          const dp = q && q.c > 0 && q.dp != null ? q.dp : null;
+          if (q && q.c > 0) got++;
           if (dp > 0) upCnt++; else if (dp < 0) downCnt++;
           let cn = '';
           if (typeof STOCK_SEARCH !== 'undefined') {
@@ -4761,23 +5194,102 @@ const FALLBACK_SECTORS = {
             if (hit) cn = hit.cn;
           }
           if (!cn && typeof STOCK_CN_NAMES !== 'undefined') cn = STOCK_CN_NAMES[sym] || '';
-          html += '<div class="detail-stat" style="cursor:pointer;" onclick="openDetail(\'' + sym + '\')">' +
+          const valHtml = isLoading
+            ? ('<span class="load-dot"></span>加载中')
+            : (price + ' <span class="' + (typeof chgClass === 'function' ? chgClass(dp) : '') + '" style="font-size:0.8rem;">' +
+              (typeof formatChg === 'function' ? formatChg(dp) : (dp == null ? '' : '')) + '</span>');
+          html += '<div class="detail-stat' + (isLoading ? ' is-loading' : '') + '" style="cursor:pointer;" onclick="openDetail(\'' + sym + '\')">' +
             '<div class="label">' + sym + (cn ? ' <span style="color:var(--muted);font-weight:400;">' + cn + '</span>' : '') + '</div>' +
-            '<div class="val">' + price + ' <span class="' + (typeof chgClass === 'function' ? chgClass(dp) : '') + '" style="font-size:0.8rem;">' +
-            (typeof formatChg === 'function' ? formatChg(dp) : '') + '</span></div></div>';
-        } catch (e) {
-          html += '<div class="detail-stat"><div class="label">' + sym + '</div><div class="val">--</div></div>';
+            '<div class="val">' + valHtml + '</div></div>';
+        }
+        document.getElementById('detailGrid').innerHTML = html;
+        try {
+          var upTri = '<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid var(--green);vertical-align:middle;margin-right:3px;"></span>';
+          var downTri = '<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid var(--red);vertical-align:middle;margin-right:3px;"></span>';
+          var loadHint = loadingCnt > 0 ? (' · <span style="color:var(--blue);">更新中' + loadingCnt + '</span>') : '';
+          document.getElementById('detailChg').innerHTML =
+            l1.name + ' · 共' + symbols.length + '只 · 已加载' + got + loadHint + ' · ' +
+            '<span style="white-space:nowrap;">' + upTri + '<span style="color:var(--green);font-weight:700;">' + upCnt + '</span></span>' +
+            ' <span style="white-space:nowrap;">' + downTri + '<span style="color:var(--red);font-weight:700;">' + downCnt + '</span></span>';
+        } catch (e) {}
+        persistSectorState();
+        try {
+          if (loadingCnt > 0) {
+            setSectorToast(true, '成分股更新中 ' + got + '/' + symbols.length);
+          } else if (got > 0) {
+            // 已全部出结果：短暂提示后自动关掉，不再一直挂着
+            setSectorToast(true, '成分股已更新 ' + got + '/' + symbols.length, 900);
+          } else {
+            setSectorToast(false);
+          }
+        } catch (e) {}
+      }
+      // 立刻画出全部卡片（有缓存出价格，无缓存出加载态）
+      paintUSSectorGrid();
+      const ordered = symbols.slice().sort(function (a, b) {
+        const qa = quoteMap[a] && quoteMap[a].c > 0;
+        const qb = quoteMap[b] && quoteMap[b].c > 0;
+        if (qa === qb) return 0;
+        return qa ? 1 : -1;
+      });
+      for (let i = 0; i < ordered.length; i += CONC) {
+        if (typeof isDetailUI === 'function' && !isDetailUI('sector-us', sectorTok)) {
+          // 用户已离开，后台继续把结果写入缓存，不改 DOM
+          const rest = ordered.slice(i);
+          (async function (list) {
+            for (let j = 0; j < list.length; j += CONC) {
+              const batch = list.slice(j, j + CONC);
+              await Promise.all(batch.map(function (sym) {
+                const has = quoteMap[sym] && quoteMap[sym].c > 0;
+                const age = has ? (Date.now() - (quoteMap[sym]._cachedAt || 0)) : 1e18;
+                return fetchOneUS(sym, !has || age > QUOTE_CACHE_TTL);
+              }));
+              try { saveQuoteCacheToDisk(); } catch (e) {}
+              await new Promise(function (r) { setTimeout(r, 120); });
+            }
+            persistSectorState();
+          })(rest);
+          return;
+        }
+        const batch = ordered.slice(i, i + CONC);
+        await Promise.all(batch.map(function (sym) {
+          const has = quoteMap[sym] && quoteMap[sym].c > 0;
+          const age = has ? (Date.now() - (quoteMap[sym]._cachedAt || 0)) : 1e18;
+          return fetchOneUS(sym, !has || age > QUOTE_CACHE_TTL);
+        }));
+        paintUSSectorGrid();
+        if (i + CONC < ordered.length) {
+          await new Promise(function (r) { setTimeout(r, 100); });
         }
       }
-      try {
-        var upTri = '<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid var(--green);vertical-align:middle;margin-right:3px;"></span>';
-        var downTri = '<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid var(--red);vertical-align:middle;margin-right:3px;"></span>';
-        document.getElementById('detailChg').innerHTML =
-          l1.name + ' · 共' + symbols.length + '只 · ' +
-          '<span style="white-space:nowrap;">' + upTri + '<span style="color:var(--green);font-weight:700;">' + upCnt + '</span></span>' +
-          ' <span style="white-space:nowrap;">' + downTri + '<span style="color:var(--red);font-weight:700;">' + downCnt + '</span></span>';
-      } catch (e) {}
-      document.getElementById('detailGrid').innerHTML = html || '<div style="grid-column:1/-1;color:var(--muted);">暂无标的</div>';
+      // 仍缺的再补一轮（Yahoo 已开）
+      const stillMiss = symbols.filter(function (s) { return !(quoteMap[s] && quoteMap[s].c > 0); });
+      if (stillMiss.length && typeof isDetailUI === 'function' && isDetailUI('sector-us', sectorTok)) {
+        try { setSectorToast(true, '补拉缺行情 ' + stillMiss.length + ' 只'); } catch (e) {}
+        for (let i = 0; i < stillMiss.length; i++) {
+          if (typeof isDetailUI === 'function' && !isDetailUI('sector-us', sectorTok)) break;
+          await fetchOneUS(stillMiss[i], true);
+          paintUSSectorGrid();
+          await new Promise(function (r) { setTimeout(r, 150); });
+        }
+      }
+      // 最终兜底：任何仍在 loading 的一律结束为 --，禁止永久转圈
+      symbols.forEach(function (s) {
+        if (loadingSet[s]) {
+          delete loadingSet[s];
+          if (!(quoteMap[s] && quoteMap[s].c > 0)) quoteMap[s] = { c: 0, _failed: true };
+        }
+      });
+      try { saveQuoteCacheToDisk(); } catch (e) {}
+      persistSectorState();
+      // 最终写回也必须仍在板块模式，防止用户已点进个股后被覆盖
+      if (typeof isDetailUI === 'function' && isDetailUI('sector-us', sectorTok)) {
+        paintUSSectorGrid();
+        try {
+          // 最终再闪一下即可，自动消失
+          setSectorToast(true, '成分股已就绪', 800);
+        } catch (e) {}
+      }
     }
 
 
@@ -5049,6 +5561,8 @@ async function fetchCNConceptList(po) {
     async function renderCNSectorL1(fromBack) {
       const container = document.getElementById('sectorContent');
       if (!container) return;
+      if (sectorMarket !== 'cn') return;
+      const myMktTok = sectorMarketToken;
       const keep = container.querySelector('.sector-cards, .l1-card');
       if (!keep) {
         container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载A股大类...</div>';
@@ -5060,6 +5574,7 @@ async function fetchCNConceptList(po) {
       } catch (e) {
         console.warn('cn universe', e);
       }
+      if (sectorMarket !== 'cn' || myMktTok !== sectorMarketToken) return;
       if (!universe || !universe.length) {
         container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">A股板块加载失败，请点刷新重试<br/><span style="font-size:0.75rem;">网络或数据源暂时不可用</span></div>';
         return;
@@ -5128,6 +5643,7 @@ async function fetchCNConceptList(po) {
         html += down.map(cardHtml).join('') + '</div></div>';
       }
       if (!html) html = '<div style="color:var(--muted);text-align:center;padding:20px;">暂无数据，请刷新</div>';
+      if (sectorMarket !== 'cn' || myMktTok !== sectorMarketToken) return;
       container.innerHTML = html;
       window.__cnL1HtmlCache = html;
       paintSectorLiveStatus('ok');
@@ -5153,11 +5669,17 @@ async function fetchCNConceptList(po) {
       const prevRows = window.__cnL2RowsByL1[id] || [];
       const prevMap = {};
       prevRows.forEach(function (r) { prevMap[r.id] = r; });
-      // 加载中也提供「← 大类」，可立刻返回，不必等请求结束
-      container.innerHTML = '<div class="l2-head">' +
-        '<button type="button" class="back-mini" onclick="backCNSectorL1()">← 大类</button>' +
-        '<span class="l2-title">' + (l1.name || '') + '</span></div>' +
-        '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载细分行业...</div>';
+      // 已经显示着这个大类的细分行业时（自动/手动刷新触发的重入），
+      // 不要先清空成「加载细分行业...」再画一遍，原地等新数据算完一次性更新，
+      // 免得看着好好的内容突然被清空又画出来，跟当前页面没有关系地跳一下
+      const alreadyShown = container.dataset.cnL1Id === id && container.querySelector('.sector-cards, .l2-title');
+      if (!alreadyShown) {
+        // 加载中也提供「← 大类」，可立刻返回，不必等请求结束
+        container.innerHTML = '<div class="l2-head">' +
+          '<button type="button" class="back-mini" onclick="backCNSectorL1()">← 大类</button>' +
+          '<span class="l2-title">' + (l1.name || '') + '</span></div>' +
+          '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载细分行业...</div>';
+      }
       const universe = await loadCNBoardUniverse();
       if (myToken !== window.__cnL2LoadToken || cnSectorView !== 'l2' || cnSectorL1 !== id) return;
 
@@ -5289,6 +5811,7 @@ async function fetchCNConceptList(po) {
       }
             if (myToken !== window.__cnL2LoadToken || cnSectorView !== 'l2' || cnSectorL1 !== id) return;
       container.innerHTML = html;
+      container.dataset.cnL1Id = id;
       paintSectorLiveStatus('ok');
       
 
@@ -6559,19 +7082,42 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
     }
 
     let sectorQuoteWarmed = false;
-    async function warmUSSectorQuoteCache() {
-      if (sectorQuoteWarmed) return;
+    async function warmUSSectorQuoteCache(forceAll) {
+      if (sectorQuoteWarmed && !forceAll) return;
       sectorQuoteWarmed = true;
       const symbols = collectUSSectorSymbols();
-      for (const sym of symbols) {
-        if (quoteCache[sym]) continue; // 已经有行情缓存（比如本来就在观察列表里），不用再请求
+      const need = symbols.filter(function (sym) {
+        const q = quoteCache[sym];
+        if (!q || !(q.c > 0)) return true;
+        if (forceAll) return true;
+        return (Date.now() - (q._cachedAt || 0)) > QUOTE_CACHE_TTL;
+      });
+      const CONC = 3;
+      for (let i = 0; i < need.length; i += CONC) {
         try {
-          const q = await fetchQuote(sym);
-          if (q) quoteCache[sym] = q;
+          if (typeof detailUIMode !== 'undefined' && detailUIMode === 'stock') {
+            await new Promise(function (r) { setTimeout(r, 1200); });
+          }
         } catch (e) {}
-        // 一个一个悄悄来，给行情接口留点余量，也不跟观察列表的实时刷新抢带宽
-        await new Promise(function (r) { setTimeout(r, 900); });
+        const batch = need.slice(i, i + CONC);
+        await Promise.all(batch.map(async function (sym) {
+          try {
+            const q = await fetchQuote(sym);
+            if (q && q.c > 0) putQuoteCache(sym, q);
+          } catch (e) {}
+        }));
+        if (i % 9 === 0 || i + CONC >= need.length) {
+          try { saveQuoteCacheToDisk(); } catch (e) {}
+        }
+        await new Promise(function (r) { setTimeout(r, 320); });
       }
+      try { saveQuoteCacheToDisk(); } catch (e) {}
+    }
+    function startUSSectorQuoteBackground() {
+      if (window.__usQuoteBgStarted) return;
+      window.__usQuoteBgStarted = true;
+      setTimeout(function () { warmUSSectorQuoteCache(false); }, 2500);
+      setInterval(function () { warmUSSectorQuoteCache(false); }, 12 * 60 * 1000);
     }
 
     // ==================== 初始化 ====================
@@ -6588,10 +7134,28 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       runBackgroundPreload().then(function () {
         // 几个主要分栏都预加载完之后，再顺手把「板块」页往下钻会用到的
         // 共享数据缓存也热一遍（细节见上面的注释）
-        if (typeof warmUSSectorQuoteCache === 'function') warmUSSectorQuoteCache();
+        if (typeof startUSSectorQuoteBackground === 'function') startUSSectorQuoteBackground();
+        else if (typeof warmUSSectorQuoteCache === 'function') warmUSSectorQuoteCache();
         if (typeof loadCNBoardUniverse === 'function') loadCNBoardUniverse().catch(function () {});
       });
     }, 1200);
+
+    // 停留在「板块」页时，定时原地刷新当前显示的这一级（一级大类概览、
+    // 或二级细分行业列表都算），loadSectors() 本身会先判断当前停在哪一级、
+    // 哪个市场，只原地刷新那一级，不会跳回大类列表。
+    // 这里没有做成跟观察列表一样「每秒」：观察列表只盯着你自选的几只股票，
+    // 靠 WebSocket 推送，不用不断发请求；板块页一次要聚合好几只股票算平均
+    // 涨跌——一级页要顺着 7 个大类各抽样几只、二级页也要挨个细分行业抽样，
+    // 如果做成每秒一次，等于每秒都要连续打一串行情请求，免费行情接口的
+    // 额度撑不住这个频率，撑爆了不只板块刷不出来，连观察列表自己都会被
+    // 拖累刷不出数据。所以这里用 15 秒一次：肉眼仍能感觉到数字隔一会儿
+    // 在动，但不会把接口打挂。
+    setInterval(function () {
+      const page = document.getElementById('page-sector');
+      if (page && page.classList.contains('active')) {
+        loadSectors(true);
+      }
+    }, 15000);
 
     // 观察列表：WS 可用时只偶尔 REST 补 OHLC；否则 2s 轮询
     setInterval(function () {
