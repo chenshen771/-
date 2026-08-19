@@ -697,7 +697,10 @@
       gap: 3px;
       max-height: 62vh;
       overflow-y: auto;
+      overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
       padding: 6px 4px;
       background: rgba(15, 20, 28, 0.88);
       border: 1px solid var(--border);
@@ -4930,6 +4933,8 @@ function loadFullTVChart(symbol) {
           da + '</div>';
       }
       rail.innerHTML = html;
+      __newsRailActiveDay = '';
+      __newsRailTouching = false;
       // 仅在热点页显示
       const page = document.getElementById('page-hot');
       if (page && page.classList.contains('active')) rail.classList.add('show');
@@ -4942,12 +4947,123 @@ function loadFullTVChart(symbol) {
           const tid = el.getAttribute('data-target');
           const target = tid ? document.getElementById(tid) : null;
           if (target) {
+            // 点击跳转时短暂锁定，避免 scroll spy 抢高亮
+            window.__newsRailClickLock = Date.now() + 700;
             target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            rail.querySelectorAll('.rail-item').forEach(function (x) { x.classList.remove('active'); });
-            el.classList.add('active');
+            setNewsDayRailActive(el.getAttribute('data-day'));
           }
         });
       });
+      // 默认高亮第一天，并绑定滚动同步
+      if (dayKeys.length) setNewsDayRailActive(dayKeys[0]);
+      bindNewsScrollSpy();
+    }
+
+    let __newsRailActiveDay = '';
+    let __newsRailTouching = false;
+
+    function setNewsDayRailActive(dayKey, opts) {
+      const rail = document.getElementById('newsDayRail');
+      if (!rail || !dayKey) return;
+      opts = opts || {};
+      const dayChanged = __newsRailActiveDay !== dayKey;
+      __newsRailActiveDay = dayKey;
+      let activeEl = null;
+      rail.querySelectorAll('.rail-item').forEach(function (x) {
+        const on = x.getAttribute('data-day') === dayKey;
+        x.classList.toggle('active', on);
+        if (on) activeEl = x;
+      });
+      // 仅在「日期刚变了」且用户没在拖右侧轨道时，才把高亮项滚进轨道可视区
+      // 否则每次 spy 都会 scrollIntoView，把用户正在拖的轨道拽回去 → 感觉卡死
+      if (dayChanged && !__newsRailTouching && !opts.noScroll && activeEl && typeof activeEl.scrollIntoView === 'function') {
+        try {
+          const rRect = rail.getBoundingClientRect();
+          const aRect = activeEl.getBoundingClientRect();
+          if (aRect.top < rRect.top + 4 || aRect.bottom > rRect.bottom - 4) {
+            activeEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 滑动列表时：根据当前可见的日期分界，实时高亮右侧日期
+    let __newsSpyBound = false;
+    let __newsSpyTicking = false;
+    function updateNewsDayRailFromScroll() {
+      const page = document.getElementById('page-hot');
+      if (!page || !page.classList.contains('active')) return;
+      if (window.__newsRailClickLock && Date.now() < window.__newsRailClickLock) return;
+      // 手指正在拖右侧日期条时，不要改高亮、不要抢滚动
+      if (__newsRailTouching) return;
+
+      const seps = document.querySelectorAll('#newsList .news-day-sep');
+      if (!seps.length) return;
+
+      const marker = 100;
+      let current = seps[0].getAttribute('data-day');
+      for (let i = 0; i < seps.length; i++) {
+        const rect = seps[i].getBoundingClientRect();
+        if (rect.top <= marker) {
+          current = seps[i].getAttribute('data-day') || current;
+        } else {
+          break;
+        }
+      }
+      if (current) setNewsDayRailActive(current);
+    }
+
+    function bindNewsRailTouchGuard(rail) {
+      if (!rail || rail.__touchGuardBound) return;
+      rail.__touchGuardBound = true;
+      function markOn() { __newsRailTouching = true; }
+      function markOff() {
+        // 稍延迟，避免松手瞬间被 scroll spy 立刻拽回
+        setTimeout(function () { __newsRailTouching = false; }, 120);
+      }
+      rail.addEventListener('touchstart', markOn, { passive: true });
+      rail.addEventListener('touchend', markOff, { passive: true });
+      rail.addEventListener('touchcancel', markOff, { passive: true });
+      // 阻止右侧轨道滚动冒泡到页面，避免拖轨道时整页跟着动
+      rail.addEventListener('touchmove', function (e) {
+        __newsRailTouching = true;
+        e.stopPropagation();
+      }, { passive: true });
+    }
+
+    function bindNewsScrollSpy() {
+      const rail = document.getElementById('newsDayRail');
+      if (rail) bindNewsRailTouchGuard(rail);
+
+      if (__newsSpyBound) {
+        updateNewsDayRailFromScroll();
+        return;
+      }
+      __newsSpyBound = true;
+      function onScroll(e) {
+        // 来自右侧轨道自身的滚动忽略
+        if (__newsRailTouching) return;
+        if (e && e.target && e.target.id === 'newsDayRail') return;
+        if (__newsSpyTicking) return;
+        __newsSpyTicking = true;
+        requestAnimationFrame(function () {
+          __newsSpyTicking = false;
+          updateNewsDayRailFromScroll();
+        });
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      document.addEventListener('scroll', onScroll, { passive: true, capture: true });
+      try {
+        const obs = new MutationObserver(function () {
+          const page = document.getElementById('page-hot');
+          if (page && page.classList.contains('active')) {
+            setTimeout(updateNewsDayRailFromScroll, 50);
+          }
+        });
+        const page = document.getElementById('page-hot');
+        if (page) obs.observe(page, { attributes: true, attributeFilter: ['class'] });
+      } catch (e) {}
+      updateNewsDayRailFromScroll();
     }
 
     function setNewsDayRailVisible(show) {
@@ -4955,6 +5071,7 @@ function loadFullTVChart(symbol) {
       if (!rail) return;
       if (show && rail.innerHTML) rail.classList.add('show');
       else rail.classList.remove('show');
+      if (show) setTimeout(updateNewsDayRailFromScroll, 60);
     }
 
     
