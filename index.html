@@ -2851,7 +2851,7 @@
         id: 'gemini',
         name: 'Gemini模型',
         scope: 'us',
-        desc: '美股全时态加权概率与价格区间引擎：盘中/盘后自动切换权重，综合量价、催化剂、RS 共振、技术结构，经 VIX 自适应 Sigmoid 映射概率与目标区间。数据优先 Finnhub，备援行情缓存。仅作参考示意，不构成投资建议。',
+        desc: '美股 Gemini v7.5：盘中/盘后权重分支 + 开盘噪音平滑 + 即时方向锁 + VIX-Sigmoid + 剩余时间开方衰减目标区间。数据优先 Finnhub。仅作参考示意，不构成投资建议。',
         prepare: async function () {
           // 预热 VIX / SPY / QQQ，便于切换后立刻可算
           try {
@@ -2869,7 +2869,7 @@
         id: 'gemini_cn',
         name: 'Gemini模型',
         scope: 'cn',
-        desc: 'A股全时态加权概率与价格区间引擎：竞价/盘中与盘后自动切换权重，综合资金流向、板块共振、政策消息与技术筹码，经大盘情绪自适应 Sigmoid 映射；目标价受涨跌停板硬约束。数据优先东方财富，备援缓存。仅作参考示意，不构成投资建议。',
+        desc: 'A股 Gemini v7.5：竞价/盘中与盘后权重 + 开盘噪音平滑 + 分时方向锁 + 板幅硬锁 + 剩余时间开方衰减区间。数据优先东方财富。仅作参考示意，不构成投资建议。',
         prepare: async function () {
           try {
             if (typeof fetchCNQuote === 'function') {
@@ -3371,9 +3371,9 @@
       };
     }
 
-    // ==================== Gemini模型（美股专属 v7 简化落地版） ====================
-    // 严格按：场景权重分支 → 四因子打分 [-100,100] → 共振增益 → VIX-Sigmoid → 概率边界 → 价格区间
-    // 数据：优先 quoteCache / Finnhub 已拉取的 SPY·QQQ·VIX；新闻/财报用 __refSignalCache
+    // ==================== Gemini模型（美股专属 v7.5 深度修正版） ====================
+    // 场景权重 → 四因子 → 共振 → VIX-Sigmoid → 开盘噪音平滑 → 方向锁 → 时间开方衰减区间
+    // 数据：优先 quoteCache / Finnhub（SPY·QQQ·VIX）；新闻/财报用 __refSignalCache
     function __geminiIsUSIntradayMode() {
       // 美东 4:00–16:00 → 盘中/盘前模式 A；否则收盘复盘模式 B
       try {
@@ -3541,9 +3541,33 @@
       return 0.03;
     }
 
+    function __geminiUSSessionMins() {
+      // 返回 { minsFromOpen, minsLeft, inRTH }，美东常规交易 9:30–16:00 共 390 分钟
+      try {
+        const fmt = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', hour12: false, weekday: 'short'
+        });
+        const parts = fmt.formatToParts(new Date());
+        let h = 0, m = 0, wd = '';
+        parts.forEach(function (p) {
+          if (p.type === 'hour') h = parseInt(p.value, 10) % 24;
+          if (p.type === 'minute') m = parseInt(p.value, 10);
+          if (p.type === 'weekday') wd = p.value;
+        });
+        if (wd === 'Sat' || wd === 'Sun') return { minsFromOpen: 0, minsLeft: 390, inRTH: false };
+        const now = h * 60 + m;
+        const open = 9 * 60 + 30;
+        const close = 16 * 60;
+        if (now < open) return { minsFromOpen: 0, minsLeft: 390, inRTH: false };
+        if (now >= close) return { minsFromOpen: 390, minsLeft: 0, inRTH: false };
+        return { minsFromOpen: now - open, minsLeft: close - now, inRTH: true };
+      } catch (e) {
+        return { minsFromOpen: 120, minsLeft: 270, inRTH: true };
+      }
+    }
+
     function computeDayRef_gemini(q, sym) {
       if (!q || !(q.c > 0)) return null;
-      // 仅美股；A 股误入时回退自制
       if (typeof isAShareSymbol === 'function' && sym && isAShareSymbol(sym)) {
         return computeDayRef_zizhi(q, sym);
       }
@@ -3552,50 +3576,61 @@
       const pc = (q.pc > 0) ? Number(q.pc) : c;
       const h = (q.h > 0) ? Number(q.h) : c;
       const l = (q.l > 0) ? Number(q.l) : c;
+      const o = (q.o > 0) ? Number(q.o) : pc;
+      const dp = (typeof q.dp === 'number') ? q.dp : ((c - pc) / (pc || c) * 100);
+      const fromOpenPct = o > 0 ? ((c - o) / o * 100) : 0;
       const modeA = __geminiIsUSIntradayMode();
+      const sess = __geminiUSSessionMins();
 
       // —— 权重分支 ——
       let W1, W2, W3, W4;
       if (modeA) {
-        W1 = 0.30; W2 = 0.20; W3 = 0.30; W4 = 0.20; // 盘中：量价/RS 为主，催化剂与技术次之
+        W1 = 0.30; W2 = 0.20; W3 = 0.30; W4 = 0.20;
       } else {
-        W1 = 0.35; W2 = 0.25; W3 = 0.20; W4 = 0.20; // 盘后：尾盘姿态 + 隔夜催化剂
+        W1 = 0.35; W2 = 0.25; W3 = 0.20; W4 = 0.20;
       }
 
-      const s1 = __geminiScoreVolumePrice(q, modeA);
+      let s1 = __geminiScoreVolumePrice(q, modeA);
       const cat = __geminiScoreCatalyst(sym, q);
-      let s2 = cat.score;
+      const s2 = cat.score;
       const s3 = __geminiScoreRS(sym, q);
       const s4 = __geminiScoreTech(q);
 
-      // 催化剂权重临时放大
+      // v7.5 方向锁：相对开盘跳水 → 量价因子扣分
+      if (sess.inRTH && c < o && fromOpenPct < -0.3) {
+        s1 = __geminiClamp(s1 - 60, -100, 100);
+      }
+
       let w2 = W2 * (cat.wBoost || 1);
       const wSum = W1 + w2 + W3 + W4;
       const n1 = W1 / wSum, n2 = w2 / wSum, n3 = W3 / wSum, n4 = W4 / wSum;
-
       let sRaw = s1 * n1 + s2 * n2 + s3 * n3 + s4 * n4;
 
-      // 多因子共振 ×1.25（量价、RS、技术三者同向）
       const samePos = (s1 > 0 && s3 > 0 && s4 > 0);
       const sameNeg = (s1 < 0 && s3 < 0 && s4 < 0);
       let sFinal = (samePos || sameNeg) ? (sRaw * 1.25) : sRaw;
 
-      // 大盘崩盘熔断：SPY/QQQ 跌超 2% → 看多概率 ×0.65（在概率阶段处理，这里先记）
       const spy = __geminiGetQuote('SPY');
       const qqq = __geminiGetQuote('QQQ');
       let crash = false;
       if (spy && spy.dp <= -2) crash = true;
       if (qqq && qqq.dp <= -2) crash = true;
 
-      // 数据完整度：无 VIX 时略向中性
       const hasVix = !!(__geminiGetQuote('VIX') || __geminiGetQuote('^VIX'));
-
-      // Sigmoid
       const alpha = __geminiVixAlpha();
-      let pUp = 100 / (1 + Math.exp(-alpha * sFinal));
-      if (!hasVix) pUp = 50 + (pUp - 50) * 0.9;
+      let pRaw = 100 / (1 + Math.exp(-alpha * sFinal));
+      if (!hasVix) pRaw = 50 + (pRaw - 50) * 0.9;
 
-      // 财报窗口压缩
+      // v7.5 开盘噪音平滑：前 15/30 分钟向 50% 衰减
+      let Dt = 1.0;
+      if (sess.inRTH) {
+        const t = sess.minsFromOpen;
+        if (t <= 15) Dt = 0.40;
+        else if (t <= 30) Dt = 0.70;
+        else Dt = 1.00;
+      }
+      let pUp = 50 + (pRaw - 50) * Dt;
+
       const sig = (sym && window.__refSignalCache && window.__refSignalCache[sym]) || null;
       if (sig && Math.abs(sig.earnings || 0) > 0.15) {
         pUp = 50 + (pUp - 50) * 0.4;
@@ -3604,35 +3639,38 @@
         pUp = __geminiClamp(pUp, 10, 90);
       }
 
-      if (crash && pUp > 50) pUp = 50 + (pUp - 50) * 0.65;
+      // v7.5 即时方向锁：价在开盘下且跌 >0.3% → 看涨概率 ≤52%
+      if (sess.inRTH && c < o && fromOpenPct < -0.3 && pUp > 52) pUp = 52;
+      // 价在开盘上且涨 >0.3% → 看跌概率 ≤52%（即 pUp ≥ 48）
+      if (sess.inRTH && c > o && fromOpenPct > 0.3 && pUp < 48) pUp = 48;
 
-      // 黑天鹅近似：新闻极度利空
-      if (sig && (sig.news || 0) < -0.8) {
-        pUp = __geminiClamp(12, 10, 12);
-      }
+      if (crash && pUp > 50) pUp = 50 + (pUp - 50) * 0.65;
+      if (sig && (sig.news || 0) < -0.8) pUp = __geminiClamp(12, 10, 12);
 
       let pDown = 100 - pUp;
 
-      // —— 价格区间：ATR 近似用当日波幅与昨收偏离 ——
+      // v7.5 时间开方衰减目标区间
+      const remainMins = sess.inRTH ? Math.max(1, sess.minsLeft) : 390;
+      const remainingFactor = Math.sqrt(remainMins / 390);
       const dayRange = Math.max(h - l, Math.abs(c - pc), c * 0.008);
       const atrApprox = Math.max(dayRange, c * 0.012);
-      const volRatio = 1; // 无成交量时中性
-      const M = volRatio * (sFinal / 100);
+      const M = (sFinal / 100);
       const expectedAbs = Math.abs((pUp - pDown) / 100) * (atrApprox / c) * (1 + Math.max(-0.5, Math.min(0.8, M)));
-      let upPx = c * (1 + Math.max(0.002, expectedAbs));
-      let dnPx = c * (1 - Math.max(0.002, expectedAbs));
+      let upPx = c * (1 + Math.max(0.0015, expectedAbs) * remainingFactor);
+      let dnPx = c * (1 - Math.max(0.0015, expectedAbs) * remainingFactor);
 
-      // 支撑阻力磁吸：日高/日低
       if (h > c && Math.abs(upPx - h) / c < 0.008) upPx = h;
       if (l < c && Math.abs(dnPx - l) / c < 0.008) dnPx = l;
 
-      // 时段衰减（与自制共用）
-      const dp = (typeof q.dp === 'number') ? q.dp : ((c - pc) / (pc || c) * 100);
       let upW = pUp / 100;
       const sessResult = applySessionTimeDecay(sym, c, upPx, dnPx, upW, dp);
       upPx = sessResult.upPx;
       dnPx = sessResult.dnPx;
       upW = sessResult.upW;
+
+      // 方向锁结果再压一次概率输出
+      if (sess.inRTH && c < o && fromOpenPct < -0.3) upW = Math.min(upW, 0.52);
+      if (sess.inRTH && c > o && fromOpenPct > 0.3) upW = Math.max(upW, 0.48);
 
       upW = __geminiClamp(upW, 0.10, 0.90);
       const upPct = Math.round(upW * 100);
@@ -3650,7 +3688,7 @@
 
 
 
-    // ==================== Gemini模型 · A股专属 (v7) ====================
+    // ==================== Gemini模型 · A股专属 (v7.5 深度修正版) ====================
     function __geminiIsCNIntradayMode() {
       try {
         const fmt = new Intl.DateTimeFormat('en-US', {
@@ -3802,6 +3840,41 @@
       return 0.03;
     }
 
+    function __geminiCNSessionMins() {
+      // A股连续竞价约 240 分钟：9:30–11:30 + 13:00–15:00
+      try {
+        const fmt = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Asia/Shanghai', hour: 'numeric', minute: 'numeric', hour12: false, weekday: 'short'
+        });
+        const parts = fmt.formatToParts(new Date());
+        let h = 0, m = 0, wd = '';
+        parts.forEach(function (p) {
+          if (p.type === 'hour') h = parseInt(p.value, 10) % 24;
+          if (p.type === 'minute') m = parseInt(p.value, 10);
+          if (p.type === 'weekday') wd = p.value;
+        });
+        if (wd === 'Sat' || wd === 'Sun') return { minsFromOpen: 0, minsLeft: 240, inRTH: false };
+        const now = h * 60 + m;
+        const amOpen = 9 * 60 + 30, amClose = 11 * 60 + 30;
+        const pmOpen = 13 * 60, pmClose = 15 * 60;
+        if (now < amOpen) return { minsFromOpen: 0, minsLeft: 240, inRTH: false };
+        if (now >= pmClose) return { minsFromOpen: 240, minsLeft: 0, inRTH: false };
+        if (now >= amOpen && now < amClose) {
+          const from = now - amOpen;
+          return { minsFromOpen: from, minsLeft: 240 - from, inRTH: true };
+        }
+        if (now >= amClose && now < pmOpen) {
+          // 午休：已完成上午 120 分钟
+          return { minsFromOpen: 120, minsLeft: 120, inRTH: false };
+        }
+        // 下午
+        const from = 120 + (now - pmOpen);
+        return { minsFromOpen: from, minsLeft: Math.max(0, 240 - from), inRTH: true };
+      } catch (e) {
+        return { minsFromOpen: 60, minsLeft: 180, inRTH: true };
+      }
+    }
+
     function computeDayRef_gemini_cn(q, sym) {
       if (!q || !(q.c > 0)) return null;
       if (typeof isAShareSymbol === 'function' && sym && !isAShareSymbol(sym)) {
@@ -3812,8 +3885,12 @@
       const pc = (q.pc > 0) ? Number(q.pc) : c;
       const h = (q.h > 0) ? Number(q.h) : c;
       const l = (q.l > 0) ? Number(q.l) : c;
+      const o = (q.o > 0) ? Number(q.o) : pc;
+      const dp = (typeof q.dp === 'number') ? q.dp : ((c - pc) / (pc || c) * 100);
+      const fromOpenPct = o > 0 ? ((c - o) / o * 100) : 0;
       const modeA = __geminiIsCNIntradayMode();
       const limitPct = __geminiCNLimitPct(sym);
+      const sess = __geminiCNSessionMins();
 
       let W1, W2, W3, W4;
       if (modeA) {
@@ -3822,17 +3899,23 @@
         W1 = 0.35; W2 = 0.25; W3 = 0.20; W4 = 0.20;
       }
 
-      const s1 = __geminiCNScoreCapital(q, modeA);
+      let s1 = __geminiCNScoreCapital(q, modeA);
       const cat = __geminiCNScoreNews(sym, q);
       const s2 = cat.score;
       const s3 = __geminiCNScoreRS(sym, q);
       const s4 = __geminiCNScoreTech(q, limitPct);
+
+      // v7.5 方向锁：相对开盘跳水 → 资金因子 -60
+      if (sess.inRTH && c < o && fromOpenPct < -0.3) {
+        s1 = __geminiClamp(s1 - 60, -100, 100);
+      }
 
       let w2 = W2 * (cat.wBoost || 1);
       const wSum = W1 + w2 + W3 + W4;
       const n1 = W1 / wSum, n2 = w2 / wSum, n3 = W3 / wSum, n4 = W4 / wSum;
       let sRaw = s1 * n1 + s2 * n2 + s3 * n3 + s4 * n4;
 
+      // 科技龙头逆势修正已在 RS 内；共振增益
       const samePos = (s1 > 0 && s3 > 0 && s4 > 0);
       const sameNeg = (s1 < 0 && s3 < 0 && s4 < 0);
       let sFinal = (samePos || sameNeg) ? (sRaw * 1.25) : sRaw;
@@ -3842,7 +3925,17 @@
       const crash = (sh <= -2.5 || cyb <= -2.5);
 
       const alpha = __geminiCNAlpha();
-      let pUp = 100 / (1 + Math.exp(-alpha * sFinal));
+      let pRaw = 100 / (1 + Math.exp(-alpha * sFinal));
+
+      // v7.5 开盘噪音平滑（相对 9:30 连续竞价开盘）
+      let Dt = 1.0;
+      if (sess.inRTH) {
+        const t = sess.minsFromOpen;
+        if (t <= 15) Dt = 0.40;
+        else if (t <= 30) Dt = 0.70;
+        else Dt = 1.00;
+      }
+      let pUp = 50 + (pRaw - 50) * Dt;
 
       const sig = (sym && window.__refSignalCache && window.__refSignalCache[sym]) || null;
       if (sig && Math.abs(sig.earnings || 0) > 0.15) {
@@ -3851,17 +3944,28 @@
       } else {
         pUp = __geminiClamp(pUp, 12, 88);
       }
+
+      // v7.5 分时方向硬锁
+      if (sess.inRTH && c < o && fromOpenPct < -0.3 && pUp > 52) pUp = 52;
+      if (sess.inRTH && c > o && fromOpenPct > 0.3 && pUp < 48) pUp = 48;
+
       if (crash && pUp > 50) pUp = 50 + (pUp - 50) * 0.60;
       if (sig && (sig.news || 0) < -0.85) pUp = __geminiClamp(11, 10, 12);
 
       const pDown = 100 - pUp;
 
+      // v7.5 时间开方衰减 + 板幅硬锁
+      const remainMins = (sess.inRTH || sess.minsLeft > 0) ? Math.max(1, sess.minsLeft) : 240;
+      // 盘后/盘前：Remaining_Factor = 1
+      const remainingFactor = (!sess.inRTH && sess.minsFromOpen === 0) ? 1.0
+        : ((!sess.inRTH && sess.minsLeft === 0) ? 1.0 : Math.sqrt(remainMins / 240));
       const dayRange = Math.max(h - l, Math.abs(c - pc), c * 0.008);
       const atrApprox = Math.max(dayRange, c * 0.012);
       const M = (sFinal / 100);
       const expectedAbs = Math.abs((pUp - pDown) / 100) * (atrApprox / c) * (1 + Math.max(-0.5, Math.min(0.8, M)));
-      let upPx = c * (1 + Math.max(0.002, expectedAbs));
-      let dnPx = c * (1 - Math.max(0.002, expectedAbs));
+      let upPx = c * (1 + Math.max(0.0015, expectedAbs) * remainingFactor);
+      let dnPx = c * (1 - Math.max(0.0015, expectedAbs) * remainingFactor);
+
       const upCap = c * (1 + limitPct);
       const dnCap = c * (1 - limitPct);
       if (upPx > upCap) upPx = upCap;
@@ -3869,12 +3973,14 @@
       if (h > c && Math.abs(upPx - h) / c < 0.008) upPx = Math.min(h, upCap);
       if (l < c && Math.abs(dnPx - l) / c < 0.008) dnPx = Math.max(l, dnCap);
 
-      const dp = (typeof q.dp === 'number') ? q.dp : ((c - pc) / (pc || c) * 100);
       let upW = pUp / 100;
       const sessResult = applySessionTimeDecay(sym, c, upPx, dnPx, upW, dp);
       upPx = Math.min(sessResult.upPx, upCap);
       dnPx = Math.max(sessResult.dnPx, dnCap);
       upW = sessResult.upW;
+
+      if (sess.inRTH && c < o && fromOpenPct < -0.3) upW = Math.min(upW, 0.52);
+      if (sess.inRTH && c > o && fromOpenPct > 0.3) upW = Math.max(upW, 0.48);
 
       upW = __geminiClamp(upW, 0.12, 0.88);
       const upPct = Math.round(upW * 100);
