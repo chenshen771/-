@@ -30,6 +30,10 @@
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    html {
+      overscroll-behavior-y: none;
+    }
+
     body {
       font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
       background: var(--bg);
@@ -37,6 +41,7 @@
       line-height: 1.45;
       min-height: 100vh;
       padding-bottom: 72px;
+      overscroll-behavior-y: none;
       -webkit-tap-highlight-color: transparent;
       font-variant-numeric: tabular-nums;
       /* 这是一个类 App 的界面，不是给人选文字复制的文档；长按任何地方都不应该
@@ -67,7 +72,8 @@
 
     .header-actions {
       position: absolute;
-      top: 8px;
+      top: 50%;
+      transform: translateY(-50%);
       right: 14px;
       z-index: 50;
       display: flex;
@@ -77,18 +83,20 @@
     }
     .weight-model-btn {
       pointer-events: auto;
-      display: flex;
-      align-items: center;
-      gap: 2px;
+      display: inline-block;
+      max-width: 208px;
       font-family: 'Noto Sans SC', sans-serif;
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       color: var(--text);
       background: rgba(77, 159, 255, 0.14);
       border: 1px solid rgba(77, 159, 255, 0.4);
-      border-radius: 20px;
+      border-radius: 14px;
       padding: 4px 10px;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .weight-model-btn:active { opacity: 0.8; }
     .weight-model-btn #weightModelBtnName { color: var(--blue); font-weight: 700; margin: 0 1px; }
@@ -1192,7 +1200,7 @@
     .net-status.mid .dot { background: #fbbf24; box-shadow: 0 0 6px #fbbf2488; }
     .net-status.bad .dot { background: #ef5350; box-shadow: 0 0 6px #ef535088; }
     .net-status .net-text { white-space: nowrap; }
-    .app-header { position: relative; padding-right: 110px; }
+    .app-header { position: relative; padding-right: 224px; }
 
     
     .sector-card { position: relative; }
@@ -1281,10 +1289,10 @@
 <body>
   <header class="app-header">
     <h1 id="pageTitle">观察列表</h1>
-    <div class="sub" id="pageSub">实时美股自选 · Finnhub</div>
+    <div class="sub" id="pageSub">实时股票自选</div>
     <div class="header-actions">
       <button type="button" class="weight-model-btn" id="weightModelBtn" onclick="openWeightModelModal()">
-        权重：<span id="weightModelBtnName">自制</span><span class="wm-caret">▾</span>
+        模型：<span id="weightModelBtnName">自制</span><span class="wm-caret">▾</span>
       </button>
       <div class="net-status" id="netStatus" title="网络延迟">
         <span class="dot"></span>
@@ -3017,9 +3025,28 @@
       return weightModelSelection.universal;
     }
 
+    /** 某个市场（不针对具体股票）此刻实际生效的模型 id：市场专属优先，没有就用通用 */
+    function resolveWeightModelIdForMarket(isCN) {
+      if (isCN && weightModelSelection.cn) return weightModelSelection.cn;
+      if (!isCN && weightModelSelection.us) return weightModelSelection.us;
+      return weightModelSelection.universal;
+    }
+
     function updateWeightModelBtn() {
       const nameEl = document.getElementById('weightModelBtnName');
-      if (nameEl) nameEl.textContent = getWeightModel(weightModelSelection.universal).name;
+      if (!nameEl) return;
+      // 美股/A股都没单独指定专属模型（都在跟随通用）→ 只显示通用模型自己的名字，
+      // 跟以前一样简洁；只要有一边单独指定了专属模型，就把美股/A股分开显示，
+      // 各自显示它此刻实际生效的模型，不再笼统只报通用那一个。
+      if (!weightModelSelection.us && !weightModelSelection.cn) {
+        nameEl.textContent = getWeightModel(weightModelSelection.universal).name;
+        return;
+      }
+      const usName = getWeightModel(resolveWeightModelIdForMarket(false)).name;
+      const cnName = getWeightModel(resolveWeightModelIdForMarket(true)).name;
+      nameEl.textContent = (usName === cnName)
+        ? usName
+        : ('美股' + usName + ' · A股' + cnName);
     }
 
     // 弹窗内的 tab：通用 / 美股 / A股，各自独立记一个「正在看哪个 tab」
@@ -3100,18 +3127,51 @@
         '</div>';
     }
 
+    // 是否是本窗口自己往 history 里压的那一条记录（用来跟别的弹层的 history
+    // state 区分开，避免互相误判）。
+    let __wmHistoryPushed = false;
+
     function openWeightModelModal() {
       __wmActiveTab = 'universal';
       renderWeightModelTabs();
       renderWeightModelList();
       const overlay = document.getElementById('weightModelOverlay');
       if (overlay) overlay.classList.add('show');
+      // 打开时压一条 history 记录，这样系统返回键/手势返回会先关掉这个
+      // 小窗口，而不是直接退出页面或退到列表页——跟系统原生的"返回=关当前层"
+      // 交互习惯保持一致。
+      try {
+        history.pushState({ wmModal: 1 }, '');
+        __wmHistoryPushed = true;
+      } catch (e) {
+        __wmHistoryPushed = false;
+      }
     }
 
-    function closeWeightModelModal() {
+    function closeWeightModelModal(fromPopstate) {
       const overlay = document.getElementById('weightModelOverlay');
+      const wasShown = overlay && overlay.classList.contains('show');
       if (overlay) overlay.classList.remove('show');
+      if (!wasShown) return;
+      // 用户主动点 ×/遮罩关闭：把 openWeightModelModal 那次压的 history 记录
+      // 消费掉，让"返回栈"跟"界面状态"对得上，下一次再按系统返回键才不会
+      // 出现"明明窗口已经关了，还要再按一次返回"的错位。
+      // 若这次关闭本身就是系统返回/手势返回触发的（fromPopstate=true），
+      // 说明 history 已经自己退回去了，不用再调用一次 history.back()。
+      if (!fromPopstate && __wmHistoryPushed) {
+        __wmHistoryPushed = false;
+        try { history.back(); return; } catch (e) {}
+      }
+      __wmHistoryPushed = false;
     }
+
+    // 系统返回键 / 边缘手势返回：若小窗口正开着，只关小窗口，不影响其它页面。
+    window.addEventListener('popstate', function () {
+      const overlay = document.getElementById('weightModelOverlay');
+      if (overlay && overlay.classList.contains('show')) {
+        closeWeightModelModal(true);
+      }
+    });
 
     // 切换用的小提示条：切换中 / 已切换，带一个转圈的 spinner，跟板块那边的
     // toast 是两套独立的东西（板块那个只在板块页显示，这个不受页面限制，
@@ -4085,10 +4145,14 @@
 
     function renderWatchlist() {
       // 拖拽过程中不重建列表 DOM，避免行情刷新打断正在进行的拖拽（错位/重叠）
-      // 但如果「松手」事件因某些机型/浏览器异常没有送达，导致拖拽状态卡住超过
-      // 4 秒还没结束，判定为异常并自动清理，避免整个列表被永久卡住不刷新
+      // 但如果「松手」事件因某些机型/浏览器异常没有送达，导致拖拽状态卡住，
+      // 判定为异常并自动清理，避免整个列表被永久卡住不刷新。
+      // 注意：这里不能按「拖拽总时长」判定——用户长按慢慢滚动一个很长的列表，
+      // 正常操作也可能持续好几秒甚至更久，按总时长会把正常拖拽误杀成「超时」。
+      // 改成按「最后一次有效活动（手指移动/自动滚动）距今」判定，只有真正没有
+      // 任何活动、长时间静默的情况才当成异常，不再对慢速长按设时间上限。
       if (dragState) {
-        if (Date.now() - (dragState.startedAt || 0) > 4000) {
+        if (Date.now() - (dragState.lastActiveAt || dragState.startedAt || 0) > 15000) {
           forceCleanupDrag();
         } else {
           return;
@@ -4296,7 +4360,7 @@
       });
       const rowStep = layout.length > 1 ? (layout[1].top - layout[0].top) : (layout[0].height + 8);
 
-      dragState = { from: idx, over: idx, item, layout, rowStep, startY: startY, pointerY: startY, startedAt: Date.now(), scrollDelta: 0, isTouch: isTouch };
+      dragState = { from: idx, over: idx, item, layout, rowStep, startY: startY, pointerY: startY, startedAt: Date.now(), lastActiveAt: Date.now(), scrollDelta: 0, isTouch: isTouch };
       item.classList.add('dragging');
       // 防止松手时这次拖拽被当成一次「点击」误触发打开详情页
       item.dataset.suppressClick = '1';
@@ -4327,7 +4391,18 @@
     // 视觉上卡片就像脱手一样「跟着页面跑」。这里把累计滚动量也计入位移。
     function applyDragItemTransform() {
       if (!dragState) return;
-      const dy = (dragState.pointerY - dragState.startY) + dragState.scrollDelta;
+      let dy = (dragState.pointerY - dragState.startY) + dragState.scrollDelta;
+      // 边界夹紧：卡片的可视位置不能超出「第一项」到「最后一项」的范围。
+      // 用拖拽开始时的静态快照算出 dy 的允许区间（两行之间的相对距离不受
+      // 页面滚动影响，所以不需要再叠加 scrollDelta 做二次修正）。
+      // 没有这层限制时，自动滚动到底部后手指若继续下拖，dy 会无限增长，
+      // 卡片就会视觉上飞出列表、越过最后一项——这里把它钳在边界内。
+      const { layout, from } = dragState;
+      if (layout && layout.length && layout[from]) {
+        const minDy = layout[0].top - layout[from].top;
+        const maxDy = layout[layout.length - 1].top - layout[from].top;
+        dy = Math.min(maxDy, Math.max(minDy, dy));
+      }
       dragState.item.style.transform = 'translateY(' + dy + 'px) scale(1.03)';
     }
 
@@ -4337,7 +4412,7 @@
       if (autoScrollRAF) return;
       const EDGE_ZONE = 110;   // 触发自动滚动的边缘感应区（像素）
       const MIN_SPEED = 2;     // 刚进入感应区时的滚动速度
-      const MAX_SPEED = 16;    // 贴到屏幕边缘时的最快滚动速度
+      const MAX_SPEED = 22;    // 贴到屏幕边缘时的最快滚动速度
       function tick() {
         if (!dragState) { autoScrollRAF = null; return; }
         const y = dragState.pointerY;
@@ -4351,12 +4426,17 @@
           dy = (MIN_SPEED + (MAX_SPEED - MIN_SPEED) * t);
         }
         if (dy !== 0) {
-          // 页面可能已经滚到顶/底，scrollBy 请求的量不一定能全部生效，
-          // 用滚动前后 scrollY 的实际差值累加，而不是直接假设 dy 全部生效
+          // 空气墙：先按文档实际可滚动范围夹一下这次要滚动到的目标值，
+          // 不管浏览器有没有原生回弹动画，都不会再往下/往上多滚出内容边界，
+          // 而不是一直无节制地朝越界的方向发请求
           const beforeY = window.scrollY;
-          window.scrollBy(0, dy);
+          const maxScrollY = Math.max(0, document.documentElement.scrollHeight - vh);
+          const targetY = Math.min(maxScrollY, Math.max(0, beforeY + dy));
+          window.scrollTo(0, targetY);
           const actualDy = window.scrollY - beforeY;
           dragState.scrollDelta += actualDy;
+          // 手指贴边不动、靠自动滚动翻页也是「活跃」状态，不能被兜底逻辑当成卡死
+          dragState.lastActiveAt = Date.now();
           // 卡片跟着这部分滚动量同步位移，保持贴在手指下方，不再产生位移误差
           applyDragItemTransform();
           // 页面滚动后卡片位置变化，需要用最新指针位置重新计算目标行
@@ -4417,6 +4497,7 @@
       e.stopPropagation();
       const y = getEventY(e);
       dragState.pointerY = y;
+      dragState.lastActiveAt = Date.now();
       dragState.over = getOverIndex(y);
       updatePushPreview();
       // 卡片跟随手指垂直移动（拿起来的即时反馈，不做过渡以保证跟手）
@@ -5385,7 +5466,7 @@ const BACKTEST_V2_B64 = [
           const ready = typeof m.render === 'function';
           html += '<div class="val-module-card" onclick="openValModule(\'' + m.id + '\')">' +
             '<div class="l1-name">' + m.name + '</div>' +
-            '<div class="l1-en"><span class="sub-tag ' + (ready ? 'ready' : 'muted') + '">' + (ready ? '已上线' : '待开发') + '</span></div>' +
+            '<div class="l1-en"><span class="sub-tag ' + (ready ? 'ready' : 'muted') + '">' + (ready ? '在线' : '待开发') + '</span></div>' +
             '</div>';
         });
         html += '</div>';
@@ -10621,7 +10702,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
 
     // ==================== 页面切换 ====================
     const titles = {
-      watch:  { title: '观察列表', sub: '实时美股自选 · Finnhub' },
+      watch:  { title: '观察列表', sub: '实时股票自选' },
       val:    { title: '估值', sub: '功能建设中 · 更多模块陆续上线' },
       asset:  { title: '全球大类资产', sub: '黄金 · 美元 · 原油 · 美债实时' },
       macro:  { title: '宏观快照', sub: '美债 · 利率 · 通胀核心数据' },
@@ -10639,6 +10720,11 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         document.getElementById('page-' + target).classList.add('active');
         document.getElementById('pageTitle').textContent = titles[target].title;
         document.getElementById('pageSub').textContent = titles[target].sub;
+        // 权重模型按钮只跟「观察列表」相关（它决定的是这个页面里预↑/预↓的算法），
+        // 切到其它页面（估值/资产/宏观/热点/日历/板块）就把它隐藏，避免占位置、
+        // 也避免用户误以为别的页面也受它影响。
+        const wmBtn = document.getElementById('weightModelBtn');
+        if (wmBtn) wmBtn.style.display = (target === 'watch') ? '' : 'none';
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
         if (typeof setNewsDayRailVisible === 'function') {
