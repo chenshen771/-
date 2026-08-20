@@ -7042,19 +7042,41 @@ function loadFullTVChart(symbol) {
         raw = (raw.startsWith('6') || raw.startsWith('5') || raw.startsWith('9')) ? ('SSE:' + raw) : ('SZSE:' + raw);
       } else if (!/^(SSE|SZSE|BSE|NASDAQ|NYSE|AMEX|OTC):/i.test(raw)) {
         // 歧义代码强制美股交易所，避免 TV 匹配到外股（如 SPR→SpyroSoft）
+        // 纽交所常见代码：不能默认 NASDAQ:（否则 TV 报「此商品不存在」，如 TSM/NOW）
         const NYSE_HINT = {
+          // 半导体 / 科技服务
+          TSM: 'NYSE:TSM', NOW: 'NYSE:NOW', CRM: 'NYSE:CRM', ORCL: 'NYSE:ORCL',
+          IBM: 'NYSE:IBM', ACN: 'NYSE:ACN', SAP: 'NYSE:SAP', SNOW: 'NYSE:SNOW',
+          PLTR: 'NYSE:PLTR', AI: 'NYSE:AI', PATH: 'NYSE:PATH', U: 'NYSE:U',
+          // 金融
+          JPM: 'NYSE:JPM', BAC: 'NYSE:BAC', WFC: 'NYSE:WFC', C: 'NYSE:C',
+          GS: 'NYSE:GS', MS: 'NYSE:MS', V: 'NYSE:V', MA: 'NYSE:MA',
+          BLK: 'NYSE:BLK', SCHW: 'NYSE:SCHW', AXP: 'NYSE:AXP', USB: 'NYSE:USB',
+          // 工业 / 军工 / 汽车
           SPR: 'NYSE:SPR', BA: 'NYSE:BA', LMT: 'NYSE:LMT', RTX: 'NYSE:RTX', NOC: 'NYSE:NOC',
           GD: 'NYSE:GD', CAT: 'NYSE:CAT', DE: 'NYSE:DE', GE: 'NYSE:GE', F: 'NYSE:F',
-          GM: 'NYSE:GM', V: 'NYSE:V', MA: 'NYSE:MA', JPM: 'NYSE:JPM', BAC: 'NYSE:BAC',
-          WFC: 'NYSE:WFC', C: 'NYSE:C', GS: 'NYSE:GS', MS: 'NYSE:MS', IBM: 'NYSE:IBM',
-          DIS: 'NYSE:DIS', MCD: 'NYSE:MCD', KO: 'NYSE:KO', PG: 'NYSE:PG', XOM: 'NYSE:XOM',
-          CVX: 'NYSE:CVX', T: 'NYSE:T', VZ: 'NYSE:VZ', AIR: 'NYSE:AIR', CW: 'NYSE:CW',
-          HWM: 'NYSE:HWM', LHX: 'NYSE:LHX', TDG: 'NYSE:TDG', HEI: 'NYSE:HEI',
-          TXT: 'NYSE:TXT', HII: 'NYSE:HII', PL: 'NYSE:PL', BAH: 'NYSE:BAH', LDOS: 'NYSE:LDOS'
+          GM: 'NYSE:GM', AIR: 'NYSE:AIR', CW: 'NYSE:CW', HWM: 'NYSE:HWM',
+          LHX: 'NYSE:LHX', TDG: 'NYSE:TDG', HEI: 'NYSE:HEI', TXT: 'NYSE:TXT',
+          HII: 'NYSE:HII', PL: 'NYSE:PL', BAH: 'NYSE:BAH', LDOS: 'NYSE:LDOS',
+          // 消费 / 传媒 / 零售
+          DIS: 'NYSE:DIS', MCD: 'NYSE:MCD', KO: 'NYSE:KO', PG: 'NYSE:PG',
+          NKE: 'NYSE:NKE', SBUX: 'NYSE:SBUX', HD: 'NYSE:HD', LOW: 'NYSE:LOW',
+          TGT: 'NYSE:TGT', WMT: 'NYSE:WMT', COST: 'NYSE:COST',
+          // 能源 / 通讯 / 医疗
+          XOM: 'NYSE:XOM', CVX: 'NYSE:CVX', T: 'NYSE:T', VZ: 'NYSE:VZ',
+          ABBV: 'NYSE:ABBV', JNJ: 'NYSE:JNJ', UNH: 'NYSE:UNH', PFE: 'NYSE:PFE',
+          MRK: 'NYSE:MRK', LLY: 'NYSE:LLY', TMO: 'NYSE:TMO', ABT: 'NYSE:ABT',
+          // 中概 / 其它常见纽交所
+          BABA: 'NYSE:BABA', NIO: 'NYSE:NIO', XPEV: 'NYSE:XPEV', LI: 'NYSE:LI',
+          SNAP: 'NYSE:SNAP', PINS: 'NYSE:PINS', SQ: 'NYSE:SQ', SHOP: 'NYSE:SHOP',
+          UBER: 'NYSE:UBER', LYFT: 'NYSE:LYFT', ROKU: 'NYSE:ROKU', TWLO: 'NYSE:TWLO',
+          NET: 'NYSE:NET', DDOG: 'NYSE:DDOG', ESTC: 'NYSE:ESTC', BILL: 'NYSE:BILL',
+          // 储能 / 其它
+          BE: 'NYSE:BE', STEM: 'NYSE:STEM', FLNC: 'NYSE:FLNC', ENVX: 'NYSE:ENVX'
         };
         const u = raw.toUpperCase();
         if (NYSE_HINT[u]) raw = NYSE_HINT[u];
-        else raw = 'NASDAQ:' + u; // 默认纳斯达克；不对时用户仍能看 Yahoo 精简图
+        else raw = 'NASDAQ:' + u; // 其余默认纳斯达克；不对时可看精简图
       }
       lastChartSymbol = raw;
       updateChartStyleButtons();
