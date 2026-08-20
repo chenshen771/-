@@ -781,6 +781,18 @@
       font-size: 0.95rem;
       margin-top: 2px;
     }
+    .chg-tag {
+      display: inline-block;
+      font-size: 0.62rem;
+      color: var(--muted);
+      background: rgba(255,255,255,0.06);
+      border-radius: 4px;
+      padding: 0 4px;
+      margin-right: 3px;
+      vertical-align: middle;
+      font-weight: 400;
+      font-family: var(--font-display);
+    }
     .detail-close {
       background: none;
       border: none;
@@ -2047,9 +2059,12 @@
     function fhWsApplyTrade(sym, price, ts) {
       if (!sym || !(price > 0)) return;
       const prev = quoteCache[sym] || {};
-      const pc = (typeof prev.pc === 'number' && prev.pc > 0) ? prev.pc : (prev.c || price);
-      const d = price - pc;
-      const dp = pc ? (d / pc * 100) : 0;
+      // 昨收只用已缓存的有效 pc；绝不能用现价顶替（否则涨跌恒为0）
+      const pc = (typeof prev.pc === 'number' && prev.pc > 0 && Math.abs(prev.pc - price) / price > 1e-9)
+        ? prev.pc
+        : (typeof prev.pc === 'number' && prev.pc > 0 ? prev.pc : 0);
+      const d = pc > 0 ? (price - pc) : (typeof prev.d === 'number' ? prev.d : 0);
+      const dp = pc > 0 ? (d / pc * 100) : (typeof prev.dp === 'number' ? prev.dp : 0);
       let h = typeof prev.h === 'number' ? prev.h : price;
       let l = typeof prev.l === 'number' ? prev.l : price;
       if (price > h) h = price;
@@ -2082,7 +2097,7 @@
         const chgEl = document.getElementById('detailChg');
         if (priceEl) priceEl.textContent = Number(price).toFixed(2);
         if (chgEl) {
-          chgEl.textContent = (d >= 0 ? '+' : '') + d.toFixed(2) + ' (' + (dp >= 0 ? '+' : '') + dp.toFixed(2) + '%)';
+          chgEl.innerHTML = chgAmtPctHtml(d, dp);
           chgEl.className = 'detail-chg ' + (dp > 0 ? 'up' : dp < 0 ? 'down' : 'flat');
         }
       }
@@ -2273,16 +2288,21 @@
           };
           const price = scale(q.f43);
           if (price == null) continue;
-          let dp = q.f170 != null ? Number(q.f170) : null;
-          if (dp != null && Math.abs(dp) > 50) dp = dp / 100;
+          const pc = scale(q.f60);
+          // 涨跌额/幅一律用现价与昨收重算，避免东财 f169/f170 量纲不一致（如 3→0.03%、29→0.29%）
+          let d = null, dp = null;
+          if (price != null && pc != null && pc > 0) {
+            d = price - pc;
+            dp = (d / pc) * 100;
+          }
           return {
             c: price,
             h: scale(q.f44),
             l: scale(q.f45),
             o: scale(q.f46),
-            pc: scale(q.f60),
+            pc: pc,
             dp: dp,
-            d: q.f169 != null ? (Math.abs(Number(q.f169)) > 100 ? Number(q.f169) / 100 : Number(q.f169)) : null,
+            d: d,
             cnName: q.f58 || ''
           };
         } catch (e) {}
@@ -2326,7 +2346,13 @@
                 try { data = JSON.parse(data.contents); } catch (e) {}
               }
               // Finnhub 无数据时常返回 c:0
-              if (data && typeof data.c === 'number' && data.c > 0) return data;
+              if (data && typeof data.c === 'number' && data.c > 0) {
+                if (data.pc > 0) {
+                  data.d = data.c - data.pc;
+                  data.dp = (data.d / data.pc) * 100;
+                }
+                return data;
+              }
             } catch (e) {
               console.warn('finnhub try fail', sym, e && e.message);
             }
@@ -2568,6 +2594,67 @@
       if (val === null || val === undefined || isNaN(val)) return '--';
       const sign = val > 0 ? '+' : '';
       return sign + Number(val).toFixed(2) + '%';
+    }
+
+    // 涨跌额 / 涨跌幅要能一眼分清是哪个，不用括号嵌套，各自带一个小标签
+    function chgAmtPctHtml(diff, pct) {
+      const dStr = (diff != null && !isNaN(diff)) ? ((diff >= 0 ? '+' : '') + Number(diff).toFixed(2)) : '--';
+      const pStr = (pct != null && !isNaN(pct)) ? formatChg(pct) : '--';
+      return '<span class="chg-tag">额</span>' + dStr +
+        '<span class="chg-tag" style="margin-left:10px;">幅</span>' + pStr;
+    }
+
+    // 「近3日」紧凑行：开/收一组、最高/最低一组、涨跌额/涨跌幅一组，不用大卡片，一天占用空间更小
+
+    // 涨跌额/涨跌幅做成胶囊标签，颜色跟涨跌方向一致；fontSize 可传入以配合动态缩放
+    function chgPillHtml(diff, pct, fontSize) {
+      fontSize = fontSize || '0.68rem';
+      if (diff == null || pct == null || isNaN(diff) || isNaN(pct)) {
+        return '<span style="color:var(--muted);font-size:0.68rem;">基准</span>';
+      }
+      const cls = chgClass(pct);
+      const bg = cls === 'up' ? 'rgba(34,197,94,0.16)' : cls === 'down' ? 'rgba(239,68,68,0.16)' : 'rgba(255,255,255,0.08)';
+      const color = cls === 'up' ? '#4ade80' : cls === 'down' ? '#f87171' : 'var(--muted)';
+      const fs = parseFloat(fontSize) || 0.66;
+      const padX = fs <= 0.54 ? '6px' : (fs <= 0.6 ? '7px' : '9px');
+      const gap = fs <= 0.54 ? '3px' : '5px';
+      return '<span style="display:inline-flex;align-items:center;gap:' + gap + ';background:' + bg + ';color:' + color + ';' +
+        'border-radius:20px;padding:2px ' + padX + ';font-size:' + fontSize + ';font-weight:700;white-space:nowrap;font-family:var(--font-num);max-width:100%;box-sizing:border-box;">' +
+        '<span>额 ' + (diff >= 0 ? '+' : '') + diff.toFixed(2) + '</span>' +
+        '<span style="opacity:0.4;">|</span>' +
+        '<span>幅 ' + formatChg(pct) + '</span>' +
+      '</span>';
+    }
+
+    function compactDayRowHtml(label, dateStr, op, close, hi, lo, diff, pct, isFirst) {
+      // 原始并排布局：开盘/收盘 左，额幅胶囊右；按总长度分档缩小，避免重叠
+      const dStr = (diff != null && !isNaN(diff)) ? ((diff >= 0 ? '+' : '') + Number(diff).toFixed(2)) : '--';
+      const pStr = (pct != null && !isNaN(pct)) ? formatChg(pct) : '--';
+      const combinedLen = String(op).length + String(close).length + dStr.length + pStr.length;
+      const tier = combinedLen >= 28
+        ? { main: '0.68rem', pill: '0.54rem', hilo: '0.66rem' }
+        : (combinedLen >= 22
+          ? { main: '0.78rem', pill: '0.60rem', hilo: '0.70rem' }
+          : { main: '0.88rem', pill: '0.66rem', hilo: '0.76rem' });
+      return '<div style="grid-column:1/-1;background:var(--bg);border-radius:10px;padding:9px 12px;">' +
+        '<div style="font-size:0.72rem;color:var(--muted);">' + label + (dateStr ? (' · ' + dateStr) : '') + '</div>' +
+        '<div style="display:flex;flex-wrap:nowrap;justify-content:space-between;align-items:center;gap:8px;margin-top:4px;">' +
+          '<span style="font-family:var(--font-num);font-size:' + tier.main + ';font-weight:700;color:var(--text);white-space:nowrap;flex-shrink:0;">' +
+            '<span class="chg-tag">开盘</span>' + op + '<span class="chg-tag" style="margin-left:6px;">收盘</span>' + close +
+          '</span>' +
+          chgPillHtml(diff, pct, tier.pill) +
+        '</div>' +
+        '<div style="font-family:var(--font-num);font-size:' + tier.hilo + ';color:var(--muted);white-space:nowrap;margin-top:5px;">' +
+          '<span class="chg-tag">高</span><span style="color:var(--green);opacity:0.8;">' + hi + '</span><span class="chg-tag" style="margin-left:6px;">低</span><span style="color:var(--red);opacity:0.8;">' + lo + '</span>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function compactCumRowHtml(label, diff, pct) {
+      return '<div style="grid-column:1/-1;background:var(--bg);border-radius:10px;padding:9px 12px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:4px 8px;">' +
+        '<span style="font-size:0.72rem;color:var(--muted);">' + label + '</span>' +
+        chgPillHtml(diff, pct) +
+      '</div>';
     }
 
     function chgClass(val) {
@@ -4985,10 +5072,20 @@ async function refreshAssets(force, opts) {
             q = await fetchQuote(item.symbol);
             if (q && q.c > 0) putQuoteCache(item.symbol, q);
           }
-          if (q && q.c > 0) { price = Number(q.c); dp = q.dp; source = 'Finnhub'; }
+          if (q && q.c > 0) {
+            price = Number(q.c);
+            if (q.pc > 0) { dp = ((price - Number(q.pc)) / Number(q.pc)) * 100; }
+            else { dp = q.dp; }
+            source = 'Finnhub';
+          }
           if (price === null && typeof fetchYahooQuote === 'function') {
             const y = await fetchYahooQuote(item.symbol);
-            if (y) { price = y.price; dp = y.chgPct; source = 'Yahoo'; }
+            if (y) {
+              price = y.price;
+              if (y.prev > 0) dp = ((price - y.prev) / y.prev) * 100;
+              else dp = y.chgPct;
+              source = 'Yahoo';
+            }
           }
           if (price !== null) {
             moves.push({ name: item.name, dp: dp || 0 });
@@ -5054,10 +5151,20 @@ async function refreshAssets(force, opts) {
             q = await fetchQuote(item.symbol);
             if (q && q.c > 0) putQuoteCache(item.symbol, q);
           }
-          if (q && q.c > 0) { price = Number(q.c); dp = q.dp; source = 'Finnhub'; }
+          if (q && q.c > 0) {
+            price = Number(q.c);
+            if (q.pc > 0) { dp = ((price - Number(q.pc)) / Number(q.pc)) * 100; }
+            else { dp = q.dp; }
+            source = 'Finnhub';
+          }
           if (price === null && typeof fetchYahooQuote === 'function') {
             const y = await fetchYahooQuote(item.symbol);
-            if (y) { price = y.price; dp = y.chgPct; source = 'Yahoo'; }
+            if (y) {
+              price = y.price;
+              if (y.prev > 0) dp = ((price - y.prev) / y.prev) * 100;
+              else dp = y.chgPct;
+              source = 'Yahoo';
+            }
           }
           if (price !== null) {
             moves.push({ name: item.name, dp: dp || 0 });
@@ -5313,7 +5420,7 @@ async function refreshAssets(force, opts) {
         if (priceEl) priceEl.textContent = price.toFixed(2);
         if (chgEl && dp != null) {
           const dStr = d != null ? ((d >= 0 ? '+' : '') + Number(d).toFixed(2)) : '';
-          chgEl.textContent = dStr + ' (' + (dp >= 0 ? '+' : '') + Number(dp).toFixed(2) + '%)';
+          chgEl.innerHTML = chgAmtPctHtml(d, dp);
           chgEl.className = 'detail-chg ' + (dp > 0 ? 'up' : dp < 0 ? 'down' : 'flat');
         }
         // 最高最低
@@ -5349,7 +5456,115 @@ async function refreshAssets(force, opts) {
       }
     }
 
-    async function openDetail(symbol, isRestore) {
+    
+    // ---------- 交易日是否已收盘（近3日：未收盘不含「今日」未完成K线） ----------
+    function getZonedParts(date, timeZone) {
+      try {
+        const fmt = new Intl.DateTimeFormat('en-US', {
+          timeZone: timeZone,
+          weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hour12: false
+        });
+        const parts = {};
+        fmt.formatToParts(date).forEach(function (p) { if (p.type !== 'literal') parts[p.type] = p.value; });
+        let hour = parseInt(parts.hour, 10);
+        if (hour === 24) hour = 0;
+        return {
+          weekday: parts.weekday,
+          year: parseInt(parts.year, 10),
+          month: parseInt(parts.month, 10),
+          day: parseInt(parts.day, 10),
+          hour: hour,
+          minute: parseInt(parts.minute, 10)
+        };
+      } catch (e) {
+        const d = date;
+        return { weekday: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()], year: d.getFullYear(), month: d.getMonth()+1, day: d.getDate(), hour: d.getHours(), minute: d.getMinutes() };
+      }
+    }
+    function isWeekendParts(p) {
+      return p.weekday === 'Sat' || p.weekday === 'Sun';
+    }
+    /** 美股常规交易是否已结束（美东 16:00 后或周末视为已收盘日） */
+    function isUSEquitySessionSettled(now) {
+      now = now || new Date();
+      const p = getZonedParts(now, 'America/New_York');
+      if (isWeekendParts(p)) return true;
+      const mins = p.hour * 60 + p.minute;
+      // 9:30 前：仍算上一交易日已收盘区间；盘中未收盘；16:00 及以后已收盘
+      if (mins < 9 * 60 + 30) return true; // 开盘前：昨日已是完整日
+      if (mins >= 16 * 60) return true;
+      return false;
+    }
+    /** A股是否已收盘（北京 15:00 后或周末） */
+    function isCNEquitySessionSettled(now) {
+      now = now || new Date();
+      const p = getZonedParts(now, 'Asia/Shanghai');
+      if (isWeekendParts(p)) return true;
+      const mins = p.hour * 60 + p.minute;
+      if (mins < 9 * 60 + 30) return true;
+      if (mins >= 15 * 60) return true;
+      return false;
+    }
+    function ymdInZone(tsSec, timeZone) {
+      if (tsSec == null || isNaN(tsSec) || !(tsSec > 0)) return '';
+      const p = getZonedParts(new Date(tsSec * 1000), timeZone);
+      return p.year + '-' + String(p.month).padStart(2, '0') + '-' + String(p.day).padStart(2, '0');
+    }
+    function barYmd(bar, timeZone) {
+      if (!bar) return '';
+      if (bar.date && /^\d{4}-\d{2}-\d{2}$/.test(String(bar.date))) return String(bar.date);
+      if (bar.t) return ymdInZone(bar.t, timeZone);
+      return '';
+    }
+    function todayYmdInZone(timeZone) {
+      const p = getZonedParts(new Date(), timeZone);
+      return p.year + '-' + String(p.month).padStart(2, '0') + '-' + String(p.day).padStart(2, '0');
+    }
+    /**
+     * 从日线 pairs 取近3个「应展示」交易日：
+     * - 未收盘：去掉与「交易所今天」同日的未完成K线，取最近3个已完成日 → 标签 前前日/前日/昨日
+     * - 已收盘：含今日 → 标签 前日/昨日/今日
+     */
+    function pickNear3TradingDays(pairs, market) {
+      market = market === 'cn' ? 'cn' : 'us';
+      const tz = market === 'cn' ? 'Asia/Shanghai' : 'America/New_York';
+      const settled = market === 'cn' ? isCNEquitySessionSettled() : isUSEquitySessionSettled();
+      // 过滤无效 bar，并按日期去重
+      let list = [];
+      const seen = {};
+      (pairs || []).forEach(function (b) {
+        if (!b || b.c == null || isNaN(b.c)) return;
+        const y = barYmd(b, tz);
+        if (!y) return;
+        const nb = Object.assign({}, b, { date: y, t: b.t > 0 ? b.t : Math.floor(new Date(y + 'T12:00:00+08:00').getTime() / 1000) });
+        seen[y] = nb;
+      });
+      list = Object.keys(seen).sort().map(function (k) { return seen[k]; });
+      if (!settled && list.length) {
+        const todayY = todayYmdInZone(tz);
+        while (list.length && barYmd(list[list.length - 1], tz) === todayY) {
+          list = list.slice(0, -1);
+        }
+      }
+      const last3 = list.slice(-3);
+      let labels;
+      const todayY = todayYmdInZone(tz);
+      const lastY = last3.length ? barYmd(last3[last3.length - 1], tz) : '';
+      // 最后一根已是「交易所日历今天」且已收盘 → 前日/昨日/今日
+      // 否则（盘中剔掉未完成今日，或跨日尚未开出新K）→ 前前日/前日/昨日
+      // 不用「最近交易日」这种含糊叫法
+      const lastIsCalendarToday = !!(lastY && todayY && lastY === todayY);
+      if (settled && lastIsCalendarToday) {
+        labels = last3.length === 3 ? ['前日', '昨日', '今日'] : (last3.length === 2 ? ['昨日', '今日'] : (last3.length === 1 ? ['今日'] : []));
+      } else {
+        labels = last3.length === 3 ? ['前前日', '前日', '昨日'] : (last3.length === 2 ? ['前日', '昨日'] : (last3.length === 1 ? ['昨日'] : []));
+      }
+      const baseBefore = list.length > last3.length ? list[list.length - last3.length - 1] : null;
+      return { last3: last3, labels: labels, baseBefore: baseBefore, settled: settled };
+    }
+
+async function openDetail(symbol, isRestore) {
       chartStyle = 'mini';
       try { localStorage.setItem('tvChartStyle', 'mini'); } catch (e) {}
       // 切换到个股详情：作废板块成分股的异步 paint，避免标题/列表串台
@@ -5368,33 +5583,71 @@ async function refreshAssets(force, opts) {
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = '';
 
-      // 指数用 Yahoo；普通美股 Finnhub 优先
+      // 有缓存先出价格，体感更快（网络返回后再刷新完整 OHLC/近3日）
+      try {
+        const cq = quoteCache[symbol];
+        if (cq && cq.c > 0) {
+          document.getElementById('detailPrice').textContent = Number(cq.c).toFixed(2);
+          const dp0 = cq.dp != null ? cq.dp : 0;
+          const d0 = cq.d != null ? cq.d : 0;
+          const el0 = document.getElementById('detailChg');
+          el0.innerHTML = chgAmtPctHtml(d0, dp0);
+          el0.className = 'detail-chg ' + (dp0 > 0 ? 'up' : dp0 < 0 ? 'down' : 'flat');
+        }
+      } catch (e) {}
+
+      // 骨架：Finnhub 最新价 ∥ Yahoo 校准 → 画价 → 日线近3日 → WS 实时
       const isUsIndex = /^\^/.test(symbol) || /^(SPX|DJI|IXIC|NDX|RUT|VIX)$/i.test(symbol);
-      let q = quoteCache[symbol];
-      if (q && !(q.c > 0)) q = null;
-      if (!q && !isUsIndex) {
-        q = await fetchQuote(symbol);
-        if (q && q.c > 0) {
-          putQuoteCache(symbol, q);
-        } else q = null;
+      const YMAP = { SPX: '^GSPC', DJI: '^DJI', IXIC: '^IXIC', NDX: '^NDX', RUT: '^RUT', VIX: '^VIX' };
+      const ySym = (function () {
+        let s = symbol;
+        if (isUsIndex && symbol.charAt(0) !== '^') s = '^' + symbol.replace(/^\./, '');
+        const key = String(s).replace(/^\^/, '').toUpperCase();
+        return YMAP[key] || s;
+      })();
+
+      // 强制拉新：不只用旧缓存的 OHLC（缓存价可以，但开高低容易偏）
+      let q = null;
+      let yq = null;
+      try {
+        const tasks = [];
+        if (!isUsIndex) {
+          tasks.push(fetchQuote(symbol).then(function (r) { q = r; }).catch(function () {}));
+        }
+        if (typeof fetchYahooQuote === 'function') {
+          tasks.push(fetchYahooQuote(ySym).then(function (r) { yq = r; }).catch(function () {}));
+        }
+        await Promise.all(tasks);
+      } catch (e) {}
+
+      if ((!q || !(q.c > 0)) && quoteCache[symbol] && quoteCache[symbol].c > 0) {
+        q = quoteCache[symbol];
       }
-      if (!q && typeof fetchYahooQuote === 'function') {
-        const ySym = isUsIndex && symbol.charAt(0) !== '^'
-          ? ('^' + symbol.replace(/^\./, ''))
-          : symbol;
-        // 映射简写到 Yahoo
-        const YMAP = { SPX: '^GSPC', DJI: '^DJI', IXIC: '^IXIC', NDX: '^NDX', RUT: '^RUT', VIX: '^VIX' };
-        const yq = await fetchYahooQuote(YMAP[ySym.replace(/^\^/, '').toUpperCase()] || ySym);
-        if (yq && yq.price != null) {
-          q = {
-            c: yq.price,
-            dp: yq.chgPct,
-            d: yq.price && yq.chgPct != null ? yq.price * yq.chgPct / 100 : null,
-            h: yq.high, l: yq.low, o: yq.open, pc: yq.prev
-          };
-          putQuoteCache(symbol, q);
+      if ((!q || !(q.c > 0)) && yq && yq.price != null) {
+        q = {
+          c: yq.price,
+          dp: yq.chgPct,
+          d: yq.price && yq.chgPct != null ? yq.price * yq.chgPct / 100 : null,
+          h: yq.high, l: yq.low, o: yq.open, pc: yq.prev
+        };
+      }
+      // 合并 Yahoo：补全今开/高低/昨收；若 pc 与现价几乎相同则视为脏数据，留给日线修正
+      if (q && yq) {
+        if ((!(q.o > 0) || isNaN(q.o)) && yq.open != null && !isNaN(yq.open)) q.o = yq.open;
+        if (yq.high != null && !isNaN(yq.high)) q.h = yq.high;
+        if (yq.low != null && !isNaN(yq.low)) q.l = yq.low;
+        if (yq.prev != null && !isNaN(yq.prev) && yq.prev > 0) {
+          const sameAsPrice = q.c > 0 && Math.abs(yq.prev - q.c) / q.c < 1e-6;
+          if (!sameAsPrice && (!(q.pc > 0) || isNaN(q.pc) || Math.abs(q.pc - q.c) / q.c < 1e-6)) {
+            if (!(q.c > 0) || Math.abs(yq.prev - q.c) / q.c < 0.35) q.pc = yq.prev;
+          }
+        }
+        if (q.pc > 0 && q.c > 0) {
+          q.d = q.c - q.pc;
+          q.dp = (q.d / q.pc) * 100;
         }
       }
+      if (q && q.c > 0) putQuoteCache(symbol, q);
       if (!isDetailUI('stock', uiTok)) return;
 
       // 标题：指数显示中文名
@@ -5414,7 +5667,7 @@ async function refreshAssets(force, opts) {
         const d = q.d;
         const chgEl = document.getElementById('detailChg');
         const dStr = (d != null && !isNaN(d)) ? ((d >= 0 ? '+' : '') + Number(d).toFixed(2)) : '';
-        chgEl.textContent = dStr + '  (' + formatChg(dp) + ')';
+        chgEl.innerHTML = chgAmtPctHtml(d, dp);
         chgEl.className = 'detail-chg ' + chgClass(dp);
       } else {
         document.getElementById('detailPrice').textContent = '--';
@@ -5457,18 +5710,26 @@ async function refreshAssets(force, opts) {
             }
           }
           histPairs = pairs;
-          const last3 = pairs.slice(-3);
+          // 未收盘：不含今日未完成K线；已收盘：含今日
+          const near = (typeof pickNear3TradingDays === 'function')
+            ? pickNear3TradingDays(pairs, 'us')
+            : { last3: pairs.slice(-3), labels: ['前日','昨日','今日'], baseBefore: null };
+          const last3 = near.last3 || [];
           if (last3.length) {
-            const labels = ['前日', '昨日', '今日'];
-            const offset = 3 - last3.length;
-            // 前日涨跌基准：再往前一天收盘（如 8/12 相对 8/11）
-            const baseBefore = pairs.length > last3.length ? pairs[pairs.length - last3.length - 1] : null;
+            const labels = near.labels || ['前日', '昨日', '今日'];
+            const baseBefore = near.baseBefore;
             for (let i = 0; i < last3.length; i++) {
               const p = last3[i];
-              const d = new Date(p.t * 1000);
-              const dateStr = (d.getMonth() + 1) + '/' + d.getDate();
-              const label = labels[offset + i] || dateStr;
-              let chgHtml = '';
+              let dateStr;
+              try {
+                const zp = getZonedParts(new Date(p.t * 1000), 'America/New_York');
+                dateStr = zp.month + '/' + zp.day;
+              } catch (e) {
+                const d = new Date(p.t * 1000);
+                dateStr = (d.getMonth() + 1) + '/' + d.getDate();
+              }
+              const label = labels[i] || dateStr;
+              let diffVal = null, pctVal = null;
               let prevClose = null;
               if (i > 0) {
                 prevClose = last3[i - 1].c;
@@ -5476,20 +5737,13 @@ async function refreshAssets(force, opts) {
                 prevClose = baseBefore.c;
               }
               if (prevClose != null && prevClose > 0) {
-                const diff = p.c - prevClose;
-                const pct = (diff / prevClose * 100);
-                chgHtml = `<span class="${chgClass(pct)}" style="font-size:0.75rem;margin-left:4px;">${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${formatChg(pct)})</span>`;
-              } else {
-                chgHtml = `<span style="font-size:0.72rem;color:var(--muted);margin-left:4px;">基准</span>`;
+                diffVal = p.c - prevClose;
+                pctVal = (diffVal / prevClose * 100);
               }
               const hi = p.h != null ? p.h.toFixed(2) : '--';
               const lo = p.l != null ? p.l.toFixed(2) : '--';
-              dayRows += `
-                <div class="detail-stat" style="grid-column:1/-1;">
-                  <div class="label">${label} · ${dateStr}</div>
-                  <div class="val">收 ${p.c.toFixed(2)} ${chgHtml}</div>
-                  <div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">最高 ${hi} · 最低 ${lo}</div>
-                </div>`;
+              const op = (p.o != null && !isNaN(p.o)) ? Number(p.o).toFixed(2) : '--';
+              dayRows += compactDayRowHtml(label, dateStr, op, p.c.toFixed(2), hi, lo, diffVal, pctVal, i === 0);
             }
             // 近3日累计：从「前日」再前一天收盘起算（含前日+昨日+今日三段涨跌）
             // 例：8/12、8/13、8/14 三日 → 基准为 8/11 收盘，不是 8/12 收盘
@@ -5499,21 +5753,13 @@ async function refreshAssets(force, opts) {
               if (first != null && first > 0 && last != null) {
                 const diff = last - first;
                 const pct = (diff / first * 100);
-                dayRows += `
-                <div class="detail-stat" style="grid-column:1/-1;">
-                  <div class="label">近${last3.length}日累计</div>
-                  <div class="val"><span class="${chgClass(pct)}">${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${formatChg(pct)})</span></div>
-                </div>`;
+                dayRows += compactCumRowHtml('近' + last3.length + '日累计', diff, pct);
               } else if (last3.length >= 2) {
                 // 无更早基准时退回旧算法
                 const f = last3[0].c;
                 const diff = last - f;
                 const pct = f ? (diff / f * 100) : 0;
-                dayRows += `
-                <div class="detail-stat" style="grid-column:1/-1;">
-                  <div class="label">近${last3.length}日累计</div>
-                  <div class="val"><span class="${chgClass(pct)}">${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${formatChg(pct)})</span></div>
-                </div>`;
+                dayRows += compactCumRowHtml('近' + last3.length + '日累计', diff, pct);
               }
             }
           }
@@ -5530,18 +5776,86 @@ async function refreshAssets(force, opts) {
         if (q && histPairs && histPairs.length) {
           const lastBar = histPairs[histPairs.length - 1];
           const prevBar = histPairs.length >= 2 ? histPairs[histPairs.length - 2] : null;
-          if (!(q.h > 0) && lastBar && lastBar.h != null) q.h = lastBar.h;
-          if (!(q.l > 0) && lastBar && lastBar.l != null) q.l = lastBar.l;
-          if (!(q.o > 0) && lastBar && lastBar.o != null) q.o = lastBar.o;
-          if (!(q.pc > 0) && prevBar && prevBar.c != null) q.pc = prevBar.c;
+          const tz = 'America/New_York';
+          const todayY = (typeof todayYmdInZone === 'function') ? todayYmdInZone(tz) : '';
+          const lastY = (lastBar && typeof barYmd === 'function') ? barYmd(lastBar, tz) : '';
+          const lastIsToday = !!(todayY && lastY && lastY === todayY);
+          // 开高低：用日K补全（与近3日一致）
+          // 现价：保留 Finnhub/列表同源报价，不用 Yahoo 收盘覆盖（避免资产页与详情价差）
+          if (lastBar) {
+            if (!(q.h > 0) && lastBar.h != null && !isNaN(lastBar.h)) q.h = lastBar.h;
+            else if (lastIsToday && lastBar.h != null && !isNaN(lastBar.h)) q.h = lastBar.h;
+            if (!(q.l > 0) && lastBar.l != null && !isNaN(lastBar.l)) q.l = lastBar.l;
+            else if (lastIsToday && lastBar.l != null && !isNaN(lastBar.l)) q.l = lastBar.l;
+            if (!(q.o > 0) && lastBar.o != null && !isNaN(lastBar.o)) q.o = lastBar.o;
+            else if (lastIsToday && lastBar.o != null && !isNaN(lastBar.o)) q.o = lastBar.o;
+            // 仅当完全没有现价时，才用日K收盘兜底
+            if (!(q.c > 0) && lastBar.c > 0) q.c = lastBar.c;
+          }
+          // 昨收：优先保留 Finnhub/列表同源 pc，缺省才用日K/Yahoo
+          if (!(q.pc > 0)) {
+            if (prevBar && prevBar.c > 0) q.pc = prevBar.c;
+            else if (yq && yq.prev > 0) q.pc = yq.prev;
+          }
+          // 涨跌一律现价-昨收重算，与资产列表同一套公式
+          if (q.pc > 0 && q.c > 0) {
+            q.d = q.c - q.pc;
+            q.dp = (q.d / q.pc) * 100;
+          }
         }
       } catch (e) {}
 
+      
+      // 昨收 / 涨跌：保留报价源 pc；仅缺省时用日K补
+      try {
+        if (q && histPairs && histPairs.length) {
+          const lastBar = histPairs[histPairs.length - 1];
+          const prevBar = histPairs.length >= 2 ? histPairs[histPairs.length - 2] : null;
+          if (!(q.pc > 0) && prevBar && prevBar.c > 0) q.pc = prevBar.c;
+          if (q.pc > 0 && q.c > 0) {
+            q.d = q.c - q.pc;
+            q.dp = (q.d / q.pc) * 100;
+          }
+          // 指数/个股缺今开时用最近完整日K
+          if (!(q.o > 0) && lastBar && lastBar.o != null) q.o = lastBar.o;
+          if (!(q.h > 0) && lastBar && lastBar.h != null) q.h = lastBar.h;
+          if (!(q.l > 0) && lastBar && lastBar.l != null) q.l = lastBar.l;
+          try {
+            const priceEl = document.getElementById('detailPrice');
+            const chgEl = document.getElementById('detailChg');
+            if (priceEl && q.c > 0) priceEl.textContent = Number(q.c).toFixed(2);
+            if (chgEl && q.pc > 0 && q.c > 0) {
+              chgEl.innerHTML = chgAmtPctHtml(q.d, q.dp);
+              chgEl.className = 'detail-chg ' + (typeof chgClass === 'function' ? chgClass(q.dp) : (q.dp > 0 ? 'up' : q.dp < 0 ? 'down' : 'flat'));
+            }
+          } catch (e) {}
+          try { putQuoteCache(symbol, q); } catch (e) {}
+        }
+      } catch (e) {}
+
+      // 顶部四格：写清「当日开盘 / 上日收盘」，并尽量带上交易日日期
+      var openLabel = '今开';
+      var prevLabel = '昨收';
+      try {
+        if (histPairs && histPairs.length) {
+          var tzG = 'America/New_York';
+          var lastB = histPairs[histPairs.length - 1];
+          var prevB = histPairs.length >= 2 ? histPairs[histPairs.length - 2] : null;
+          var lastYG = (lastB && typeof barYmd === 'function') ? barYmd(lastB, tzG) : '';
+          var prevYG = (prevB && typeof barYmd === 'function') ? barYmd(prevB, tzG) : '';
+          var md = function (ymd) {
+            if (!ymd || ymd.length < 10) return '';
+            return parseInt(ymd.slice(5, 7), 10) + '/' + parseInt(ymd.slice(8, 10), 10);
+          };
+          if (lastYG) openLabel = '今开 · ' + md(lastYG) + ' 开盘';
+          if (prevYG) prevLabel = '昨收 · ' + md(prevYG) + ' 收盘';
+        }
+      } catch (e) {}
       document.getElementById('detailGrid').innerHTML = `
         <div class="detail-stat"><div class="label">最高</div><div class="val" style="color:var(--green);">${q && q.h ? Number(q.h).toFixed(2) : '--'}</div></div>
         <div class="detail-stat"><div class="label">最低</div><div class="val" style="color:var(--red);">${q && q.l ? Number(q.l).toFixed(2) : '--'}</div></div>
-        <div class="detail-stat"><div class="label">今开</div><div class="val">${q && q.o ? Number(q.o).toFixed(2) : '--'}</div></div>
-        <div class="detail-stat"><div class="label">昨收</div><div class="val">${q && q.pc ? Number(q.pc).toFixed(2) : '--'}</div></div>
+        <div class="detail-stat"><div class="label">${openLabel}</div><div class="val">${q && q.o ? Number(q.o).toFixed(2) : '--'}</div></div>
+        <div class="detail-stat"><div class="label">${prevLabel}</div><div class="val">${q && q.pc ? Number(q.pc).toFixed(2) : '--'}</div></div>
         ${dayRows}
       `;
 
@@ -8601,6 +8915,19 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = '';
 
+      try {
+        const ck = 'CN:' + String(code).replace(/\D/g, '').slice(0, 6);
+        const cq = quoteCache[ck] || quoteCache[code];
+        if (cq && cq.c > 0) {
+          document.getElementById('detailPrice').textContent = Number(cq.c).toFixed(2);
+          const dp0 = cq.dp != null ? cq.dp : 0;
+          const d0 = cq.d != null ? cq.d : 0;
+          const el0 = document.getElementById('detailChg');
+          el0.innerHTML = chgAmtPctHtml(d0, dp0);
+          el0.className = 'detail-chg ' + (dp0 > 0 ? 'up' : dp0 < 0 ? 'down' : 'flat');
+        }
+      } catch (e) {}
+
       // 东方财富报价
       const secid = cnSecid(code);
       const url = 'https://push2delay.eastmoney.com/api/qt/stock/get?secid=' + secid + '&fields=f43,f44,f45,f46,f47,f48,f57,f58,f60,f169,f170,f171&_=' + Date.now();
@@ -8636,10 +8963,12 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       let high = quote ? scale(quote.f44) : null;
       let low = quote ? scale(quote.f45) : null;
       let prev = quote ? scale(quote.f60) : null;
-      let chgPct = quote && quote.f170 != null ? Number(quote.f170) : null;
-      if (chgPct != null && Math.abs(chgPct) > 50) chgPct = chgPct / 100;
-      let chgAmt = quote && quote.f169 != null ? Number(quote.f169) : null;
-      if (chgAmt != null && Math.abs(chgAmt) > 100) chgAmt = chgAmt / 100;
+      // 与近3日一致：涨跌用 现价-昨收 重算，不用东财原始 f169/f170
+      let chgAmt = null, chgPct = null;
+      if (price != null && prev != null && prev > 0) {
+        chgAmt = price - prev;
+        chgPct = (chgAmt / prev) * 100;
+      }
       const cnName = (quote && quote.f58) ? quote.f58 : (name || '');
 
       // 必须先检查：快速返回成分股后，禁止任何个股标题/价格写回（与美股层栈逻辑一致）
@@ -8650,35 +8979,30 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       if (price != null) {
         document.getElementById('detailPrice').textContent = price.toFixed(2);
         const chgEl = document.getElementById('detailChg');
-        const dStr = chgAmt != null ? ((chgAmt >= 0 ? '+' : '') + chgAmt.toFixed(2)) : '';
-        const pStr = chgPct != null ? ((chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%') : '--';
-        chgEl.textContent = dStr + ' (' + pStr + ')';
+        chgEl.innerHTML = chgAmtPctHtml(chgAmt, chgPct);
         chgEl.className = 'detail-chg ' + (chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat');
+        try {
+          const ck = 'CN:' + String(code).replace(/\D/g, '').slice(0, 6);
+          const qObj = { c: price, o: open, h: high, l: low, pc: prev, d: chgAmt, dp: chgPct, cnName: cnName };
+          putQuoteCache(ck, qObj);
+          putQuoteCache(String(code).replace(/\D/g, '').slice(0, 6), qObj);
+        } catch (e) {}
       } else {
         document.getElementById('detailPrice').textContent = '--';
         document.getElementById('detailChg').textContent = '暂无报价';
       }
 
       // 先渲染 OHLC + 昨/今日对比（不依赖日K接口）
+      // 用跟最终「近3日」列表完全一样的 compactDayRowHtml 渲染，避免加载中/加载完样式不一致，出现闪一下换样式的情况
       const fmt = (v) => (v != null && !isNaN(v) ? Number(v).toFixed(2) : '--');
       let quickDays = '';
       if (prev != null) {
-        quickDays += '<div class="detail-stat" style="grid-column:1/-1;text-align:left;padding:10px 12px;">' +
-          '<div class="label">昨日</div>' +
-          '<div class="val" style="font-size:0.95rem;">收 ' + fmt(prev) + ' <span style="color:var(--muted);">昨收基准</span></div></div>';
+        quickDays += compactDayRowHtml('昨日', '', '--', fmt(prev), '--', '--', null, null, true);
       }
       if (price != null) {
         const dayDiff = prev != null ? (price - prev) : null;
         const dayPct = (prev && dayDiff != null) ? (dayDiff / prev * 100) : null;
-        const cls = dayDiff > 0 ? 'up' : dayDiff < 0 ? 'down' : 'flat';
-        const chg = dayDiff != null
-          ? ('<span class="' + cls + '">' + (dayDiff >= 0 ? '+' : '') + dayDiff.toFixed(2) +
-             (dayPct != null ? ' (' + (dayPct >= 0 ? '+' : '') + dayPct.toFixed(2) + '%)' : '') + '</span>')
-          : '';
-        quickDays += '<div class="detail-stat" style="grid-column:1/-1;text-align:left;padding:10px 12px;">' +
-          '<div class="label">今日</div>' +
-          '<div class="val" style="font-size:0.95rem;">收 ' + fmt(price) + ' ' + chg + '</div>' +
-          '<div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">最高 ' + fmt(high) + ' · 最低 ' + fmt(low) + ' · 今开 ' + fmt(open) + '</div></div>';
+        quickDays += compactDayRowHtml('今日', '', fmt(open), fmt(price), fmt(high), fmt(low), dayDiff, dayPct, false);
       }
       document.getElementById('detailGrid').innerHTML =
         '<div class="detail-stat"><div class="label">最高</div><div class="val" style="color:var(--green);">' + fmt(high) + '</div></div>' +
@@ -8717,10 +9041,38 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
               if (p.length < 5) return;
               const open = parseFloat(p[1]), close = parseFloat(p[2]), high = parseFloat(p[3]), low = parseFloat(p[4]);
               if (isNaN(close)) return;
-              const ds = p[0]; // YYYY-MM-DD
+              const ds = String(p[0] || '').trim(); // YYYY-MM-DD
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(ds)) return;
               const md = ds.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/');
-              rows.push({ md: md, c: close, h: high, l: low, o: open, date: ds });
+              // 北京时间正午时间戳，供 pickNear3 / 去重使用
+              let tSec = 0;
+              try { tSec = Math.floor(new Date(ds + 'T12:00:00+08:00').getTime() / 1000); } catch (e) {}
+              rows.push({ md: md, c: close, h: high, l: low, o: open, date: ds, t: tSec });
             });
+            // 按日期去重（保留最后一根）
+            if (rows.length) {
+              const byD = {};
+              rows.forEach(function (r) { if (r.date) byD[r.date] = r; });
+              rows.length = 0;
+              Object.keys(byD).sort().forEach(function (k) { rows.push(byD[k]); });
+            }
+            // 基金/部分品种日K与现价差 10/100 倍时对齐（如黄金ETF 9.x vs 92.x）
+            if (rows.length && price != null && price > 0) {
+              const lastC = rows[rows.length - 1].c;
+              if (lastC > 0) {
+                const ratio = price / lastC;
+                var kMul = 0;
+                if (ratio > 8 && ratio < 12) kMul = 10;
+                else if (ratio > 80 && ratio < 120) kMul = 100;
+                else if (ratio > 0.08 && ratio < 0.12) kMul = 0.1;
+                else if (ratio > 0.008 && ratio < 0.012) kMul = 0.01;
+                if (kMul && kMul !== 1) {
+                  rows.forEach(function (r) {
+                    r.c *= kMul; r.h *= kMul; r.l *= kMul; r.o *= kMul;
+                  });
+                }
+              }
+            }
           }
         } catch (e) { console.warn('cn kline', e); }
 
@@ -8739,9 +9091,17 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
               const yRows = [];
               for (let yi = 0; yi < ts.length; yi++) {
                 if (closes[yi] == null || isNaN(closes[yi])) continue;
-                const d = new Date(ts[yi] * 1000);
-                const md = (d.getMonth() + 1) + '/' + d.getDate();
-                yRows.push({ md: md, c: closes[yi], h: highs[yi], l: lows[yi], o: opens[yi] });
+                let ds = '', md = '';
+                try {
+                  const zp = getZonedParts(new Date(ts[yi] * 1000), 'Asia/Shanghai');
+                  ds = zp.year + '-' + String(zp.month).padStart(2, '0') + '-' + String(zp.day).padStart(2, '0');
+                  md = zp.month + '/' + zp.day;
+                } catch (e) {
+                  const d = new Date(ts[yi] * 1000);
+                  md = (d.getMonth() + 1) + '/' + d.getDate();
+                  ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                }
+                yRows.push({ md: md, c: closes[yi], h: highs[yi], l: lows[yi], o: opens[yi], date: ds, t: ts[yi] });
               }
               // 若 Yahoo 价格与现价差一个数量级（如 1.88 vs 18.77），做 10 倍校正
               const live = quote && (quote.c || quote.price);
@@ -8765,25 +9125,45 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           } catch (e) {}
         }
 
-        const last3 = rows.slice(-3);
-        const labels = last3.length === 3 ? ['前日', '昨日', '今日'] : (last3.length === 2 ? ['昨日', '今日'] : (last3.length === 1 ? ['今日'] : []));
-        const baseBefore = rows.length > last3.length ? rows[rows.length - last3.length - 1] : null;
+        // 未收盘：去掉今日未完成K线；已收盘才出现「今日」
+        const nearCN = (typeof pickNear3TradingDays === 'function')
+          ? pickNear3TradingDays(rows, 'cn')
+          : null;
+        let last3, labels, baseBefore;
+        if (nearCN && nearCN.last3 && nearCN.last3.length) {
+          last3 = nearCN.last3;
+          labels = nearCN.labels;
+          baseBefore = nearCN.baseBefore;
+          // 保证每条有 md 展示
+          last3 = last3.map(function (p) {
+            if (p.md) return p;
+            const ds = p.date || barYmd(p, 'Asia/Shanghai');
+            const md = ds ? ds.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/') : '';
+            return Object.assign({}, p, { md: md, date: ds });
+          });
+        } else {
+          // 兜底：按 date 去重后取末 3
+          const byD = {};
+          rows.forEach(function (r) { if (r.date) byD[r.date] = r; });
+          const uniq = Object.keys(byD).sort().map(function (k) { return byD[k]; });
+          last3 = uniq.slice(-3);
+          // 兜底标签与 pickNear3 一致：无「今日」K 时用 前前日/前日/昨日
+          labels = last3.length === 3 ? ['前前日', '前日', '昨日'] : (last3.length === 2 ? ['前日', '昨日'] : (last3.length === 1 ? ['昨日'] : []));
+          baseBefore = uniq.length > last3.length ? uniq[uniq.length - last3.length - 1] : null;
+        }
         last3.forEach(function (row, idx) {
-          let chgHtml = '<span style="color:var(--muted);">基准</span>';
+          let diffVal = null, pctVal = null;
           let prevC = null;
           if (idx > 0) prevC = last3[idx - 1].c;
           else if (baseBefore && baseBefore.c != null) prevC = baseBefore.c;
           if (prevC != null && prevC > 0) {
-            const dayDiff = row.c - prevC;
-            const dayPct = (dayDiff / prevC * 100);
-            const cls = dayDiff > 0 ? 'up' : dayDiff < 0 ? 'down' : 'flat';
-            chgHtml = '<span class="' + cls + '">' + (dayDiff >= 0 ? '+' : '') + dayDiff.toFixed(2) + ' (' + (dayPct >= 0 ? '+' : '') + dayPct.toFixed(2) + '%)</span>';
+            diffVal = row.c - prevC;
+            pctVal = (diffVal / prevC * 100);
           }
-          dayRows += '<div class="detail-stat" style="grid-column:1/-1;text-align:left;padding:10px 12px;">' +
-            '<div class="label">' + labels[idx] + ' · ' + row.md + '</div>' +
-            '<div class="val" style="font-size:0.95rem;">收 ' + Number(row.c).toFixed(2) + ' ' + chgHtml + '</div>' +
-            '<div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">最高 ' + (row.h != null ? Number(row.h).toFixed(2) : '--') +
-            ' · 最低 ' + (row.l != null ? Number(row.l).toFixed(2) : '--') + '</div></div>';
+          const hi = row.h != null ? Number(row.h).toFixed(2) : '--';
+          const lo = row.l != null ? Number(row.l).toFixed(2) : '--';
+          const op = (row.o != null && !isNaN(row.o)) ? Number(row.o).toFixed(2) : '--';
+          dayRows += compactDayRowHtml(labels[idx], row.md, op, Number(row.c).toFixed(2), hi, lo, diffVal, pctVal, idx === 0);
         });
         if (last3.length >= 1) {
           const first = (baseBefore && baseBefore.c != null) ? baseBefore.c : null;
@@ -8791,10 +9171,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           if (first != null && first > 0 && last != null) {
             const tot = last - first;
             const totPct = (tot / first * 100);
-            const cls = tot > 0 ? 'up' : tot < 0 ? 'down' : 'flat';
-            dayRows += '<div class="detail-stat" style="grid-column:1/-1;text-align:left;padding:10px 12px;">' +
-              '<div class="label">近' + last3.length + '日累计</div>' +
-              '<div class="val ' + cls + '">' + (tot >= 0 ? '+' : '') + tot.toFixed(2) + ' (' + (totPct >= 0 ? '+' : '') + totPct.toFixed(2) + '%)</div></div>';
+            dayRows += compactCumRowHtml('近' + last3.length + '日累计', tot, totPct);
           }
         }
         if (last3.length < 3 && last3.length > 0) {
@@ -9142,24 +9519,53 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
       const data = await fetchViaProxies(url);
       if (!data) return null;
-      const meta = data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
-      if (meta && typeof meta.regularMarketPrice === 'number') {
-        const price = meta.regularMarketPrice;
-        const prev = meta.chartPreviousClose || meta.previousClose || price;
-        const chg = price - prev;
-        const chgPct = prev ? (chg / prev * 100) : 0;
-        return {
-          price: price,
-          chg: chg,
-          chgPct: chgPct,
-          prev: prev,
-          high: meta.regularMarketDayHigh != null ? meta.regularMarketDayHigh : null,
-          low: meta.regularMarketDayLow != null ? meta.regularMarketDayLow : null,
-          open: meta.regularMarketOpen != null ? meta.regularMarketOpen : null,
-          source: 'Yahoo'
-        };
+      const result = data.chart && data.chart.result && data.chart.result[0];
+      if (!result) return null;
+      const meta = result.meta || {};
+      let price = (typeof meta.regularMarketPrice === 'number') ? meta.regularMarketPrice : null;
+      let prev = null, high = null, low = null, open = null;
+      // 优先用日K最近两根收盘算昨收/涨跌（与详情近3日一致）
+      // 避免 meta.chartPreviousClose 在收盘后指错基准导致列表红、详情绿
+      try {
+        const q0 = result.indicators && result.indicators.quote && result.indicators.quote[0];
+        const closes = q0 && q0.close;
+        if (closes && closes.length) {
+          let lastI = -1, prevI = -1;
+          for (let i = closes.length - 1; i >= 0; i--) {
+            if (closes[i] == null || isNaN(closes[i])) continue;
+            if (lastI < 0) lastI = i;
+            else { prevI = i; break; }
+          }
+          if (lastI >= 0) {
+            if (!(price > 0)) price = Number(closes[lastI]);
+            if (prevI >= 0) prev = Number(closes[prevI]);
+            if (q0.open && q0.open[lastI] != null && !isNaN(q0.open[lastI])) open = Number(q0.open[lastI]);
+            if (q0.high && q0.high[lastI] != null && !isNaN(q0.high[lastI])) high = Number(q0.high[lastI]);
+            if (q0.low && q0.low[lastI] != null && !isNaN(q0.low[lastI])) low = Number(q0.low[lastI]);
+          }
+        }
+      } catch (e) {}
+      if (!(prev > 0)) {
+        // previousClose 通常比 chartPreviousClose 更接近真实昨收
+        prev = (meta.previousClose != null) ? Number(meta.previousClose)
+          : (meta.chartPreviousClose != null ? Number(meta.chartPreviousClose) : null);
       }
-      return null;
+      if (!(price > 0)) return null;
+      if (!(high > 0) && meta.regularMarketDayHigh != null) high = Number(meta.regularMarketDayHigh);
+      if (!(low > 0) && meta.regularMarketDayLow != null) low = Number(meta.regularMarketDayLow);
+      if (!(open > 0) && meta.regularMarketOpen != null) open = Number(meta.regularMarketOpen);
+      const chg = (prev > 0) ? (price - prev) : 0;
+      const chgPct = (prev > 0) ? (chg / prev * 100) : 0;
+      return {
+        price: price,
+        chg: chg,
+        chgPct: chgPct,
+        prev: prev,
+        high: high,
+        low: low,
+        open: open,
+        source: 'Yahoo'
+      };
     }
 
     // Finnhub 备用：用 UUP / 其他可交易标的
