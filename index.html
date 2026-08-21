@@ -7492,18 +7492,31 @@ async function openDetail(symbol, isRestore) {
       }
 
       try {
-        // 优先 1 分钟线（盘中会动），失败再日K
-        let candleData = await fetchYahooCandles('1m', '1d');
-        let mode = '1m';
-        if (!candleData) {
-          candleData = await fetchYahooCandles('5m', '5d');
-          mode = '5m';
+        // 精简图：优先保证「根数够、不挤成几根大蜡烛」
+        // 1m 若不足 40 根（盘后/冷门 ADR 常见）则降级 5m → 15m → 日K
+        let candleData = null;
+        let mode = '5m';
+        const tryList = [
+          ['1m', '1d', 40],
+          ['5m', '5d', 40],
+          ['15m', '1mo', 40],
+          ['1d', '6mo', 20]
+        ];
+        for (let ti = 0; ti < tryList.length; ti++) {
+          const iv = tryList[ti][0], rg = tryList[ti][1], minN = tryList[ti][2];
+          const d = await fetchYahooCandles(iv, rg);
+          if (d && d.length >= minN) {
+            candleData = d;
+            mode = iv;
+            break;
+          }
+          // 不足门槛但比当前好，先记下，继续试更长周期
+          if (d && d.length >= 8 && (!candleData || d.length > candleData.length)) {
+            candleData = d;
+            mode = iv;
+          }
         }
-        if (!candleData) {
-          candleData = await fetchYahooCandles('1d', '6mo');
-          mode = '1d';
-        }
-        if (!candleData) throw new Error('no data');
+        if (!candleData || candleData.length < 3) throw new Error('no data');
         miniChartLastCandles = candleData;
 
         if (miniChartObj) {
@@ -7544,11 +7557,30 @@ async function openDetail(symbol, isRestore) {
         });
         series.setData(candleData);
         const total = candleData.length;
-        const showBars = Math.min(mode === '1d' ? 45 : 80, total);
-        chart.timeScale().setVisibleLogicalRange({
-          from: Math.max(0, total - showBars) - 0.5,
-          to: total - 1 + 0.5
-        });
+        // 多显示一些：日K约 60 根，分钟线约 90～120 根，避免只剩几根特大蜡烛
+        let showBars;
+        if (mode === '1d') showBars = Math.min(60, total);
+        else if (mode === '15m') showBars = Math.min(100, total);
+        else if (mode === '5m') showBars = Math.min(120, total);
+        else showBars = Math.min(90, total); // 1m
+        // 若总根数很少，铺满可见区，不要过度放大单根
+        if (total <= 25) {
+          chart.timeScale().fitContent();
+        } else {
+          chart.timeScale().setVisibleLogicalRange({
+            from: Math.max(0, total - showBars) - 0.5,
+            to: total - 1 + 0.5
+          });
+        }
+        try {
+          // 限制最粗：根数少时也能稍细一点
+          if (typeof chart.timeScale().applyOptions === 'function') {
+            chart.timeScale().applyOptions({
+              barSpacing: total < 30 ? 6 : (total < 60 ? 5 : 4),
+              minBarSpacing: 2
+            });
+          }
+        } catch (e) {}
 
         const last = candleData[candleData.length - 1].close;
         const prev = total > 1 ? candleData[total - 2].close : last;
