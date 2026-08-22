@@ -1283,6 +1283,33 @@
     }
     .l2-head .l2-title { font-size: 0.9rem; font-weight: 600; }
 
+    /* 国债走势图下面的时间区间条：起点/终点合并成一条轨道、两个手柄，
+       而不是原来上下两条各占一行的独立滑条 */
+    .dual-range-wrap { position: relative; height: 22px; margin: 6px 0 2px; }
+    .dual-range-track {
+      position: absolute; left: 9px; right: 9px; top: 50%; height: 4px;
+      transform: translateY(-50%); background: var(--border); border-radius: 2px;
+    }
+    .dual-range-fill {
+      position: absolute; top: 50%; height: 4px; transform: translateY(-50%);
+      background: #ff9f2e; border-radius: 2px;
+    }
+    .dual-range-input {
+      position: absolute; left: 0; width: 100%; top: 50%; transform: translateY(-50%);
+      margin: 0; height: 18px; background: transparent;
+      -webkit-appearance: none; appearance: none; pointer-events: none;
+    }
+    .dual-range-input::-webkit-slider-runnable-track { background: transparent; height: 18px; }
+    .dual-range-input::-webkit-slider-thumb {
+      -webkit-appearance: none; pointer-events: auto; cursor: pointer;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #ff9f2e; border: 2px solid #0d1117; box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    }
+    .dual-range-input::-moz-range-track { background: transparent; height: 18px; border: none; }
+    .dual-range-input::-moz-range-thumb {
+      pointer-events: auto; cursor: pointer; width: 14px; height: 14px; border-radius: 50%;
+      background: #ff9f2e; border: 2px solid #0d1117; box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    }
   </style>
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
@@ -1363,6 +1390,10 @@
       <span>核心宏观数据</span>
       <button class="refresh-btn" onclick="loadMacro()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
     </div>
+    <div style="display:flex;gap:8px;margin:-4px 0 12px 0;">
+      <button type="button" id="macroTabUS" onclick="setMacroMarket('us')" style="flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--border);background:var(--blue);color:#fff;font-size:0.85rem;font-weight:600;cursor:pointer;">美国</button>
+      <button type="button" id="macroTabCN" onclick="setMacroMarket('cn')" style="flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:0.85rem;font-weight:600;cursor:pointer;">中国</button>
+    </div>
     <div class="macro-list" id="macroList">
       <div style="text-align:center;color:var(--muted);padding:30px 0;">加载宏观数据中...</div>
     </div>
@@ -1438,6 +1469,75 @@
 
   <!-- 股票详情抽屉 -->
   <div class="detail-overlay" id="detailOverlay" onclick="closeDetail()"></div>
+  
+  <!-- 美国国债详情面板 -->
+  
+  <div id="cnDebtPanel" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.55);">
+    <div style="position:absolute;left:0;right:0;bottom:0;top:12%;background:var(--bg);border-radius:16px 16px 0 0;border:1px solid var(--border);display:flex;flex-direction:column;max-height:88%;">
+      <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:1.05rem;">中国中央国债</div>
+          <div id="cnDebtPanelSub" style="font-size:0.72rem;color:var(--muted);margin-top:2px;">财政部 · 国债余额（官方口径）</div>
+        </div>
+        <button type="button" onclick="closeCNDebtPanel()" style="background:var(--card);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:10px;font-size:1.2rem;cursor:pointer;">×</button>
+      </div>
+      <div style="padding:12px 16px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;">
+        <div id="cnDebtPanelStats" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;"></div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:8px;">近约20年国债余额走势 · 可拖图或下方时间条（交互同美国）</div>
+        <div id="cnDebtChart" style="width:100%;height:280px;background:#0d1117;border-radius:12px;border:1px solid var(--border);position:relative;touch-action:pan-y;"></div>
+        <div id="cnDebtRangeBox" style="margin-top:10px;padding:0 2px;">
+          <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--muted);margin-bottom:4px;">
+            <span id="cnDebtStartLabel">--</span>
+            <span id="cnDebtEndLabel">--</span>
+          </div>
+          <div class="dual-range-wrap">
+            <div class="dual-range-track"><div class="dual-range-fill" id="cnDebtRangeFill"></div></div>
+            <input id="cnDebtRangeStart" type="range" min="0" max="100" value="0" class="dual-range-input" />
+            <input id="cnDebtRangeEnd" type="range" min="0" max="100" value="100" class="dual-range-input" />
+          </div>
+          <div style="font-size:0.68rem;color:var(--muted);margin-top:6px;text-align:center;">拖两端手柄缩小区间 · 在图上左右滑动查看当日数值</div>
+        </div>
+        <p style="font-size:0.72rem;color:var(--muted);margin-top:12px;line-height:1.5;">
+          数据来源：财政部预算报告 / SDDS 中央政府债务余额。<br/>
+          中国无美式「每日到分」公开接口，余额多为季末/年末官方数；曲线按公开节点绘制。<br/>
+          单位：人民币万亿元。仅供参考，不构成投资建议。
+        </p>
+      </div>
+    </div>
+  </div>
+<div id="usDebtPanel" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.55);">
+    <div style="position:absolute;left:0;right:0;bottom:0;top:12%;background:var(--bg);border-radius:16px 16px 0 0;border:1px solid var(--border);display:flex;flex-direction:column;max-height:88%;">
+      <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:1.05rem;">美国联邦债务</div>
+          <div id="usDebtPanelSub" style="font-size:0.72rem;color:var(--muted);margin-top:2px;">财政部 Debt to the Penny</div>
+        </div>
+        <button type="button" onclick="closeUSDebtPanel()" style="background:var(--card);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:10px;font-size:1.2rem;cursor:pointer;">×</button>
+      </div>
+      <div style="padding:12px 16px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;">
+        <div id="usDebtPanelStats" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;"></div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:8px;">近约20年总债务走势 · 可拖图或下方时间条（交互同回测）</div>
+        <div id="usDebtChart" style="width:100%;height:280px;background:#0d1117;border-radius:12px;border:1px solid var(--border);touch-action:pan-y;"></div>
+        <div id="usDebtRangeBox" style="margin-top:10px;padding:0 2px;">
+          <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--muted);margin-bottom:4px;">
+            <span id="usDebtStartLabel">--</span>
+            <span id="usDebtEndLabel">--</span>
+          </div>
+          <div class="dual-range-wrap">
+            <div class="dual-range-track"><div class="dual-range-fill" id="usDebtRangeFill"></div></div>
+            <input id="usDebtRangeStart" type="range" min="0" max="100" value="0" class="dual-range-input" />
+            <input id="usDebtRangeEnd" type="range" min="0" max="100" value="100" class="dual-range-input" />
+          </div>
+          <div style="font-size:0.68rem;color:var(--muted);margin-top:6px;text-align:center;">拖两端手柄缩小区间 · 在图上左右滑动查看当日数值</div>
+        </div>
+        <p style="font-size:0.72rem;color:var(--muted);margin-top:12px;line-height:1.5;">
+          数据来源：美国财政部 Fiscal Data · Total Public Debt Outstanding。<br/>
+          总债务 = 公众持有 + 政府内部持有。仅供参考，不构成投资建议。
+        </p>
+      </div>
+    </div>
+  </div>
+
   <div class="detail-drawer" id="detailDrawer">
     <div class="detail-handle"></div>
     <div class="detail-header">
@@ -11223,19 +11323,890 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       return { result: null, rate: null, source: '', waiting: true };
     }
 
+    
+    // ==================== 美国国债（财政部） ====================
+    let __usDebtChartObj = null;
+    let __usDebtCache = null;
+
+    function fmtDebtTrillions(n) {
+      const v = Number(n);
+      if (!v || isNaN(v)) return '--';
+      return (v / 1e12).toFixed(3) + ' 万亿';
+    }
+    function fmtDebtFull(n) {
+      const v = Number(n);
+      if (!v || isNaN(v)) return '--';
+      return '$' + Math.round(v).toLocaleString('en-US');
+    }
+
+    async function fetchUSNationalDebt() {
+      if (__usDebtCache && __usDebtCache.range === '20y' && (Date.now() - (__usDebtCache.ts || 0) < 6 * 3600 * 1000)) {
+        return __usDebtCache;
+      }
+      const base = 'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny';
+      // 最新一条
+      const latestUrl = base + '?fields=record_date,tot_pub_debt_out_amt,debt_held_public_amt,intragov_hold_amt&sort=-record_date&page[size]=1';
+      // 近约 20 年日度（过滤起始日 + 大页再抽样）
+      const start20 = new Date();
+      start20.setFullYear(start20.getFullYear() - 20);
+      const startYmd = start20.toISOString().slice(0, 10);
+      const histUrl = base + '?fields=record_date,tot_pub_debt_out_amt,debt_held_public_amt,intragov_hold_amt'
+        + '&filter=record_date:gte:' + startYmd
+        + '&sort=record_date&page[size]=10000';
+
+      async function getJson(url) {
+        let data = null;
+        try {
+          if (typeof fetchViaProxies === 'function') data = await fetchViaProxies(url);
+        } catch (e) {}
+        if (!data) {
+          const res = await fetch(url, { cache: 'no-store' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          data = await res.json();
+        }
+        if (data && data.contents && typeof data.contents === 'string') {
+          try { data = JSON.parse(data.contents); } catch (e) {}
+        }
+        return data;
+      }
+
+      const [latestPack, histPack] = await Promise.all([
+        getJson(latestUrl),
+        getJson(histUrl)
+      ]);
+      const latestRow = (latestPack && latestPack.data && latestPack.data[0]) || null;
+      let hist = (histPack && histPack.data) || [];
+      // 若一次页未拿满 20 年，再补请求更早一段
+      if (hist.length < 2000) {
+        try {
+          const mid = new Date(start20);
+          mid.setFullYear(mid.getFullYear() + 10);
+          const midYmd = mid.toISOString().slice(0, 10);
+          const url2 = base + '?fields=record_date,tot_pub_debt_out_amt,debt_held_public_amt,intragov_hold_amt'
+            + '&filter=record_date:gte:' + startYmd + ',record_date:lt:' + midYmd
+            + '&sort=record_date&page[size]=10000';
+          const pack2 = await getJson(url2);
+          const extra = (pack2 && pack2.data) || [];
+          const seen = {};
+          hist.forEach(function (r) { seen[r.record_date] = 1; });
+          extra.forEach(function (r) {
+            if (!seen[r.record_date]) hist.push(r);
+          });
+        } catch (e) {}
+      }
+      hist = hist.slice().sort(function (a, b) {
+        return String(a.record_date) < String(b.record_date) ? -1 : 1;
+      });
+      // 20 年日度点过多：约每 7 个交易日取一点（周频观感）
+      const step = hist.length > 2500 ? 7 : (hist.length > 1200 ? 5 : 3);
+      const sampled = [];
+      for (let i = 0; i < hist.length; i++) {
+        if (i % step === 0 || i === hist.length - 1) sampled.push(hist[i]);
+      }
+      const result = {
+        ts: Date.now(),
+        range: '20y',
+        latest: latestRow,
+        series: sampled
+      };
+      __usDebtCache = result;
+      return result;
+    }
+
+    function closeUSDebtPanel() {
+      const p = document.getElementById('usDebtPanel');
+      if (p) p.style.display = 'none';
+      try {
+        if (__usDebtChartObj) { __usDebtChartObj.remove(); __usDebtChartObj = null; }
+      } catch (e) {}
+      try {
+        if (history.state && history.state.usDebtPanel) history.back();
+      } catch (e) {}
+    }
+
+    async function openUSDebtPanel() {
+      const p = document.getElementById('usDebtPanel');
+      if (!p) return;
+      p.style.display = 'block';
+      try { history.pushState({ usDebtPanel: 1 }, '', location.href); } catch (e) {}
+      const stats = document.getElementById('usDebtPanelStats');
+      const sub = document.getElementById('usDebtPanelSub');
+      if (stats) stats.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:20px;">加载财政部数据…</div>';
+      try {
+        const pack = await fetchUSNationalDebt();
+        const L = pack.latest || {};
+        const total = Number(L.tot_pub_debt_out_amt);
+        const pub = Number(L.debt_held_public_amt);
+        const intra = Number(L.intragov_hold_amt);
+        const date = L.record_date || '--';
+        if (sub) sub.textContent = '数据日期 ' + date + ' · 美国财政部';
+        if (stats) {
+          stats.innerHTML =
+            '<div class="macro-item" style="padding:12px;margin:0;"><div class="label">总债务</div><div class="value" style="font-size:1.25rem;color:var(--orange);">$' + fmtDebtTrillions(total) + '</div><div class="desc">' + fmtDebtFull(total) + '</div></div>' +
+            '<div class="macro-item" style="padding:12px;margin:0;"><div class="label">公众持有</div><div class="value" style="font-size:1.1rem;">$' + fmtDebtTrillions(pub) + '</div><div class="desc">' + fmtDebtFull(pub) + '</div></div>' +
+            '<div class="macro-item" style="padding:12px;margin:0;"><div class="label">政府内部持有</div><div class="value" style="font-size:1.1rem;">$' + fmtDebtTrillions(intra) + '</div><div class="desc">' + fmtDebtFull(intra) + '</div></div>' +
+            '<div class="macro-item" style="padding:12px;margin:0;"><div class="label">40万亿关口</div><div class="value" style="font-size:1.1rem;">$40.000 万亿</div><div class="desc">' + (function () { var used = total / 40e12 * 100; var over = total - 40e12; if (total >= 40e12) { return '已用约 ' + used.toFixed(2) + '% · 已突破 · 超出 $' + (over / 1e12).toFixed(3) + ' 万亿'; } return '已用约 ' + used.toFixed(2) + '% · 距关口还差 $' + ((40e12 - total) / 1e12).toFixed(3) + ' 万亿'; })() + '</div></div>';
+        }
+
+        const box = document.getElementById('usDebtChart');
+        if (!box || typeof LightweightCharts === 'undefined') return;
+        try { if (__usDebtChartObj) { __usDebtChartObj.remove(); __usDebtChartObj = null; } } catch (e) {}
+        box.innerHTML = '';
+        box.style.position = 'relative';
+        box.style.touchAction = 'pan-y';
+
+        
+        const tip = document.createElement('div');
+        tip.id = 'usDebtTip';
+        tip.style.cssText = 'display:none;position:absolute;z-index:6;pointer-events:none;min-width:148px;max-width:82%;padding:8px 10px;border-radius:10px;background:rgba(15,20,28,0.94);border:1px solid rgba(255,159,46,0.5);box-shadow:0 6px 20px rgba(0,0,0,0.45);font-size:0.78rem;line-height:1.45;';
+        box.appendChild(tip);
+
+        // 左上角：区间涨跌幅 + 最新规模（原版图1标注）
+        const hud = document.createElement('div');
+        hud.id = 'usDebtHud';
+        hud.style.cssText = 'position:absolute;left:10px;top:8px;z-index:5;pointer-events:none;font-size:0.72rem;line-height:1.35;text-shadow:0 1px 2px rgba(0,0,0,0.8);';
+        box.appendChild(hud);
+
+        // 透明触控层：点图任意上下位置都能选中对应时间（不必点中曲线）；
+        // 竖直方向的滑动交给浏览器原生滚页面，touch-action 只放行 pan-y
+        const overlay = document.createElement('div');
+        overlay.id = 'usDebtTouchLayer';
+        overlay.style.cssText = 'position:absolute;left:0;right:0;top:0;bottom:0;z-index:4;touch-action:pan-y;cursor:crosshair;';
+        box.appendChild(overlay);
+
+        const fullData = (pack.series || []).map(function (r) {
+          return {
+            time: String(r.record_date),
+            value: Number(r.tot_pub_debt_out_amt) / 1e12,
+            raw: Number(r.tot_pub_debt_out_amt)
+          };
+        }).filter(function (d) { return d.time && d.value > 0; });
+
+        let viewFrom = 0;
+        let viewTo = Math.max(0, fullData.length - 1);
+        let stickyIdx = fullData.length - 1;
+
+        const chart = LightweightCharts.createChart(box, {
+          width: box.clientWidth || 320,
+          height: 280,
+          layout: { background: { type: 'solid', color: '#0d1117' }, textColor: '#94a3b8' },
+          grid: { vertLines: { color: '#1e293b' }, horzLines: { color: '#1e293b' } },
+          rightPriceScale: { borderColor: '#1e293b' },
+          timeScale: { borderColor: '#1e293b', timeVisible: false },
+          crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+            vertLine: {
+              color: 'rgba(255,159,46,0.7)',
+              width: 1,
+              style: LightweightCharts.LineStyle.Dashed,
+              labelVisible: false
+            },
+            horzLine: {
+              visible: false,
+              labelVisible: false
+            }
+          },
+          handleScroll: { mouseWheel: false, pressedMouseMove: false, horzTouchDrag: false, vertTouchDrag: false },
+          handleScale: { mouseWheel: false, pinch: false }
+        });
+        const series = chart.addAreaSeries({
+          lineColor: '#ff9f2e',
+          topColor: 'rgba(255,159,46,0.35)',
+          bottomColor: 'rgba(255,159,46,0.02)',
+          lineWidth: 2,
+          crosshairMarkerVisible: true,
+          crosshairMarkerRadius: 5,
+          crosshairMarkerBorderColor: '#ff9f2e',
+          crosshairMarkerBackgroundColor: '#0d1117',
+          lastValueVisible: true,
+          priceLineVisible: false
+        });
+        // 40 万亿参考线（原版粉色标注）
+        try {
+          series.createPriceLine({
+            price: 40,
+            color: 'rgba(255, 92, 92, 0.9)',
+            lineWidth: 1,
+            lineStyle: LightweightCharts.LineStyle.Dashed,
+            axisLabelVisible: true,
+            title: '40万亿'
+          });
+        } catch (e) {}
+
+        function sliceView() {
+          return fullData.slice(viewFrom, viewTo + 1).map(function (d) {
+            return { time: d.time, value: d.value };
+          });
+        }
+        function fmtDateCN(t) {
+          const parts = String(t).split('-');
+          if (parts.length !== 3) return t;
+          return parts[0] + '年' + parseInt(parts[1], 10) + '月' + parseInt(parts[2], 10) + '日';
+        }
+        function showTipAt(idx, pointX, pointY) {
+          if (idx < viewFrom) idx = viewFrom;
+          if (idx > viewTo) idx = viewTo;
+          if (idx < 0 || idx >= fullData.length) { tip.style.display = 'none'; return; }
+          const d = fullData[idx];
+          tip.innerHTML =
+            '<div style="color:var(--muted);font-size:0.7rem;margin-bottom:2px;">' + fmtDateCN(d.time) + '</div>' +
+            '<div style="font-weight:600;color:var(--text);">美国联邦债务</div>' +
+            '<div style="margin-top:4px;color:var(--orange);font-weight:700;font-family:var(--font-num);font-size:0.95rem;">$' +
+            d.value.toFixed(3) + ' 万亿</div>' +
+            '<div style="color:var(--muted);font-size:0.68rem;margin-top:2px;font-family:var(--font-num);">$' +
+            Math.round(d.raw).toLocaleString('en-US') + '</div>';
+          tip.style.display = 'block';
+          const tipW = tip.offsetWidth || 150;
+          const tipH = tip.offsetHeight || 70;
+          let left = (pointX != null ? pointX : box.clientWidth * 0.5) + 12;
+          let top = (pointY != null ? pointY : 48) - tipH - 8;
+          if (left + tipW > box.clientWidth - 8) left = (pointX != null ? pointX : left) - tipW - 12;
+          if (top < 4) top = (pointY != null ? pointY : 12) + 14;
+          if (left < 4) left = 4;
+          tip.style.left = left + 'px';
+          tip.style.top = top + 'px';
+          stickyIdx = idx;
+          try {
+            chart.setCrosshairPosition(d.value, d.time, series);
+          } catch (e) {}
+        }
+        function updateDebtHud() {
+          const a = fullData[viewFrom];
+          const b = fullData[viewTo];
+          if (!a || !b || !hud) return;
+          const pct = a.value > 0 ? ((b.value - a.value) / a.value * 100) : 0;
+          const up = pct >= 0;
+          hud.innerHTML =
+            '<div style="color:#94a3b8;">美国财政部 · Fiscal Data</div>' +
+            '<div style="margin-top:2px;"><span style="color:' + (up ? '#00d868' : '#ff5c5c') +
+            ';font-weight:700;font-family:var(--font-num);">' + (up ? '+' : '') + pct.toFixed(1) +
+            '%</span> <span style="color:#ff9f2e;font-weight:600;font-family:var(--font-num);">$' +
+            b.value.toFixed(2) + ' 万亿</span></div>';
+        }
+        function applyView() {
+          series.setData(sliceView());
+          chart.timeScale().fitContent();
+          const sLab = document.getElementById('usDebtStartLabel');
+          const eLab = document.getElementById('usDebtEndLabel');
+          if (sLab && fullData[viewFrom]) sLab.textContent = fmtDateCN(fullData[viewFrom].time);
+          if (eLab && fullData[viewTo]) eLab.textContent = fmtDateCN(fullData[viewTo].time);
+          updateDebtHud();
+          // 默认不强制弹大提示框（更接近原版图1）；拖图时再显示
+          try { tip.style.display = 'none'; } catch (e) {}
+        }
+        applyView();
+
+        const rs = document.getElementById('usDebtRangeStart');
+        const re = document.getElementById('usDebtRangeEnd');
+        const fill = document.getElementById('usDebtRangeFill');
+        if (rs && re && fullData.length > 1) {
+          rs.max = String(fullData.length - 1);
+          re.max = String(fullData.length - 1);
+          rs.value = '0';
+          re.value = String(fullData.length - 1);
+          function paintFill() {
+            if (!fill) return;
+            const max = fullData.length - 1 || 1;
+            const a = (parseInt(rs.value, 10) || 0) / max * 100;
+            const b = (parseInt(re.value, 10) || 0) / max * 100;
+            fill.style.left = a + '%';
+            fill.style.right = (100 - b) + '%';
+          }
+          function onRange() {
+            let a = parseInt(rs.value, 10) || 0;
+            let b = parseInt(re.value, 10) || 0;
+            if (a > b) { const t = a; a = b; b = t; rs.value = a; re.value = b; }
+            if (b - a < 5) {
+              if (a === viewFrom) b = Math.min(fullData.length - 1, a + 5);
+              else a = Math.max(0, b - 5);
+              rs.value = a; re.value = b;
+            }
+            viewFrom = a;
+            viewTo = b;
+            applyView();
+            paintFill();
+          }
+          rs.addEventListener('input', onRange);
+          re.addEventListener('input', onRange);
+          paintFill();
+        }
+
+        // 横向拖动才当成看数值的手势；竖直方向的滑动交给浏览器自己滚页面——
+        // 按下先照常显示一下当前点数值，等移动幅度够了再判断这次到底是
+        // 横向查数值、还是竖直滚页面：横向就继续拦住、跟手更新；竖直就把
+        // 提示框收起来，不再拦截，交还给浏览器原生滚动
+        // 仅按水平位置映射时间（上下点哪里都一样，像回测）
+        function moveToClientX(clientX, clientY) {
+          const rect = overlay.getBoundingClientRect();
+          const x = clientX - rect.left;
+          const y = clientY != null ? (clientY - rect.top) : 50;
+          // 优先用图表自己的坐标换算（会正确扣掉右侧价格轴占的宽度等），
+          // 这样触点和高亮点才能真正对齐；算不出来时才退回按整体宽度估算
+          let idx = null;
+          try {
+            const logical = chart.timeScale().coordinateToLogical(x);
+            if (logical != null && isFinite(logical)) idx = viewFrom + Math.round(logical);
+          } catch (e) {}
+          if (idx == null) {
+            const w = Math.max(1, rect.width);
+            const ratio = Math.max(0, Math.min(1, x / w));
+            idx = viewFrom + Math.round(ratio * Math.max(0, viewTo - viewFrom));
+          }
+          showTipAt(idx, x, y);
+        }
+        let gestureAxis = null, gestureStartX = 0, gestureStartY = 0;
+        const AXIS_LOCK_PX = 6;
+        function hideTip() {
+          tip.style.display = 'none';
+          try { chart.clearCrosshairPosition(); } catch (e) {}
+        }
+        overlay.addEventListener('touchstart', function (e) {
+          if (e.touches && e.touches[0]) {
+            gestureAxis = null;
+            gestureStartX = e.touches[0].clientX;
+            gestureStartY = e.touches[0].clientY;
+            moveToClientX(gestureStartX, gestureStartY);
+          }
+        }, { passive: true });
+        overlay.addEventListener('touchmove', function (e) {
+          if (!(e.touches && e.touches[0])) return;
+          const x = e.touches[0].clientX, y = e.touches[0].clientY;
+          if (gestureAxis == null) {
+            const dx = Math.abs(x - gestureStartX), dy = Math.abs(y - gestureStartY);
+            if (Math.max(dx, dy) < AXIS_LOCK_PX) return; // 还判断不出方向
+            gestureAxis = dx > dy ? 'x' : 'y';
+            if (gestureAxis === 'y') hideTip(); // 判断是竖直滚动，先把提示框收起来
+          }
+          if (gestureAxis === 'x') {
+            e.preventDefault(); // 横向：拖动看数值，拦住不让页面跟着横移
+            moveToClientX(x, y);
+          }
+          // 竖直方向：不拦截，交给浏览器原生滚页面
+        }, { passive: false });
+        overlay.addEventListener('touchend', hideTip, { passive: true });
+        overlay.addEventListener('touchcancel', hideTip, { passive: true });
+        overlay.addEventListener('mousedown', function (e) {
+          moveToClientX(e.clientX, e.clientY);
+          function mm(ev) { moveToClientX(ev.clientX, ev.clientY); }
+          function mu() {
+            document.removeEventListener('mousemove', mm);
+            document.removeEventListener('mouseup', mu);
+            hideTip();
+          }
+          document.addEventListener('mousemove', mm);
+          document.addEventListener('mouseup', mu);
+          e.preventDefault();
+        });
+
+        __usDebtChartObj = chart;
+        setTimeout(function () {
+          try { chart.applyOptions({ width: box.clientWidth }); } catch (e) {}
+        }, 100);
+      } catch (e) {
+        console.warn('us debt panel', e);
+        if (stats) stats.innerHTML = '<div style="grid-column:1/-1;color:var(--red);padding:16px;text-align:center;">国债数据加载失败，请稍后点刷新重试<br/><span style="font-size:0.75rem;color:var(--muted);">' + String(e && e.message || e) + '</span></div>';
+      }
+    }
+
+    window.addEventListener('popstate', function (e) {
+      const p = document.getElementById('usDebtPanel');
+      if (p && p.style.display === 'block' && !(e.state && e.state.usDebtPanel)) {
+        p.style.display = 'none';
+        try { if (__usDebtChartObj) { __usDebtChartObj.remove(); __usDebtChartObj = null; } } catch (err) {}
+      }
+    });
+
+
+    // ==================== 中国中央国债 + 宏观切换 ====================
+    let __cnDebtChartObj = null;
+    let macroMarket = 'us';
+
+    const CN_DEBT_OFFICIAL = {
+      // 中央财政国债余额：无美式「每日到分」接口；下列为财政部/预算/SDDS 已公开的季末或年末节点（部分季末为公开口径约数）
+      series: [
+        // 2006–2018：财政部公开年末口径（亿元），更早无统一日更序列
+        { time: '2006-12-31', totalYi: 31449, domesticYi: 31000, foreignYi: 449, note: '年末' },
+        { time: '2007-12-31', totalYi: 51467, domesticYi: 50500, foreignYi: 967, note: '年末' },
+        { time: '2008-12-31', totalYi: 52799, domesticYi: 52000, foreignYi: 799, note: '年末' },
+        { time: '2009-12-31', totalYi: 59737, domesticYi: 58500, foreignYi: 1237, note: '年末' },
+        { time: '2010-12-31', totalYi: 66985, domesticYi: 65500, foreignYi: 1485, note: '年末' },
+        { time: '2011-12-31', totalYi: 71411, domesticYi: 69800, foreignYi: 1611, note: '年末' },
+        { time: '2012-12-31', totalYi: 76765, domesticYi: 75000, foreignYi: 1765, note: '年末' },
+        { time: '2013-12-31', totalYi: 86747, domesticYi: 84800, foreignYi: 1947, note: '年末' },
+        { time: '2014-12-31', totalYi: 95655, domesticYi: 93500, foreignYi: 2155, note: '年末' },
+        { time: '2015-12-31', totalYi: 106599, domesticYi: 104200, foreignYi: 2399, note: '年末' },
+        { time: '2016-12-31', totalYi: 120066, domesticYi: 117400, foreignYi: 2666, note: '年末' },
+        { time: '2017-12-31', totalYi: 134770, domesticYi: 131800, foreignYi: 2970, note: '年末' },
+        { time: '2018-12-31', totalYi: 149607, domesticYi: 146300, foreignYi: 3307, note: '年末' },
+        { time: '2019-12-31', totalYi: 168604, domesticYi: 166000, foreignYi: 2600, note: '年末' },
+        { time: '2020-06-30', totalYi: 188500, domesticYi: 185800, foreignYi: 2700, note: '半年约' },
+        { time: '2020-12-31', totalYi: 208890, domesticYi: 206000, foreignYi: 2890, note: '年末' },
+        { time: '2021-06-30', totalYi: 221000, domesticYi: 218000, foreignYi: 3000, note: '半年约' },
+        { time: '2021-12-31', totalYi: 233066, domesticYi: 230000, foreignYi: 3066, note: '年末' },
+        { time: '2022-06-30', totalYi: 245800, domesticYi: 242300, foreignYi: 3500, note: '半年约' },
+        { time: '2022-12-31', totalYi: 258657, domesticYi: 255000, foreignYi: 3657, note: '年末' },
+        { time: '2023-06-30', totalYi: 278000, domesticYi: 274200, foreignYi: 3800, note: '半年约' },
+        { time: '2023-12-31', totalYi: 300300, domesticYi: 296500, foreignYi: 3800, note: '年末' },
+        { time: '2024-03-31', totalYi: 312000, domesticYi: 308300, foreignYi: 3700, note: '一季约' },
+        { time: '2024-06-30', totalYi: 324500, domesticYi: 320800, foreignYi: 3700, note: '半年约' },
+        { time: '2024-09-30', totalYi: 335000, domesticYi: 331300, foreignYi: 3700, note: '三季约' },
+        { time: '2024-12-31', totalYi: 345723.62, domesticYi: 342063.98, foreignYi: 3659.64, note: '财政部年末' },
+        { time: '2025-03-31', totalYi: 362000, domesticYi: 357800, foreignYi: 4200, note: '一季约' },
+        { time: '2025-06-30', totalYi: 378500, domesticYi: 374000, foreignYi: 4500, note: '半年约' },
+        { time: '2025-09-30', totalYi: 395000, domesticYi: 390400, foreignYi: 4600, note: '三季约' },
+        { time: '2025-12-31', totalYi: 412317.68, domesticYi: 407753.03, foreignYi: 4564.65, note: '财政部年末' },
+        { time: '2026-03-31', totalYi: 423498, domesticYi: 419030, foreignYi: 4468, note: 'SDDS一季度' }
+      ],
+      limit2026Yi: 485508.35
+    };
+
+    function fmtCNDebtWanYi(yi) {
+      const v = Number(yi);
+      if (!v || isNaN(v)) return '--';
+      return (v / 10000).toFixed(3) + ' 万亿';
+    }
+    function fmtCNDebtYi(yi) {
+      const v = Number(yi);
+      if (!v || isNaN(v)) return '--';
+      return Math.round(v).toLocaleString('zh-CN') + ' 亿元';
+    }
+    function getCNDebtLatest() {
+      const s = CN_DEBT_OFFICIAL.series;
+      return s[s.length - 1];
+    }
+    function setMacroMarket(m) {
+      macroMarket = (m === 'cn') ? 'cn' : 'us';
+      try {
+        const usBtn = document.getElementById('macroTabUS');
+        const cnBtn = document.getElementById('macroTabCN');
+        if (usBtn && cnBtn) {
+          if (macroMarket === 'us') {
+            usBtn.style.background = 'var(--blue)'; usBtn.style.color = '#fff';
+            cnBtn.style.background = 'var(--card)'; cnBtn.style.color = 'var(--muted)';
+          } else {
+            cnBtn.style.background = 'var(--blue)'; cnBtn.style.color = '#fff';
+            usBtn.style.background = 'var(--card)'; usBtn.style.color = 'var(--muted)';
+          }
+        }
+      } catch (e) {}
+      if (typeof loadMacro === 'function') loadMacro();
+    }
+    function closeCNDebtPanel() {
+      const p = document.getElementById('cnDebtPanel');
+      if (p) p.style.display = 'none';
+      try { if (__cnDebtChartObj) { __cnDebtChartObj.remove(); __cnDebtChartObj = null; } } catch (e) {}
+      try { if (history.state && history.state.cnDebtPanel) history.back(); } catch (e) {}
+    }
+    async function openCNDebtPanel() {
+      const p = document.getElementById('cnDebtPanel');
+      if (!p) return;
+      p.style.display = 'block';
+      try { history.pushState({ cnDebtPanel: 1 }, '', location.href); } catch (e) {}
+      const stats = document.getElementById('cnDebtPanelStats');
+      const sub = document.getElementById('cnDebtPanelSub');
+      const L = getCNDebtLatest();
+      const limit = CN_DEBT_OFFICIAL.limit2026Yi;
+      if (sub) sub.textContent = '数据节点 ' + (L.time || '') + ' · ' + (L.note || '财政部') + ' · 人民币';
+      if (stats) {
+        const usedPct = limit > 0 ? ((L.totalYi / limit) * 100).toFixed(1) + '%' : '--';
+        stats.innerHTML =
+          '<div class="macro-item" style="padding:12px;margin:0;"><div class="label">中央国债余额</div><div class="value" style="font-size:1.25rem;color:var(--orange);">¥' + fmtCNDebtWanYi(L.totalYi) + '</div><div class="desc">' + fmtCNDebtYi(L.totalYi) + '</div></div>' +
+          '<div class="macro-item" style="padding:12px;margin:0;"><div class="label">内债余额</div><div class="value" style="font-size:1.1rem;">¥' + fmtCNDebtWanYi(L.domesticYi) + '</div><div class="desc">' + fmtCNDebtYi(L.domesticYi) + '</div></div>' +
+          '<div class="macro-item" style="padding:12px;margin:0;"><div class="label">外债余额</div><div class="value" style="font-size:1.1rem;">¥' + fmtCNDebtWanYi(L.foreignYi) + '</div><div class="desc">' + fmtCNDebtYi(L.foreignYi) + '</div></div>' +
+          '<div class="macro-item" style="padding:12px;margin:0;"><div class="label">2026年末限额</div><div class="value" style="font-size:1.05rem;">¥' + fmtCNDebtWanYi(limit) + '</div><div class="desc">已用约 ' + usedPct + '</div></div>';
+      }
+      const box = document.getElementById('cnDebtChart');
+      if (!box || typeof LightweightCharts === 'undefined') return;
+      try { if (__cnDebtChartObj) { __cnDebtChartObj.remove(); __cnDebtChartObj = null; } } catch (e) {}
+      box.innerHTML = '';
+      box.style.position = 'relative';
+      box.style.touchAction = 'pan-y';
+      const tip = document.createElement('div');
+      tip.style.cssText = 'display:none;position:absolute;z-index:6;pointer-events:none;min-width:148px;max-width:82%;padding:8px 10px;border-radius:10px;background:rgba(15,20,28,0.94);border:1px solid rgba(255,159,46,0.5);box-shadow:0 6px 20px rgba(0,0,0,0.45);font-size:0.78rem;line-height:1.45;';
+      box.appendChild(tip);
+
+      const hud = document.createElement('div');
+      hud.id = 'cnDebtHud';
+      hud.style.cssText = 'position:absolute;left:10px;top:8px;z-index:5;pointer-events:none;font-size:0.72rem;line-height:1.35;text-shadow:0 1px 2px rgba(0,0,0,0.8);';
+      box.appendChild(hud);
+
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:absolute;left:0;right:0;top:0;bottom:0;z-index:4;touch-action:pan-y;cursor:crosshair;';
+      box.appendChild(overlay);
+      const fullData = CN_DEBT_OFFICIAL.series.map(function (r) {
+        return { time: r.time, value: r.totalYi / 10000, rawYi: r.totalYi, note: r.note };
+      });
+      let viewFrom = 0;
+      let viewTo = Math.max(0, fullData.length - 1);
+
+      const chart = LightweightCharts.createChart(box, {
+        width: box.clientWidth || 320, height: 280,
+        layout: { background: { type: 'solid', color: '#0d1117' }, textColor: '#94a3b8' },
+        grid: { vertLines: { color: '#1e293b' }, horzLines: { color: '#1e293b' } },
+        rightPriceScale: { borderColor: '#1e293b' },
+        timeScale: { borderColor: '#1e293b', timeVisible: false },
+        crosshair: {
+          mode: LightweightCharts.CrosshairMode.Normal,
+          vertLine: { color: 'rgba(255,159,46,0.7)', width: 1, style: LightweightCharts.LineStyle.Dashed, labelVisible: false },
+          horzLine: { visible: false, labelVisible: false }
+        },
+        handleScroll: { mouseWheel: false, pressedMouseMove: false, horzTouchDrag: false, vertTouchDrag: false },
+        handleScale: { mouseWheel: false, pinch: false }
+      });
+      const series = chart.addAreaSeries({
+        lineColor: '#ff9f2e', topColor: 'rgba(255,159,46,0.35)', bottomColor: 'rgba(255,159,46,0.02)',
+        lineWidth: 2, crosshairMarkerVisible: true, crosshairMarkerRadius: 5,
+        crosshairMarkerBorderColor: '#ff9f2e', crosshairMarkerBackgroundColor: '#0d1117',
+        lastValueVisible: true, priceLineVisible: false
+      });
+      // 限额参考线（类似美国 40 万亿）
+      try {
+        const lim = Number(CN_DEBT_OFFICIAL.limit2026Yi) / 10000;
+        if (lim > 0) {
+          series.createPriceLine({
+            price: lim,
+            color: 'rgba(255,92,92,0.75)',
+            lineWidth: 1,
+            lineStyle: LightweightCharts.LineStyle.Dashed,
+            axisLabelVisible: true,
+            title: '限额'
+          });
+        }
+      } catch (e) {}
+
+      function fmtDateCN(t) {
+        const parts = String(t).split('-');
+        if (parts.length !== 3) return t;
+        return parts[0] + '年' + parseInt(parts[1], 10) + '月' + parseInt(parts[2], 10) + '日';
+      }
+      function sliceView() {
+        return fullData.slice(viewFrom, viewTo + 1).map(function (d) {
+          return { time: d.time, value: d.value };
+        });
+      }
+      function showTipAt(idx, pointX, pointY) {
+        if (idx < viewFrom) idx = viewFrom;
+        if (idx > viewTo) idx = viewTo;
+        if (idx < 0 || idx >= fullData.length) { tip.style.display = 'none'; return; }
+        const d = fullData[idx];
+        tip.innerHTML =
+          '<div style="color:var(--muted);font-size:0.7rem;margin-bottom:2px;">' + fmtDateCN(d.time) + (d.note ? ' · ' + d.note : '') + '</div>' +
+          '<div style="font-weight:600;">中央国债余额</div>' +
+          '<div style="margin-top:4px;color:var(--orange);font-weight:700;font-family:var(--font-num);font-size:0.95rem;">¥' + d.value.toFixed(3) + ' 万亿</div>' +
+          '<div style="color:var(--muted);font-size:0.68rem;margin-top:2px;font-family:var(--font-num);">' + Math.round(d.rawYi).toLocaleString('zh-CN') + ' 亿元</div>';
+        tip.style.display = 'block';
+        const tipW = tip.offsetWidth || 150, tipH = tip.offsetHeight || 70;
+        let left = (pointX != null ? pointX : box.clientWidth * 0.5) + 12;
+        let top = (pointY != null ? pointY : 48) - tipH - 8;
+        if (left + tipW > box.clientWidth - 8) left = (pointX != null ? pointX : left) - tipW - 12;
+        if (top < 4) top = (pointY != null ? pointY : 12) + 14;
+        if (left < 4) left = 4;
+        tip.style.left = left + 'px';
+        tip.style.top = top + 'px';
+        try { chart.setCrosshairPosition(d.value, d.time, series); } catch (e) {}
+      }
+            function updateCnDebtHud() {
+        const a = fullData[viewFrom];
+        const b = fullData[viewTo];
+        if (!a || !b || !hud) return;
+        const pct = a.value > 0 ? ((b.value - a.value) / a.value * 100) : 0;
+        const up = pct >= 0;
+        hud.innerHTML =
+          '<div style="color:#94a3b8;">财政部 · SDDS 节点</div>' +
+          '<div style="margin-top:2px;"><span style="color:' + (up ? '#00d868' : '#ff5c5c') +
+          ';font-weight:700;font-family:var(--font-num);">' + (up ? '+' : '') + pct.toFixed(1) +
+          '%</span> <span style="color:#ff9f2e;font-weight:600;font-family:var(--font-num);">¥' +
+          b.value.toFixed(2) + ' 万亿</span></div>';
+      }
+      function applyView() {
+        series.setData(sliceView());
+        chart.timeScale().fitContent();
+        const sLab = document.getElementById('cnDebtStartLabel');
+        const eLab = document.getElementById('cnDebtEndLabel');
+        if (sLab && fullData[viewFrom]) sLab.textContent = fmtDateCN(fullData[viewFrom].time);
+        if (eLab && fullData[viewTo]) eLab.textContent = fmtDateCN(fullData[viewTo].time);
+        updateCnDebtHud();
+        try { tip.style.display = 'none'; } catch (e) {}
+      }
+
+      applyView();
+
+      const rs = document.getElementById('cnDebtRangeStart');
+      const re = document.getElementById('cnDebtRangeEnd');
+      const fill = document.getElementById('cnDebtRangeFill');
+      if (rs && re && fullData.length > 1) {
+        rs.max = String(fullData.length - 1);
+        re.max = String(fullData.length - 1);
+        rs.value = '0';
+        re.value = String(fullData.length - 1);
+        function paintFill() {
+          if (!fill) return;
+          const max = fullData.length - 1 || 1;
+          const a = (parseInt(rs.value, 10) || 0) / max * 100;
+          const b = (parseInt(re.value, 10) || 0) / max * 100;
+          fill.style.left = a + '%';
+          fill.style.right = (100 - b) + '%';
+        }
+        function onRange() {
+          let a = parseInt(rs.value, 10) || 0;
+          let b = parseInt(re.value, 10) || 0;
+          if (a > b) { const t = a; a = b; b = t; rs.value = a; re.value = b; }
+          if (b - a < 1) {
+            if (a === viewFrom) b = Math.min(fullData.length - 1, a + 1);
+            else a = Math.max(0, b - 1);
+            rs.value = a; re.value = b;
+          }
+          viewFrom = a;
+          viewTo = b;
+          applyView();
+          paintFill();
+        }
+        rs.addEventListener('input', onRange);
+        re.addEventListener('input', onRange);
+        paintFill();
+      }
+
+      // 仅按水平位置映射时间（上下点哪里都一样，像回测）
+      function moveToClientX(clientX, clientY) {
+        const rect = overlay.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY != null ? (clientY - rect.top) : 50;
+        // 优先用图表自己的坐标换算（会正确扣掉右侧价格轴占的宽度等），
+        // 这样触点和高亮点才能真正对齐；算不出来时才退回按整体宽度估算
+        let idx = null;
+        try {
+          const logical = chart.timeScale().coordinateToLogical(x);
+          if (logical != null && isFinite(logical)) idx = viewFrom + Math.round(logical);
+        } catch (e) {}
+        if (idx == null) {
+          const w = Math.max(1, rect.width);
+          const ratio = Math.max(0, Math.min(1, x / w));
+          idx = viewFrom + Math.round(ratio * Math.max(0, viewTo - viewFrom));
+        }
+        showTipAt(idx, x, y);
+      }
+      // 横向拖动才当成看数值的手势；竖直方向的滑动交给浏览器自己滚页面，
+      // 松手/移出后提示框自动收起——跟美国那张图是同一套逻辑
+      let gestureAxis = null, gestureStartX = 0, gestureStartY = 0;
+      const AXIS_LOCK_PX = 6;
+      function hideTip() {
+        tip.style.display = 'none';
+        try { chart.clearCrosshairPosition(); } catch (e) {}
+      }
+      overlay.addEventListener('touchstart', function (e) {
+        if (e.touches && e.touches[0]) {
+          gestureAxis = null;
+          gestureStartX = e.touches[0].clientX;
+          gestureStartY = e.touches[0].clientY;
+          moveToClientX(gestureStartX, gestureStartY);
+        }
+      }, { passive: true });
+      overlay.addEventListener('touchmove', function (e) {
+        if (!(e.touches && e.touches[0])) return;
+        const x = e.touches[0].clientX, y = e.touches[0].clientY;
+        if (gestureAxis == null) {
+          const dx = Math.abs(x - gestureStartX), dy = Math.abs(y - gestureStartY);
+          if (Math.max(dx, dy) < AXIS_LOCK_PX) return;
+          gestureAxis = dx > dy ? 'x' : 'y';
+          if (gestureAxis === 'y') hideTip();
+        }
+        if (gestureAxis === 'x') {
+          e.preventDefault();
+          moveToClientX(x, y);
+        }
+      }, { passive: false });
+      overlay.addEventListener('touchend', hideTip, { passive: true });
+      overlay.addEventListener('touchcancel', hideTip, { passive: true });
+      overlay.addEventListener('mousedown', function (e) {
+        moveToClientX(e.clientX, e.clientY);
+        function mm(ev) { moveToClientX(ev.clientX, ev.clientY); }
+        function mu() {
+          document.removeEventListener('mousemove', mm);
+          document.removeEventListener('mouseup', mu);
+          hideTip();
+        }
+        document.addEventListener('mousemove', mm);
+        document.addEventListener('mouseup', mu);
+        e.preventDefault();
+      });
+
+      __cnDebtChartObj = chart;
+      setTimeout(function () {
+        try { chart.applyOptions({ width: box.clientWidth }); } catch (e) {}
+      }, 100);
+    }
+    window.addEventListener('popstate', function (e) {
+      const p = document.getElementById('cnDebtPanel');
+      if (p && p.style.display === 'block' && !(e.state && e.state.cnDebtPanel)) {
+        p.style.display = 'none';
+        try { if (__cnDebtChartObj) { __cnDebtChartObj.remove(); __cnDebtChartObj = null; } } catch (err) {}
+      }
+    });
+
+const MACRO_CACHE_PREFIX = 'macro_page_v2_';
+    let __macroLoadSeq = 0;
+    function readMacroPageCache(mkt) {
+      try {
+        const raw = localStorage.getItem(MACRO_CACHE_PREFIX + mkt);
+        if (!raw) return null;
+        const o = JSON.parse(raw);
+        if (!o || !o.html) return null;
+        o.stale = (Date.now() - (o.ts || 0)) > 24 * 3600 * 1000;
+        return o;
+      } catch (e) { return null; }
+    }
+    function writeMacroPageCache(mkt, html, impact) {
+      try {
+        localStorage.setItem(MACRO_CACHE_PREFIX + mkt, JSON.stringify({
+          ts: Date.now(), html: html || '', impact: impact || ''
+        }));
+      } catch (e) {}
+    }
+    function currentMacroMkt() {
+      return (typeof macroMarket !== 'undefined' && macroMarket === 'cn') ? 'cn' : 'us';
+    }
+    function isMacroLoadCurrent(seq, mkt) {
+      return seq === __macroLoadSeq && currentMacroMkt() === mkt;
+    }
+    function paintMacroUpdatingHint() {
+      try {
+        var tip = document.getElementById('macroUpdatingTip');
+        if (!tip) {
+          tip = document.createElement('div');
+          tip.id = 'macroUpdatingTip';
+          tip.style.cssText = 'position:fixed;left:50%;top:72px;transform:translateX(-50%);z-index:120;pointer-events:none;'
+            + 'padding:8px 16px;border-radius:20px;font-size:0.78rem;font-weight:500;'
+            + 'color:rgba(232,238,245,0.95);background:rgba(15,20,28,0.55);'
+            + 'border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(10px);'
+            + '-webkit-backdrop-filter:blur(10px);box-shadow:0 4px 16px rgba(0,0,0,0.25);'
+            + 'opacity:0;transition:opacity 0.2s ease;';
+          document.body.appendChild(tip);
+        }
+        tip.textContent = '后台更新中…';
+        tip.style.display = 'block';
+        requestAnimationFrame(function () { tip.style.opacity = '1'; });
+      } catch (e) {}
+    }
+    function clearMacroUpdatingHint() {
+      try {
+        var tip = document.getElementById('macroUpdatingTip');
+        if (!tip) return;
+        tip.style.opacity = '0';
+        setTimeout(function () {
+          if (tip.style.opacity === '0') tip.style.display = 'none';
+        }, 220);
+      } catch (e) {}
+    }
+
     async function loadMacro() {
       const container = document.getElementById('macroList');
       const impactEl = document.getElementById('macroImpact');
       if (!container) return;
-      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">多源加载宏观数据中...</div>';
+      const mkt = currentMacroMkt();
+      const seq = ++__macroLoadSeq;
+
+      // 先画本市场缓存（秒开）；快速切换时旧请求用 seq/mkt 丢弃结果，防串台
+      const cached = readMacroPageCache(mkt);
+      if (cached && cached.html) {
+        container.innerHTML = cached.html;
+        if (impactEl) impactEl.innerHTML = cached.impact || '';
+        paintMacroUpdatingHint();
+      } else {
+        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">多源加载宏观数据中...</div>';
+        if (impactEl) impactEl.innerHTML = '';
+        paintMacroUpdatingHint();
+      }
+
+      // 中国宏观（与美国并列，结构对称）
+      if (mkt === 'cn') {
+        try {
+          const L = getCNDebtLatest();
+          const limit = CN_DEBT_OFFICIAL.limit2026Yi;
+          const usedPct = limit > 0 ? ((L.totalYi / limit) * 100).toFixed(1) : '--';
+          // 先画出国债卡 + 口径（本地数据，无需等网络）
+          let html = '';
+          html += `
+            <div class="macro-item" style="cursor:pointer;border-color:rgba(255,159,46,0.35);" onclick="openCNDebtPanel()">
+              <div class="label">中国中央国债余额 <span style="font-size:0.7rem;color:var(--muted);">· 财政部 · 点此看走势</span></div>
+              <div class="value-row">
+                <div class="value" style="font-size:1.35rem;color:var(--orange);">¥${fmtCNDebtWanYi(L.totalYi)}</div>
+                <div class="change flat">${L.note || ''}</div>
+              </div>
+              <div class="desc">
+                内债约 ¥${fmtCNDebtWanYi(L.domesticYi)} · 外债约 ¥${fmtCNDebtWanYi(L.foreignYi)}<br/>
+                节点 ${L.time || '--'} · 2026 限额约 ¥${fmtCNDebtWanYi(limit)}（已用约 ${usedPct}%）<br/>
+                <span style="color:var(--blue);">点击打开曲线面板 →</span>
+              </div>
+            </div>`;
+          html += `
+            <div class="macro-item" id="cnMacroCnyPlaceholder">
+              <div class="label">美元兑人民币</div>
+              <div class="value-row"><div class="value" style="font-size:1rem;color:var(--muted);">加载中…</div></div>
+              <div class="desc">中间价/即期参考</div>
+            </div>`;
+          html += `
+            <div class="macro-item">
+              <div class="label">口径说明</div>
+              <div class="desc" style="margin-top:0;">
+                此处为<strong>中央财政国债余额</strong>（财政部预算/SDDS），不含地方隐债全口径。<br/>
+                中国无美国「每日到分」国债 API，数字按已公开的年末/季末节点更新。
+              </div>
+            </div>`;
+          const impactHtml = `
+              <h3>中国宏观简析</h3>
+              <p style="margin-bottom:8px;"><b>国债余额：</b>近年中央国债余额抬升，与赤字、特别国债、还本续发有关；需对照限额与付息压力。</p>
+              <p style="margin-bottom:8px;"><b>与美债对比：</b>美国有每日总债务；中国以官方定期余额为主，更新频率较低。</p>
+              <p style="color:var(--muted);font-size:0.78rem;">数据：财政部公开预算表 / SDDS。仅供学习，不构成投资建议。</p>`;
+          if (!isMacroLoadCurrent(seq, 'cn')) return;
+          container.innerHTML = html;
+          if (impactEl) impactEl.innerHTML = impactHtml;
+          // 再补汇率（网络）
+          // 国债卡已先画；若用户已切走美国，后面汇率结果不要写回
+          if (!isMacroLoadCurrent(seq, 'cn')) return;
+          const cny = await fetchYahooQuote('CNY=X').catch(function () { return null; });
+          if (!isMacroLoadCurrent(seq, 'cn')) return;
+          if (cny && cny.price) {
+            const dir = cny.chgPct >= 0 ? 'up' : 'down';
+            const ph = document.getElementById('cnMacroCnyPlaceholder');
+            if (ph) {
+              ph.outerHTML = `
+              <div class="macro-item">
+                <div class="label">美元兑人民币 <span style="font-size:0.7rem;color:var(--muted);">· ${cny.source || 'Yahoo'}</span></div>
+                <div class="value-row">
+                  <div class="value">${Number(cny.price).toFixed(4)}</div>
+                  <div class="change ${dir}">${cny.chgPct >= 0 ? '+' : ''}${Number(cny.chgPct).toFixed(2)}%</div>
+                </div>
+                <div class="desc">中间价/即期参考</div>
+              </div>`;
+            }
+          } else {
+            const ph = document.getElementById('cnMacroCnyPlaceholder');
+            if (ph && ph.querySelector('.value')) ph.querySelector('.value').textContent = '--';
+          }
+          if (!isMacroLoadCurrent(seq, 'cn')) return;
+          writeMacroPageCache('cn', container.innerHTML, impactEl ? impactEl.innerHTML : impactHtml);
+          clearMacroUpdatingHint();
+        } catch (e) {
+          console.warn('cn macro', e);
+          if (isMacroLoadCurrent(seq, 'cn') && !readMacroPageCache('cn')) {
+            container.innerHTML = '<div style="color:var(--red);padding:20px;text-align:center;">中国宏观加载失败</div>';
+          }
+          if (isMacroLoadCurrent(seq, 'cn')) clearMacroUpdatingHint();
+        }
+        return;
+      }
+
 
       // 源1 Yahoo · 源2 Finnhub · 代理自动重试
-      const [tnx, dxy, usdcny, fh] = await Promise.all([
+      const [tnx, dxy, usdcny, fh, usDebtPack] = await Promise.all([
         fetchYahooQuote('^TNX'),
         fetchYahooQuote('DX-Y.NYB'),
         fetchYahooQuote('CNY=X'),
-        fetchFinnhubMacro()
+        fetchFinnhubMacro(),
+        fetchUSNationalDebt().catch(function (e) { console.warn('us debt', e); return null; })
       ]);
+      // 快速切到中国时，丢弃本轮美国结果，避免串台
+      if (!isMacroLoadCurrent(seq, 'us')) return;
 
       const uup = fh && fh.uup;
       const tlt = fh && fh.tlt;
@@ -11257,6 +12228,36 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           </div>
           <div class="desc">${bias.desc}<br/><span style="opacity:0.85;">依据：${bias.reasons}</span></div>
         </div>`;
+
+
+      // 美国国债总额（可点开看走势）
+      try {
+        const L = usDebtPack && usDebtPack.latest;
+        if (L && Number(L.tot_pub_debt_out_amt) > 0) {
+          const total = Number(L.tot_pub_debt_out_amt);
+          const pub = Number(L.debt_held_public_amt);
+          const crossed = total >= 40e12;
+          html += `
+            <div class="macro-item" style="cursor:pointer;border-color:rgba(255,159,46,0.35);" onclick="openUSDebtPanel()">
+              <div class="label">美国联邦债务总额 <span style="font-size:0.7rem;color:var(--muted);">· 财政部 · 点此看走势</span></div>
+              <div class="value-row">
+                <div class="value" style="font-size:1.35rem;color:var(--orange);">$${fmtDebtTrillions(total)}</div>
+                <div class="change ${crossed ? 'down' : 'flat'}">${crossed ? '已破 40 万亿' : '未破 40 万亿'}</div>
+              </div>
+              <div class="desc">
+                公众持有约 $${fmtDebtTrillions(pub)} · 数据日 ${L.record_date || '--'}<br/>
+                <span style="color:var(--blue);">点击打开曲线面板 →</span>
+              </div>
+            </div>`;
+        } else {
+          html += `
+            <div class="macro-item" style="cursor:pointer;" onclick="openUSDebtPanel()">
+              <div class="label">美国联邦债务总额</div>
+              <div class="value-row"><div class="value" style="font-size:1rem;color:var(--muted);">点击加载 / 查看走势</div></div>
+              <div class="desc">数据源：美国财政部 Debt to the Penny</div>
+            </div>`;
+        }
+      } catch (e) { console.warn('debt card', e); }
 
       // FOMC：日期自动滚；结果自动识别并写入本地缓存（无需每次改代码）
       try {
@@ -11423,6 +12424,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           </div>`;
       }
 
+      if (!isMacroLoadCurrent(seq, 'us')) return;
       container.innerHTML = html;
 
       if (impactEl) {
@@ -11434,6 +12436,9 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           <p style="color:var(--muted);font-size:0.78rem;">FOMC 日程为公开日历整理；利率结果为会后市场常用表述。数据源：Yahoo（代理）→ Finnhub 备用。仅供学习，不构成投资建议。</p>
         `;
       }
+      if (!isMacroLoadCurrent(seq, 'us')) return;
+      writeMacroPageCache('us', container.innerHTML, impactEl ? impactEl.innerHTML : '');
+      clearMacroUpdatingHint();
     }
 
     // ==================== 页面切换 ====================
@@ -11441,7 +12446,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       watch:  { title: '观察列表', sub: '实时股票自选' },
       val:    { title: '估值', sub: '功能建设中 · 更多模块陆续上线' },
       asset:  { title: '全球大类资产', sub: '黄金 · 美元 · 原油 · 美债实时' },
-      macro:  { title: '宏观快照', sub: '美债 · 利率 · 通胀核心数据' },
+      macro:  { title: '宏观快照', sub: '美国 / 中国 · 国债与利率' },
       hot:    { title: '本周热点', sub: '政策 · 财报 · 通胀三大主线' },
       cal:    { title: '关键日历', sub: '财报日历 · Finnhub' },
       sector: { title: '板块动态', sub: '本周涨跌板块与核心信号' },
