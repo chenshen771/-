@@ -12068,8 +12068,19 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
     function isMacroLoadCurrent(seq, mkt) {
       return seq === __macroLoadSeq && currentMacroMkt() === mkt;
     }
+    function isMacroPageActive() {
+      try {
+        var page = document.getElementById('page-macro');
+        return !!(page && page.classList.contains('active'));
+      } catch (e) { return false; }
+    }
     function paintMacroUpdatingHint() {
       try {
+        // 只在宏观页显示，观察/资产等其它页绝不出现
+        if (!isMacroPageActive()) {
+          clearMacroUpdatingHint();
+          return;
+        }
         var tip = document.getElementById('macroUpdatingTip');
         if (!tip) {
           tip = document.createElement('div');
@@ -12084,7 +12095,10 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
         }
         tip.textContent = '后台更新中…';
         tip.style.display = 'block';
-        requestAnimationFrame(function () { tip.style.opacity = '1'; });
+        requestAnimationFrame(function () {
+          if (isMacroPageActive()) tip.style.opacity = '1';
+          else clearMacroUpdatingHint();
+        });
       } catch (e) {}
     }
     function clearMacroUpdatingHint() {
@@ -12093,7 +12107,7 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
         if (!tip) return;
         tip.style.opacity = '0';
         setTimeout(function () {
-          if (tip.style.opacity === '0') tip.style.display = 'none';
+          if (tip && tip.style.opacity === '0') tip.style.display = 'none';
         }, 220);
       } catch (e) {}
     }
@@ -12473,6 +12487,10 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
         }
         if (typeof setNewsLoadingHint === 'function' && target !== 'hot') {
           setNewsLoadingHint(false);
+        }
+        // 离开宏观页立即收起宏观专用提示
+        if (target !== 'macro') {
+          try { if (typeof clearMacroUpdatingHint === 'function') clearMacroUpdatingHint(); } catch (e) {}
         }
         if (target === 'watch') refreshQuotes();
         else if (target === 'asset') {
