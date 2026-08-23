@@ -1401,6 +1401,51 @@
       <h3>利率变动影响简析</h3>
       <p>加载中...</p>
     </div>
+
+    <div class="theme-box" style="margin-top:12px;" id="macroDebtExplain">
+      <div role="button" tabindex="0" onclick="toggleMacroDebtExplain()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;">
+        <h3 style="margin:0;font-size:0.9rem;">国债说明 · 点击展开</h3>
+        <span id="macroDebtExplainCaret" style="color:var(--muted);font-size:0.85rem;transition:transform 0.2s;">▼</span>
+      </div>
+      <div id="macroDebtExplainBody" style="display:none;margin-top:12px;">
+      <p style="margin-bottom:10px;line-height:1.55;font-size:0.88rem;">
+        <b>国债是什么？</b><br/>
+        国债是政府向市场借钱时开出的「借条」。美国联邦债务、中国中央国债余额，大致表示中央政府已经借了多少、还欠多少。钱主要用于财政支出、基建、还旧债利息等。债务升高，往往对应多年赤字累积，不直接等于「马上崩溃」，但会影响付息压力与长期利率。
+      </p>
+      <p style="margin-bottom:10px;line-height:1.55;font-size:0.88rem;">
+        <b>买国债会怎样？</b><br/>
+        个人/机构买国债，等于把钱借给政府，按约定拿利息，到期还本。一般信用风险低于公司债与股票，但有：<br/>
+        · <b>利率风险</b>：市场利率上升时，已发行国债的价格可能下跌（尤其长久期）；<br/>
+        · <b>通胀风险</b>：物价涨得比利息快时，实际购买力下降；<br/>
+        · <b>汇率风险</b>（买外币国债时）：汇率波动会影响换回本币后的收益。
+      </p>
+      <p style="margin-bottom:10px;line-height:1.55;font-size:0.88rem;">
+        <b>债多 = 利息一定更高吗？</b><br/>
+        <b>不一定。</b>债务余额大，只说明政府已经借了很多；新发债时要付多高利息，还取决于央行政策、供需、通胀与信用等。债多会增加长期付息压力，但「此刻利率高不高」不能单看债务数字。
+      </p>
+      <p style="margin-bottom:10px;line-height:1.55;font-size:0.88rem;">
+        <b>什么情况利息（国债收益率）才会高？</b><br/>
+        常见几种（可叠加）：<br/>
+        · <b>央行加息 / 紧缩</b>：为压通胀把政策利率抬高，短端、长端国债收益率往往跟着上；<br/>
+        · <b>通胀预期升温</b>：大家觉得钱会变毛，买债会要求更高名义利率作补偿；<br/>
+        · <b>国债供给太大、买盘跟不上</b>：财政多发债、拍卖需求弱，价格跌、收益率升；<br/>
+        · <b>经济偏热、风险偏好高</b>：资金更爱股票/信用债，国债被抛售，收益率易上；<br/>
+        · <b>信用担忧</b>：市场担心偿付或货币贬值（多见于高风险经济体），会要求显著溢价；<br/>
+        · <b>海外利率更高</b>：例如美债收益率大涨时，其他国家国债也可能被动抬升，避免资金外流。<br/>
+        反过来：降息、通缩预期、避险抢国债、央行买债（量化宽松）时，利息往往更容易下来。
+      </p>
+      <p style="margin-bottom:10px;line-height:1.55;font-size:0.88rem;">
+        <b>和利率、股市的关系（简记）</b><br/>
+        · 债务与供给上升、或市场担心财政，<b>可能</b>推高长期国债收益率，但不是每次都立刻发生；<br/>
+        · 收益率上行往往压制高估值成长股，利好部分金融；收益率下行则常被视作宽松/避险信号；<br/>
+        · 美债有「每日到分」公开数据；中国中央国债余额多为官方季末/年末节点，更新更慢。
+      </p>
+      <p style="margin-bottom:0;line-height:1.5;font-size:0.78rem;color:var(--muted);">
+        本页展示的是公开债务规模与市场利率信号，便于对照学习，不构成投资、借贷或配置建议。买国债请以正规渠道产品说明与自身风险承受能力为准。
+      </p>
+      </div>
+    </div>
+
     <div class="page-note">收益率/汇率尽量实时 · 利率与通胀为官方参考值</div>
   </div>
 
@@ -11774,6 +11819,25 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       const s = CN_DEBT_OFFICIAL.series;
       return s[s.length - 1];
     }
+        function toggleMacroDebtExplain() {
+      try {
+        var body = document.getElementById('macroDebtExplainBody');
+        var caret = document.getElementById('macroDebtExplainCaret');
+        var title = document.querySelector('#macroDebtExplain h3');
+        if (!body) return;
+        var hidden = (body.style.display === 'none') || (getComputedStyle(body).display === 'none');
+        if (hidden) {
+          body.style.display = 'block';
+          if (caret) caret.textContent = '▲';
+          if (title) title.textContent = '国债说明 · 点击收起';
+        } else {
+          body.style.display = 'none';
+          if (caret) caret.textContent = '▼';
+          if (title) title.textContent = '国债说明 · 点击展开';
+        }
+      } catch (e) {}
+    }
+
     function setMacroMarket(m) {
       macroMarket = (m === 'cn') ? 'cn' : 'us';
       try {
