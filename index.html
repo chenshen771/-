@@ -12229,9 +12229,8 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         const tip = document.getElementById('calUpdatingTip');
         if (!tip) return;
         tip.style.opacity = '0';
-        setTimeout(function () {
-          if (tip && tip.style.opacity === '0') tip.style.display = 'none';
-        }, 220);
+        tip.style.display = 'none';
+        tip.innerHTML = '';
       } catch (e) {}
     }
 
@@ -13005,6 +13004,12 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
             const row = rows[r];
             const dt = cnCalYmd(row.FIRST_APPOINT_DATE || row.NOTICE_DATE || row.REPORT_DATE || '');
             if (!dt || seen[dt]) continue;
+            // 拉取阶段就丢掉超过一年的，减少条数膨胀
+            try {
+              const _ya = new Date(); _ya.setFullYear(_ya.getFullYear() - 1);
+              const ya = _ya.getFullYear() + '-' + String(_ya.getMonth() + 1).padStart(2, '0') + '-' + String(_ya.getDate()).padStart(2, '0');
+              if (dt < ya) continue;
+            } catch (eYa) {}
             seen[dt] = true;
             const nm = String(row.SECURITY_NAME_ABBR || '').trim();
             out.push({
@@ -13042,6 +13047,11 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       const CN_MID = new Set(['600030','601688','000063','002415','300760','601888','600900','601899']);
       const allItems = [];
       const list = earnings || [];
+      const yearAgoStr = (function () {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() - 1);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      })();
       for (let i = 0; i < list.length; i++) {
         const e = list[i];
         const code = String(e.symbol || '').trim();
@@ -13049,6 +13059,8 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         const isWatch = !!(e.fromWatch || (watchCN && watchCN.indexOf(code) >= 0));
         e.fromWatch = isWatch;
         const dt = e.date || '';
+        // 超过一年的历史披露不展示（自选抽屉里也不要 2014 年报那种）
+        if (dt && dt < yearAgoStr) continue;
         if (!dt || e.noSchedule) {
           if (!isWatch) continue;
           const nameStr0 = (typeof cnCalNameStr === 'function') ? cnCalNameStr(code, e.name) : (e.name && e.name !== code ? (code + ' ' + e.name) : code);
@@ -13352,16 +13364,19 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           window.__calWatchCount = built.watchCount || 0;
           window.__calAllItems = built.allItems || [];
         }
+        clearCalUpdatingHint();
       } catch (err) {
         console.error('cn cal render', err);
         if (isCalLoadCurrent(seq, 'cn') && isCalMarketVisible('cn')) {
           container.innerHTML = '<div style="color:var(--red);padding:20px;text-align:center;">A股日历渲染失败，请点刷新</div>';
         }
+        clearCalUpdatingHint();
       }
       clearCalUpdatingHint();
     }
 
     function openCalHistory(isRestore) {
+      try { clearCalUpdatingHint(); } catch (eCalTip) {}
       // 复用详情抽屉展示历史；跟个股详情、板块成分股走的是同一套返回栈，
       // 手机的系统返回键/手势会一级一级退（历史 → 日历列表），不会直接
       // 退出整个抽屉体系或跳出应用
@@ -13393,6 +13408,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
     }
 
     function openCalWatch(isRestore) {
+      try { clearCalUpdatingHint(); } catch (eCalTip) {}
       const overlay = document.getElementById('detailOverlay');
       const drawer = document.getElementById('detailDrawer');
       if (!drawer) return;
