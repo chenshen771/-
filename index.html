@@ -255,6 +255,134 @@
 
     /* ===== 日历 ===== */
     .cal-list { display: flex; flex-direction: column; gap: 10px; }
+    .cal-spinner-wrap {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 10px 12px; margin: 0 0 12px 0;
+      background: rgba(77,159,255,0.08); border: 1px solid rgba(77,159,255,0.22);
+      border-radius: 12px; font-size: 0.78rem; color: var(--muted);
+    }
+    .cal-spinner {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid rgba(77,159,255,0.25);
+      border-top-color: var(--blue);
+      animation: calSpin 0.7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes calSpin { to { transform: rotate(360deg); } }
+    @keyframes sectorSpin { to { transform: rotate(360deg); } }
+    #sectorProgressToast {
+      display: none;
+      position: fixed;
+      left: 50%;
+      bottom: 88px;
+      transform: translateX(-50%);
+      z-index: 9999;
+      width: min(340px, 92vw);
+      padding: 12px 12px 12px 14px;
+      border-radius: 14px;
+      background: rgba(15, 22, 32, 0.97);
+      border: 1px solid rgba(77, 159, 255, 0.4);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+      pointer-events: auto;
+    }
+    #sectorProgressToast .spt-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 0;
+    }
+    #sectorProgressToast .spt-spin {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid rgba(77,159,255,0.25);
+      border-top-color: var(--blue);
+      animation: sectorSpin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    #sectorProgressToast .spt-main {
+      flex: 1;
+      min-width: 0;
+    }
+    #sectorProgressToast .spt-text {
+      font-size: 0.78rem;
+      color: var(--text);
+      font-weight: 600;
+      line-height: 1.35;
+    }
+    #sectorProgressToast .spt-sub {
+      font-size: 0.68rem;
+      color: var(--muted);
+      font-family: var(--font-num);
+      margin-top: 2px;
+      margin-bottom: 6px;
+    }
+    #sectorProgressToast .spt-bar {
+      height: 6px;
+      border-radius: 99px;
+      background: rgba(42, 53, 68, 0.9);
+      overflow: hidden;
+    }
+    #sectorProgressToast .spt-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #3d8bfd, #00d868);
+      transition: width 0.15s ease;
+    }
+    #sectorProgressToast .spt-cancel {
+      flex-shrink: 0;
+      align-self: center;
+      margin: 0 0 0 6px;
+      width: auto;
+      min-width: 52px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,107,107,0.6);
+      background: rgba(255,80,80,0.22);
+      color: #ffc0c0;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      pointer-events: auto;
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+    }
+    #sectorProgressToast .spt-cancel:active {
+      background: rgba(255,80,80,0.35);
+    }
+    .importance.imp-watch {
+      background: rgba(77,159,255,0.18);
+      color: #6eb6ff;
+      border: 1px solid rgba(77,159,255,0.35);
+    }
+    .importance.imp-none {
+      background: rgba(77,159,255,0.12);
+      color: var(--blue);
+      border: 1px solid rgba(77,159,255,0.4);
+      font-weight: 600;
+    }
+    .cal-none-text {
+      color: var(--blue);
+      font-weight: 600;
+    }
+    .cal-item.cal-item-watch {
+      border-color: rgba(0, 216, 104, 0.45);
+      background: rgba(0, 216, 104, 0.08);
+      box-shadow: 0 1px 0 rgba(0,216,104,0.06) inset, 0 4px 12px rgba(0,0,0,0.12);
+    }
+    /* 自选里已过期（几天前）：灰色，与即将到来的浅绿区分 */
+    .cal-item.cal-item-watch-past {
+      border-color: rgba(154, 172, 194, 0.35);
+      background: rgba(154, 172, 194, 0.06);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.02) inset, 0 4px 12px rgba(0,0,0,0.12);
+      opacity: 0.92;
+    }
+    .cal-item.cal-item-watch-past .event,
+    .cal-item.cal-item-watch-past .note {
+      color: var(--muted);
+    }
+    .cal-item.cal-item-watch-past .cal-date .day {
+      color: var(--muted);
+    }
     .cal-item {
       background: var(--card);
       border: 1px solid var(--border);
@@ -365,10 +493,22 @@
     .watch-status {
       font-size: 0.78rem;
       color: var(--muted);
-      margin-bottom: 12px;
+      margin-bottom: 4px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+    }
+    .watch-stats {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin: 0 0 12px 0;
+      line-height: 1.4;
+      letter-spacing: 0.01em;
+    }
+    .watch-stats .ws-num {
+      font-family: var(--font-num);
+      color: var(--text);
+      font-weight: 600;
     }
     .session-progress {
       margin: -4px 0 14px 0;
@@ -955,24 +1095,27 @@
       color: inherit;
     }
 
-    /* 热点日期索引（右侧） */
+    /* 热点日期索引（右侧）：固定在中下部，不挡顶栏刷新，高度变化不上下跳 */
     #newsDayRail {
       position: fixed;
-      right: 6px;
-      top: 50%;
-      transform: translateY(-50%);
-      z-index: 35;
+      right: 4px;
+      top: 132px;
+      bottom: 78px;
+      transform: none;
+      z-index: 15;
       display: none;
       flex-direction: column;
       align-items: center;
       gap: 3px;
-      max-height: 62vh;
+      max-height: none;
       overflow-y: auto;
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
       touch-action: pan-y;
       padding: 6px 4px;
+      width: 36px;
+      box-sizing: border-box;
       background: rgba(15, 20, 28, 0.88);
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -1005,7 +1148,7 @@
       opacity: 0.85;
       font-weight: 500;
     }
-    #newsList { padding-right: 38px; }
+    #newsList { padding-right: 44px; }
 
     .sector-card { cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
     .sector-card:active { transform: scale(0.97); opacity: 0.9; }
@@ -1337,6 +1480,7 @@
     <div class="watch-status">
       <span id="updateTime">准备就绪</span>
     </div>
+    <div class="watch-stats" id="watchStats">共 0 只 · 美股 0 · A股 0</div>
     <div class="session-progress" id="sessionProgress" style="display:none;">
       <div class="sp-head"><span class="sp-tag" id="spTag"></span><span id="spRemain"></span></div>
       <div class="sp-track" id="spTrack">
@@ -1470,12 +1614,16 @@
   <div class="page" id="page-cal">
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
       <span>重要财报日历</span>
-      <button class="refresh-btn" onclick="loadCalendar()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
+      <button class="refresh-btn" onclick="loadCalendar(true)" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
+    </div>
+    <div style="display:flex;gap:8px;margin:-4px 0 12px 0;">
+      <button type="button" id="calTabUS" onclick="setCalMarket('us')" style="flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--border);background:var(--blue);color:#fff;font-size:0.85rem;font-weight:600;cursor:pointer;">美股</button>
+      <button type="button" id="calTabCN" onclick="setCalMarket('cn')" style="flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:0.85rem;font-weight:600;cursor:pointer;">A股</button>
     </div>
     <div class="cal-list" id="calList">
       <div style="text-align:center;color:var(--muted);padding:30px 0;">加载日历中...</div>
     </div>
-    <div class="page-note">Finnhub 财报 + 东方财富新闻线索 · 三档重要性</div>
+    <div class="page-note" id="calPageNote">美股：Finnhub 财报 + 宏观 · A股：东方财富披露预约 + 国内宏观</div>
   </div>
 
   <!-- ========== 板块动态 ========== -->
@@ -1484,7 +1632,7 @@
       <span>板块动态</span>
       <div style="display:flex;align-items:center;gap:10px;">
         <span id="sectorLiveStatus" style="font-size:0.72rem;font-family:var(--font-num);color:var(--muted);white-space:nowrap;">○ 待更新</span>
-        <button class="refresh-btn" onclick="window.__cnBoardCacheAt=0;cnBoardCache=null;window.__cnBoardMeta={};paintSectorLiveStatus('loading');loadSectors(true)" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
+        <button class="refresh-btn" onclick="onSectorRefreshClick()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;">刷新</button>
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:14px;">
@@ -1960,7 +2108,7 @@
           const at = item.at || 0;
           // 双保险：时间戳早于今日 0 点的条目丢弃
           if (at && at < dayMs) return;
-          quoteCache[sym] = item.q;
+          quoteCache[sym] = normalizeQuoteDailyChg(item.q) || item.q;
           quoteCache[sym]._cachedAt = at;
         });
       } catch (e) {}
@@ -1972,7 +2120,7 @@
           const q = quoteCache[sym];
           if (!q || !(q.c > 0)) return;
           out[sym] = {
-            q: { c: q.c, dp: q.dp, d: q.d, h: q.h, l: q.l, o: q.o, pc: q.pc },
+            q: (function(){ var nq = normalizeQuoteDailyChg({ c: q.c, dp: q.dp, d: q.d, h: q.h, l: q.l, o: q.o, pc: q.pc }); return { c: nq.c, dp: nq.dp, d: nq.d, h: nq.h, l: nq.l, o: nq.o, pc: nq.pc }; })(),
             at: q._cachedAt || Date.now()
           };
         });
@@ -1989,8 +2137,27 @@
         }
       } catch (e) {}
     }
+    function normalizeQuoteDailyChg(q) {
+      if (!q || !(q.c > 0)) return q;
+      // 当日涨跌只认 现价 vs 昨收，禁止沿用可能被写成「近3日累计」的旧 dp
+      if (typeof q.pc === 'number' && q.pc > 0) {
+        q.d = q.c - q.pc;
+        q.dp = (q.d / q.pc) * 100;
+      }
+      return q;
+    }
+    /** 读行情涨跌幅：有昨收则现算，否则才用缓存 dp（全站列表/板块/均值统一入口） */
+    function getQuoteDailyDp(q) {
+      if (!q || !(q.c > 0)) return null;
+      if (typeof q.pc === 'number' && q.pc > 0) {
+        return ((q.c - q.pc) / q.pc) * 100;
+      }
+      if (typeof q.dp === 'number' && !isNaN(q.dp)) return q.dp;
+      return null;
+    }
     function putQuoteCache(sym, q) {
       if (!sym || !q || !(q.c > 0)) return;
+      normalizeQuoteDailyChg(q);
       q._cachedAt = Date.now();
       quoteCache[sym] = q;
       // 后台预热/其它路径写入缓存时：若三级成分股抽屉正开着，立刻刷新对应卡片
@@ -2024,30 +2191,29 @@
     }
 
     function avgChgFromCacheOnly(symbols, maxN) {
-      maxN = maxN || 5;
-      let sum = 0, n = 0;
-      const list = symbols || [];
-      for (let i = 0; i < list.length && n < maxN; i++) {
-        const q = quoteCache[list[i]];
-        if (q && q.c > 0 && typeof q.dp === 'number' && !isNaN(q.dp)) {
-          sum += q.dp;
-          n++;
-        }
-      }
-      return { chg: n ? sum / n : 0, n: n };
+      // maxN 保留参数兼容旧调用，但不再截断——与全站统一用全部有效成分
+      return avgStocksChgFromCacheOnly(symbols || []);
     }
 
     let _usSectorSoftTimer = null;
     function scheduleUSSectorSoftRefreshFromCache() {
+      // 一级全量进度进行中：只由进度条那路重画，后台软刷新先让路
+      try {
+        if (window.__sectorRefreshBusy && window.__sectorRefreshBusy.us) return;
+      } catch (eB) {}
       if (_usSectorSoftTimer) return;
       _usSectorSoftTimer = setTimeout(function () {
         _usSectorSoftTimer = null;
+        try {
+          if (window.__sectorRefreshBusy && window.__sectorRefreshBusy.us) return;
+        } catch (eB2) {}
         try { softRefreshUSSectorFromCache(); } catch (e) {}
       }, 700);
     }
 
     function softRefreshUSSectorFromCache() {
       try {
+        if (window.__sectorRefreshBusy && window.__sectorRefreshBusy.us) return;
         if (typeof sectorMarket !== 'undefined' && sectorMarket !== 'us') return;
         const page = document.getElementById('page-sector');
         if (!page || !page.classList.contains('active')) return;
@@ -2177,6 +2343,18 @@
       }
       try { if (sectorToastHideTimer) { clearTimeout(sectorToastHideTimer); sectorToastHideTimer = null; } } catch (e) {}
       if (show) {
+        try {
+          const prog = document.getElementById('sectorProgressToast');
+          if (prog && prog.style.display !== 'none') {
+            el.style.display = 'none';
+            return;
+          }
+          const st = window.__sectorProgressByMkt;
+          if (st && ((st.us && st.us.running) || (st.cn && st.cn.running))) {
+            el.style.display = 'none';
+            return;
+          }
+        } catch (eProg) {}
         // 个股详情页：绝不显示板块加载提示
         try {
           if (typeof detailUIMode !== 'undefined' && detailUIMode === 'stock') {
@@ -2277,7 +2455,7 @@
       let l = typeof prev.l === 'number' ? prev.l : price;
       if (price > h) h = price;
       if (price < l) l = price;
-      quoteCache[sym] = Object.assign({}, prev, {
+      quoteCache[sym] = normalizeQuoteDailyChg(Object.assign({}, prev, {
         c: price,
         d: d,
         dp: dp,
@@ -2286,7 +2464,7 @@
         pc: pc,
         t: ts || Date.now(),
         _fromWs: true
-      });
+      }));
 
       // 观察列表在前台时刷新
       const page = document.getElementById('page-watch');
@@ -2559,7 +2737,7 @@
                   data.d = data.c - data.pc;
                   data.dp = (data.d / data.pc) * 100;
                 }
-                return data;
+                return normalizeQuoteDailyChg(data);
               }
             } catch (e) {
               console.warn('finnhub try fail', sym, e && e.message);
@@ -2602,13 +2780,34 @@
               if (data && data.contents) {
                 try { data = JSON.parse(data.contents); } catch (e) {}
               }
-              const meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+              const result = data && data.chart && data.chart.result && data.chart.result[0];
+              const meta = result && result.meta;
               if (meta && meta.regularMarketPrice != null) {
-                const c = Number(meta.regularMarketPrice);
+                let c = Number(meta.regularMarketPrice);
                 if (!(c > 0)) continue;
-                const pc = Number(meta.chartPreviousClose || meta.previousClose || 0);
+                // 昨收优先用日K最近两根收盘，避免 chartPreviousClose 指到更早基准把涨跌拉成「近几日累计」
+                let pc = 0;
+                try {
+                  const q0 = result.indicators && result.indicators.quote && result.indicators.quote[0];
+                  const closes = q0 && q0.close;
+                  if (closes && closes.length) {
+                    let lastI = -1, prevI = -1;
+                    for (let ci = closes.length - 1; ci >= 0; ci--) {
+                      if (closes[ci] == null || isNaN(closes[ci])) continue;
+                      if (lastI < 0) lastI = ci;
+                      else { prevI = ci; break; }
+                    }
+                    if (prevI >= 0) pc = Number(closes[prevI]);
+                    if (!(c > 0) && lastI >= 0) c = Number(closes[lastI]);
+                  }
+                } catch (eY) {}
+                if (!(pc > 0)) pc = Number(meta.previousClose || meta.chartPreviousClose || 0);
                 const dp = pc ? ((c - pc) / pc) * 100 : 0;
-                return { c: c, dp: dp, h: meta.regularMarketDayHigh, l: meta.regularMarketDayLow, o: meta.regularMarketOpen, pc: pc, _src: 'yahoo' };
+                return normalizeQuoteDailyChg({
+                  c: c, dp: dp, d: pc ? (c - pc) : 0,
+                  h: meta.regularMarketDayHigh, l: meta.regularMarketDayLow,
+                  o: meta.regularMarketOpen, pc: pc, _src: 'yahoo'
+                });
               }
             } catch (e) {}
           }
@@ -2682,6 +2881,7 @@
       hideSearchSuggest();
       renderWatchlist();
       refreshQuotes();
+      try { if (typeof refreshCalendarAfterWatchlistChange === 'function') refreshCalendarAfterWatchlistChange(); } catch (e) {}
     }
 
     let _searchTimer = null;
@@ -2961,6 +3161,7 @@
       watchlist = watchlist.filter(s => s !== sym);
       saveWatchlist();
       renderWatchlist();
+      try { if (typeof refreshCalendarAfterWatchlistChange === 'function') refreshCalendarAfterWatchlistChange(); } catch (e) {}
     }
 
     function moveSymbol(index, dir) {
@@ -4518,6 +4719,24 @@
     }
 
 
+
+    function updateWatchCountBadge() {
+      const el = document.getElementById('watchStats');
+      if (!el) return;
+      let us = 0, cn = 0;
+      try {
+        const list = (typeof watchlist !== 'undefined' && Array.isArray(watchlist)) ? watchlist : [];
+        list.forEach(function (sym) {
+          try {
+            if (typeof isAShareSymbol === 'function' && isAShareSymbol(sym)) cn++;
+            else us++;
+          } catch (e) { us++; }
+        });
+      } catch (e) {}
+      const total = us + cn;
+      el.innerHTML = '共 <span class="ws-num">' + total + '</span> 只 · 美股 <span class="ws-num">' + us + '</span> · A股 <span class="ws-num">' + cn + '</span>';
+    }
+
     function renderWatchlist() {
       // 拖拽过程中不重建列表 DOM，避免行情刷新打断正在进行的拖拽（错位/重叠）
       // 但如果「松手」事件因某些机型/浏览器异常没有送达，导致拖拽状态卡住，
@@ -4534,6 +4753,7 @@
         }
       }
       const container = document.getElementById('watchList');
+      try { updateWatchCountBadge(); } catch (e) {}
       if (watchlist.length === 0) {
         container.innerHTML = '<div class="watch-empty">添加股票代码开始观察</div>';
         return;
@@ -4541,7 +4761,7 @@
       container.innerHTML = watchlist.map((sym, idx) => {
         const q = quoteCache[sym];
         const price = q && q.c ? Number(q.c).toFixed(2) : '--';
-        const dp = q ? q.dp : null;
+        const dp = q ? getQuoteDailyDp(q) : null;
         const hi = q && q.h ? Number(q.h).toFixed(2) : '--';
         const lo = q && q.l ? Number(q.l).toFixed(2) : '--';
         const sessionOpen = (typeof isSymbolSessionOpen === 'function') ? isSymbolSessionOpen(sym) : false;
@@ -6605,7 +6825,7 @@ async function refreshAssets(force, opts) {
           if (q && q.c > 0) {
             price = Number(q.c);
             if (q.pc > 0) { dp = ((price - Number(q.pc)) / Number(q.pc)) * 100; }
-            else { dp = q.dp; }
+            else { dp = getQuoteDailyDp(q); }
             source = 'Finnhub';
           }
           if (price === null && typeof fetchYahooQuote === 'function') {
@@ -6684,7 +6904,7 @@ async function refreshAssets(force, opts) {
           if (q && q.c > 0) {
             price = Number(q.c);
             if (q.pc > 0) { dp = ((price - Number(q.pc)) / Number(q.pc)) * 100; }
-            else { dp = q.dp; }
+            else { dp = getQuoteDailyDp(q); }
             source = 'Finnhub';
           }
           if (price === null && typeof fetchYahooQuote === 'function') {
@@ -6729,7 +6949,7 @@ async function refreshAssets(force, opts) {
             const q = await fetchCNQuote(item.code);
             if (q && (q.c > 0 || q.price > 0)) {
               price = Number(q.c != null ? q.c : q.price);
-              dp = q.dp != null ? q.dp : q.chgPct;
+              dp = (getQuoteDailyDp(q) != null ? getQuoteDailyDp(q) : (q.dp != null ? q.dp : q.chgPct));
             }
           } catch (e) {}
           if (price !== null && !isNaN(price)) {
@@ -7095,11 +7315,30 @@ async function refreshAssets(force, opts) {
     }
 
 async function openDetail(symbol, isRestore) {
+      // 日历等入口点到 A 股代码时，走 A 股详情（观察列表同逻辑）
+      try {
+        if (typeof isAShareSymbol === 'function' && isAShareSymbol(symbol)) {
+          const code = (typeof normalizeAShareCode === 'function' ? normalizeAShareCode(symbol) : null)
+            || String(symbol || '').replace(/\D/g, '').slice(0, 6) || symbol;
+          let cn = '';
+          try {
+            if (typeof STOCK_SEARCH !== 'undefined') {
+              const hit = STOCK_SEARCH.find(function (x) { return x.s === code; });
+              if (hit) cn = hit.cn || '';
+            }
+          } catch (e) {}
+          if (typeof openCNDetail === 'function') {
+            openCNDetail(code, cn, isRestore);
+            return;
+          }
+        }
+      } catch (e) {}
       chartStyle = 'mini';
       try { localStorage.setItem('tvChartStyle', 'mini'); } catch (e) {}
       // 切换到个股详情：作废板块成分股的异步 paint，避免标题/列表串台
       if (typeof stopLiveDetail === 'function') stopLiveDetail();
       if (typeof stopMiniChartLive === 'function') stopMiniChartLive();
+      try { clearChartToLoading('走势图加载中…'); } catch (eClr) {}
       const uiTok = beginDetailUI('stock');
       document.getElementById('detailSymbol').innerHTML = symbol + ' <span class="market-badge us">美股</span>';
       document.getElementById('detailPrice').textContent = '加载中...';
@@ -7113,16 +7352,29 @@ async function openDetail(symbol, isRestore) {
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = '';
 
-      // 有缓存先出价格，体感更快（网络返回后再刷新完整 OHLC/近3日）
+      // 有缓存先出价格+基础 OHLC，体感更快（近3日日线仍后台拉）
       try {
         const cq = quoteCache[symbol];
         if (cq && cq.c > 0) {
           document.getElementById('detailPrice').textContent = Number(cq.c).toFixed(2);
-          const dp0 = cq.dp != null ? cq.dp : 0;
-          const d0 = cq.d != null ? cq.d : 0;
+          const dp0 = (typeof getQuoteDailyDp === 'function' && getQuoteDailyDp(cq) != null) ? getQuoteDailyDp(cq) : (cq.dp != null ? cq.dp : 0);
+          const d0 = (typeof cq.pc === 'number' && cq.pc > 0) ? (cq.c - cq.pc) : (cq.d != null ? cq.d : 0);
           const el0 = document.getElementById('detailChg');
           el0.innerHTML = chgAmtPctHtml(d0, dp0);
           el0.className = 'detail-chg ' + (dp0 > 0 ? 'up' : dp0 < 0 ? 'down' : 'flat');
+          // 全量刷新预热过的票：立刻画出最高/最低/今开/昨收，避免一直停在「加载个股详情」
+          var hi = (cq.h > 0) ? Number(cq.h).toFixed(2) : '--';
+          var lo = (cq.l > 0) ? Number(cq.l).toFixed(2) : '--';
+          var op = (cq.o > 0) ? Number(cq.o).toFixed(2) : '--';
+          var pc = (cq.pc > 0) ? Number(cq.pc).toFixed(2) : '--';
+          if (hi !== '--' || lo !== '--' || op !== '--' || pc !== '--') {
+            document.getElementById('detailGrid').innerHTML =
+              '<div class="detail-stat"><div class="label">最高</div><div class="val" style="color:var(--green);">' + hi + '</div></div>' +
+              '<div class="detail-stat"><div class="label">最低</div><div class="val" style="color:var(--red);">' + lo + '</div></div>' +
+              '<div class="detail-stat"><div class="label">今开</div><div class="val">' + op + '</div></div>' +
+              '<div class="detail-stat"><div class="label">昨收</div><div class="val">' + pc + '</div></div>' +
+              '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:8px;font-size:0.75rem;">近3日对比加载中…</div>';
+          }
         }
       } catch (e) {}
 
@@ -7466,6 +7718,10 @@ async function openDetail(symbol, isRestore) {
         openDetail(layer.symbol, true);
       } else if (layer.type === 'stock-cn') {
         openCNDetail(layer.symbol, layer.name, true);
+      } else if (layer.type === 'cal-history') {
+        openCalHistory(true);
+      } else if (layer.type === 'cal-watch') {
+        openCalWatch(true);
       }
     }
 
@@ -7555,9 +7811,32 @@ async function openDetail(symbol, isRestore) {
       miniChartLiveSymbol = null;
     }
 
+    // 切换股票时作废进行中的图表加载，避免上一个标的的走势图串台
+    window.__chartLoadTok = window.__chartLoadTok || 0;
+    function clearChartToLoading(hint) {
+      window.__chartLoadTok = (window.__chartLoadTok || 0) + 1;
+      try { stopMiniChartLive(); } catch (e0) {}
+      try {
+        if (typeof miniChartObj !== 'undefined' && miniChartObj) {
+          try { miniChartObj.remove(); } catch (e1) {}
+          miniChartObj = null;
+        }
+        miniChartSeries = null;
+        miniChartLastCandles = null;
+      } catch (e2) {}
+      const wrap = document.getElementById('tvChart');
+      if (wrap) {
+        wrap.innerHTML = '<div style="width:100%;height:300px;display:flex;align-items:center;justify-content:center;' +
+          'background:#0d1117;border-radius:10px;color:var(--muted);font-size:0.85rem;">' +
+          (hint || '走势图加载中…') + '</div>';
+      }
+      return window.__chartLoadTok;
+    }
+
     async function loadMiniSparkChart(symbol) {
       const wrap = document.getElementById('tvChart');
       if (!wrap) return;
+      const myTok = (window.__chartLoadTok = (window.__chartLoadTok || 0) + 1);
       stopMiniChartLive();
       miniChartLiveSymbol = symbol;
       wrap.innerHTML = '<div id="miniChartBox" style="width:100%;height:300px;background:#0d1117;border-radius:10px;position:relative;"></div>' +
@@ -7565,6 +7844,7 @@ async function openDetail(symbol, isRestore) {
       // tag relative to chart-wrap - put inside box parent
       const box = document.getElementById('miniChartBox');
       if (!box) return;
+      if (myTok !== window.__chartLoadTok) return;
 
       let yahooSym = String(symbol || '');
       if (/^SSE:/.test(yahooSym)) yahooSym = yahooSym.replace(/^SSE:/, '') + '.SS';
@@ -7662,6 +7942,7 @@ async function openDetail(symbol, isRestore) {
           }
         }
         if (!candleData || candleData.length < 3) throw new Error('no data');
+        if (myTok !== window.__chartLoadTok) return;
         miniChartLastCandles = candleData;
 
         if (miniChartObj) {
@@ -7851,20 +8132,29 @@ async function openDetail(symbol, isRestore) {
 function loadFullTVChart(symbol) {
       const wrap = document.getElementById('tvChart');
       if (!wrap) return;
+      const myTok = (window.__chartLoadTok = (window.__chartLoadTok || 0) + 1);
       const raw = String(symbol || 'AAPL');
       const sym = encodeURIComponent(raw);
       const isCN = /^SSE:|^SZSE:|^BSE:/.test(raw);
       const tz = isCN ? 'Asia%2FShanghai' : 'America%2FNew_York';
-      const fid = 'tv_' + Date.now();
+      const fid = 'tv_' + myTok + '_' + Date.now();
+      // 先占位，避免仍显示上一只
+      wrap.innerHTML = '<div style="width:100%;height:320px;display:flex;align-items:center;justify-content:center;background:#0d1117;border-radius:10px;color:var(--muted);font-size:0.85rem;">走势图加载中…</div>';
       const src = 'https://s.tradingview.com/widgetembed/?' +
         'frameElementId=' + fid +
         '&symbol=' + sym +
         '&interval=D&theme=dark&style=1&timezone=' + tz +
         '&locale=zh_CN&withdateranges=1&hideideas=1&symboledit=0&saveimage=0' +
         '&hidesidetoolbar=0&hidetoptoolbar=0&hidevolume=0&toolbarbg=0d1117';
-      wrap.innerHTML = '<iframe id="' + fid + '" src="' + src +
-        '" style="width:100%;height:320px;border:0;border-radius:10px;background:#0d1117;" ' +
-        'allowtransparency="true" scrolling="no" frameborder="0"></iframe>';
+      // 下一帧再挂 iframe，若期间又切了票则放弃
+      setTimeout(function () {
+        if (myTok !== window.__chartLoadTok) return;
+        const w = document.getElementById('tvChart');
+        if (!w) return;
+        w.innerHTML = '<iframe id="' + fid + '" src="' + src +
+          '" style="width:100%;height:320px;border:0;border-radius:10px;background:#0d1117;" ' +
+          'allowtransparency="true" scrolling="no" frameborder="0"></iframe>';
+      }, 0);
     }
 
     function loadTVChart(symbol) {
@@ -8883,12 +9173,12 @@ function loadFullTVChart(symbol) {
         id: 'tech', name: '科技与电子', en: 'Technology',
         children: [
           { id: 'semi', name: '半导体与芯片', stocks: ['NVDA','TSM','AVGO','AMD','ASML','MU','QCOM','AMAT','LRCX','KLAC','INTC','TXN','ADI','NXPI','MRVL','ON','MCHP','SWKS','MPWR','TER','ENTG','LSCC','ARM','GFS','STM','UMC','ASX','WOLF','CRUS','SLAB','RMBS','ALGM','SMTC','FORM','ACLS','POWI','DIOD','SITM','VSH','AOSL','ALAB','CRDO','RMBS','GFS','TSEM','SIMO','SYNA','QRVO','MKSI','COHU','PLAB','UCTT','AMKR','JBL','FLEX'] },
-          { id: 'optical', name: '光模块与光通信', stocks: ['COHR','LITE','AAOI','CIEN','FN','VIAV','EXTR','CSCO','JNPR','ANET','HPE','COMM','INFN','GLW','ALAB','CRDO','VSH','MTSI','POET','BDC','CLFD','ADTN','NTGR'] },
+          { id: 'optical', name: '光模块与光通信', stocks: ['COHR','LITE','AAOI','CIEN','FN','VIAV','EXTR','CSCO','ANET','HPE','GLW','ALAB','CRDO','VSH','MTSI','POET','BDC','CLFD','ADTN','NTGR'] },
           { id: 'hardware', name: 'IT硬件与设备', stocks: ['AAPL','SMCI','DELL','HPQ','HPE','ANET','NTAP','WDC','STX','PSTG','IBM','CSCO','FFIV','LOGI','ZBRA','KEYS','TDY','TRMB','CIEN','ANET'] },
           { id: 'storage', name: '存储与硬盘', stocks: ['MU','WDC','STX','SNDK','NTAP','PSTG','IBM','CRWV','VRT'] },
           { id: 'datacenter', name: '数据中心与算力', stocks: ['VRT','EQIX','DLR','ANET','SMCI','DELL','NVDA','AMD','AVGO','MSFT','GOOGL','AMZN','ORCL','IRM','CCI','AMT','ALAB','CRDO','LITE','AAOI','COHR','GLW','PLTR','NOW','META','TSM','MU','WDC','STX'] },
-          { id: 'software', name: '软件与云计算', stocks: ['MSFT','ORCL','CRM','ADBE','NOW','SNOW','INTU','SAP','ADSK','WDAY','TEAM','DDOG','NET','CFLT','MDB','PLTR','HUBS','VEEV','ZM','DOCU','OKTA','TWLO','ESTC','PANW','CRWD','ZS'] },
-          { id: 'cyber', name: '网络安全', stocks: ['CRWD','PANW','ZS','FTNT','S','OKTA','RPD','QLYS','TENB','CYBR','SAIL','NET','CHKP','GEN','RBRK'] },
+          { id: 'software', name: '软件与云计算', stocks: ['MSFT','ORCL','CRM','ADBE','NOW','SNOW','INTU','SAP','ADSK','WDAY','TEAM','DDOG','NET','MDB','PLTR','HUBS','VEEV','ZM','DOCU','OKTA','TWLO','ESTC','PANW','CRWD','ZS'] },
+          { id: 'cyber', name: '网络安全', stocks: ['CRWD','PANW','ZS','FTNT','S','OKTA','RPD','QLYS','TENB','SAIL','NET','CHKP','GEN','RBRK'] },
           { id: 'eda', name: 'EDA与半导体设备', stocks: ['ASML','AMAT','LRCX','KLAC','SNPS','CDNS','TER','ENTG','ACLS','ONTO','CAMT','VECO'] }
         ]
       },
@@ -8897,7 +9187,7 @@ function loadFullTVChart(symbol) {
         children: [
           { id: 'platform', name: '互联网平台', stocks: ['META','GOOGL','GOOG','AMZN','NFLX','SHOP','UBER','BKNG','ABNB','SNAP','PINS','RDDT','SPOT','ETSY','EBAY','MELI','SE','CPNG'] },
           { id: 'china_net', name: '中概互联网', stocks: ['BABA','PDD','JD','BIDU','TME','BILI','NTES','VIPS','IQ','WB','ATHM','TAL','EDU','BZ','YMM','LI','NIO','XPEV'] },
-          { id: 'telecom', name: '电信与5G', stocks: ['T','VZ','TMUS','QCOM','ERIC','NOK','CSCO','JNPR','CCI','AMT','SBAC','VOD','TEF','ORAN','CHTR','CMCSA'] },
+          { id: 'telecom', name: '电信与5G', stocks: ['T','VZ','TMUS','QCOM','ERIC','NOK','CSCO','CCI','AMT','SBAC','VOD','TEF','CHTR','CMCSA'] },
           { id: 'media', name: '流媒体与数字娱乐', stocks: ['NFLX','DIS','WBD','PARA','SPOT','ROKU','TTWO','EA','RBLX','U','SONY','LYV'] }
         ]
       },
@@ -8905,20 +9195,20 @@ function loadFullTVChart(symbol) {
         id: 'mfg', name: '先进制造与工业', en: 'Industrials',
         children: [
           { id: 'ev', name: '新能源与汽车', stocks: ['TSLA','LI','NIO','XPEV','F','GM','RIVN','LCID','STLA','TM','HMC','RACE','MBLY','APTV','BWA','LEA','ALV','GNTX'] },
-          { id: 'battery', name: '锂电池与材料', stocks: ['ALB','SQM','LAC','PLL','MP','ENVX','QS','TSLA','LCID'] },
+          { id: 'battery', name: '锂电池与材料', stocks: ['ALB','SQM','LAC','MP','ENVX','QS','TSLA','LCID'] },
           { id: 'robot', name: '高端装备与机器人', stocks: ['ISRG','ROK','PATH','CGNX','GE','CAT','DE','EMR','ETN','HON','ITW','PH','DOV','XYL','IR','TT','JCI','CARR','OTIS'] },
-          { id: 'defense', name: '航天国防', stocks: ['LMT','RTX','BA','NOC','GD','LHX','HII','TXT','TDG','HEI','AXON','KTOS','AVAV','RKLB','PL','ASTS','VSAT','SPCX','BKSY','LUNR','RDW','SPIR','IRDM','BAH','LDOS','SAIC','CW','HWM','SPR','AIR'] },
+          { id: 'defense', name: '航天国防', stocks: ['LMT','RTX','BA','NOC','GD','LHX','HII','TXT','TDG','HEI','AXON','KTOS','AVAV','RKLB','PL','ASTS','VSAT','SPCX','BKSY','LUNR','RDW','SPIR','IRDM','BAH','LDOS','SAIC','CW','HWM','AIR'] },
           { id: 'logistics', name: '交运与物流', stocks: ['UPS','FDX','DAL','UAL','AAL','LUV','UNP','CSX','NSC','ODFL','XPO','JBHT','CHRW','EXPD','ZTO','CPA'] }
         ]
       },
       {
         id: 'energy', name: '资源与能源', en: 'Energy & Materials',
         children: [
-          { id: 'oil', name: '油气开采', stocks: ['XOM','CVX','COP','OXY','DVN','EOG','MPC','VLO','PSX','FANG','CTRA','APA','OVV','EQT','PR','MTDR'] },
+          { id: 'oil', name: '油气开采', stocks: ['XOM','CVX','COP','OXY','DVN','EOG','MPC','VLO','PSX','FANG','APA','OVV','EQT','PR','MTDR'] },
           { id: 'energy_eq', name: '能源设备与服务', stocks: ['SLB','HAL','BKR','NOV','FTI','WFRD','HP','LBRT','RIG','VAL','TDW'] },
           { id: 'solar', name: '光伏风电与清洁能源', stocks: ['ENPH','FSLR','SEDG','RUN','CSIQ','JKS','DQ','ARRY','SHLS','NEE','CEG','VST','AES','BE','CWEN','BEP'] },
           { id: 'metals', name: '有色与采矿', stocks: ['FCX','SCCO','NEM','GOLD','NUE','CLF','STLD','AA','RIO','BHP','VALE','TECK','HBM','ERO','CMP','RS'] },
-          { id: 'gold', name: '黄金与贵金属', stocks: ['NEM','GOLD','AEM','KGC','WPM','FNV','RGLD','AG','PAAS','HL','CDE','SSR'] }
+          { id: 'gold', name: '黄金与贵金属', stocks: ['NEM','GOLD','AEM','KGC','WPM','FNV','RGLD','AG','PAAS','HL','CDE'] }
         ]
       },
       {
@@ -8926,16 +9216,16 @@ function loadFullTVChart(symbol) {
         children: [
           { id: 'bank', name: '银行与资本市场', stocks: ['JPM','BAC','WFC','C','GS','MS','USB','PNC','TFC','SCHW','BK','STT','CFG','KEY','RF','FITB','HBAN','MTB'] },
           { id: 'asset', name: '资管保险与券商', stocks: ['BLK','BX','KKR','APO','ARES','TROW','BEN','IVZ','AMP','MET','PRU','AIG','PGR','TRV','ALL','CB','AFL'] },
-          { id: 'fintech', name: '金融科技与支付', stocks: ['V','MA','PYPL','SQ','COIN','HOOD','AXP','DFS','SYF','SOFI','UPST','AFRM','NU','MELI','ADYEY','FIS','FISV','GPN','XYZ'] }
+          { id: 'fintech', name: '金融科技与支付', stocks: ['V','MA','PYPL','COIN','HOOD','AXP','SYF','SOFI','UPST','AFRM','NU','MELI','ADYEY','FIS','FISV','GPN','XYZ'] }
         ]
       },
       {
         id: 'health', name: '医疗与大健康', en: 'Healthcare',
         children: [
           { id: 'biopharma', name: '生物医药', stocks: ['LLY','NVO','PFE','JNJ','ABBV','MRK','AZN','BMY','AMGN','GILD','SNY','GSK','TAK','VTRS','OGN'] },
-          { id: 'biotech', name: '生物科技', stocks: ['VRTX','REGN','GILD','AMGN','BIIB','MRNA','BNTX','ILMN','ALNY','SGEN','INCY','BMRN','EXAS','NBIX','UTHR'] },
-          { id: 'device', name: '医疗器械与服务', stocks: ['ISRG','TMO','ABT','UNH','DHR','SYK','MDT','BSX','EW','ZBH','BDX','BAX','HOLX','IDXX','DXCM','PODD','RMD'] },
-          { id: 'hcare_svc', name: '医疗服务与保险', stocks: ['UNH','ELV','CI','CVS','HUM','CNC','MOH','HCA','UHS','THC','DVA','AMED'] }
+          { id: 'biotech', name: '生物科技', stocks: ['VRTX','REGN','GILD','AMGN','BIIB','MRNA','BNTX','ILMN','ALNY','INCY','BMRN','NBIX','UTHR'] },
+          { id: 'device', name: '医疗器械与服务', stocks: ['ISRG','TMO','ABT','UNH','DHR','SYK','MDT','BSX','EW','ZBH','BDX','BAX','IDXX','DXCM','PODD','RMD'] },
+          { id: 'hcare_svc', name: '医疗服务与保险', stocks: ['UNH','ELV','CI','CVS','HUM','CNC','MOH','HCA','UHS','THC','DVA'] }
         ]
       },
       {
@@ -9143,11 +9433,730 @@ const FALLBACK_SECTORS = {
       window.__sectorLiveAt = Date.now();
     }
 
-    
+    function ensureSectorProgressToast() {
+      let el = document.getElementById('sectorProgressToast');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'sectorProgressToast';
+        document.body.appendChild(el);
+      }
+      const needBuild = !document.getElementById('sptCancelBtn') || !document.getElementById('sptFill') || !el.querySelector('.spt-main');
+      if (needBuild) {
+        el.innerHTML =
+          '<div class="spt-row">' +
+            '<div class="spt-spin"></div>' +
+            '<div class="spt-main">' +
+              '<div class="spt-text" id="sptText">完整刷新中…</div>' +
+              '<div class="spt-sub" id="sptSub">0 / 0 · 0%</div>' +
+              '<div class="spt-bar"><div class="spt-fill" id="sptFill"></div></div>' +
+            '</div>' +
+            '<button type="button" class="spt-cancel" id="sptCancelBtn">取消</button>' +
+          '</div>';
+        const btn = document.getElementById('sptCancelBtn');
+        if (btn) {
+          btn.onclick = function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+              var m = (typeof currentSectorMkt === 'function') ? currentSectorMkt() : 'us';
+              cancelSectorRefresh(m);
+            } catch (err) {}
+          };
+        }
+      }
+      return el;
+    }
+
+    function cancelSectorRefresh(mkt) {
+      mkt = mkt || currentSectorMkt();
+      mkt = mkt === 'cn' ? 'cn' : 'us';
+      try {
+        window.__sectorRefreshTok = window.__sectorRefreshTok || { us: 0, cn: 0 };
+        window.__sectorRefreshTok[mkt] = (window.__sectorRefreshTok[mkt] || 0) + 1;
+        window.__sectorRefreshBusy = window.__sectorRefreshBusy || { us: false, cn: false };
+        window.__sectorRefreshBusy[mkt] = false;
+        window.__sectorProgressByMkt = window.__sectorProgressByMkt || { us: null, cn: null };
+        window.__sectorProgressByMkt[mkt] = null;
+      } catch (e) {}
+      const el = document.getElementById('sectorProgressToast');
+      if (el) el.style.display = 'none';
+      try { if (typeof syncSectorProgressVisibility === 'function') syncSectorProgressVisibility(); } catch (eS) {}
+      try {
+        if (isSectorPageActive() && currentSectorMkt() === mkt) {
+          if (typeof setSectorToast === 'function') {
+            setSectorToast(true, (mkt === 'cn' ? 'A股' : '美股') + '刷新已取消', 1800);
+          }
+          paintSectorLiveStatus('live');
+        }
+      } catch (e2) {}
+    }
+    function isSectorPageActive() {
+      try {
+        const page = document.getElementById('page-sector');
+        return !!(page && page.classList.contains('active'));
+      } catch (e) { return false; }
+    }
+    function currentSectorMkt() {
+      return (typeof sectorMarket !== 'undefined' && sectorMarket === 'cn') ? 'cn' : 'us';
+    }
+    window.__sectorProgressByMkt = window.__sectorProgressByMkt || { us: null, cn: null };
+    window.__sectorRefreshBusy = window.__sectorRefreshBusy || { us: false, cn: false };
+    window.__sectorRefreshTok = window.__sectorRefreshTok || { us: 0, cn: 0 };
+
+    function ensureSectorProgressToast() {
+      let el = document.getElementById('sectorProgressToast');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'sectorProgressToast';
+        document.body.appendChild(el);
+      }
+      // 没有取消按钮 / 进度条结构不完整时重建（左侧取消）
+      const needBuild = !document.getElementById('sptCancelBtn') || !document.getElementById('sptFill') || !el.querySelector('.spt-main');
+      if (needBuild) {
+        el.innerHTML =
+          '<div class="spt-row">' +
+            '<div class="spt-spin"></div>' +
+            '<div class="spt-main">' +
+              '<div class="spt-text" id="sptText">完整刷新中…</div>' +
+              '<div class="spt-sub" id="sptSub">0 / 0 · 0%</div>' +
+              '<div class="spt-bar"><div class="spt-fill" id="sptFill"></div></div>' +
+            '</div>' +
+            '<button type="button" class="spt-cancel" id="sptCancelBtn">取消</button>' +
+          '</div>';
+        const btn = document.getElementById('sptCancelBtn');
+        if (btn) {
+          btn.onclick = function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+              var m = (typeof currentSectorMkt === 'function') ? currentSectorMkt() : 'us';
+              cancelSectorRefresh(m);
+            } catch (err) {}
+          };
+        }
+      }
+      return el;
+    }
+    function showSectorProgress(mkt, loaded, total, label) {
+      mkt = mkt === 'cn' ? 'cn' : 'us';
+      // 已取消：进行中的批次回调不得再把进度条唤起来
+      try {
+        if (!window.__sectorRefreshBusy || !window.__sectorRefreshBusy[mkt]) return;
+      } catch (eBusy) { return; }
+      // 强制升级进度条 DOM 到「左侧取消」布局（只做一次）
+      if (!window.__sptLayoutV5) {
+        window.__sptLayoutV5 = true;
+        try {
+          const oldEl = document.getElementById('sectorProgressToast');
+          if (oldEl && oldEl.parentNode) oldEl.parentNode.removeChild(oldEl);
+        } catch (e0) {}
+      }
+      const t = Math.max(0, total | 0);
+      const l = Math.max(0, Math.min(loaded | 0, t || loaded | 0));
+      const pct = t > 0 ? Math.min(100, Math.round(l / t * 100)) : 0;
+      window.__sectorProgressByMkt[mkt] = {
+        loaded: l, total: t, pct: pct,
+        label: label || (mkt === 'cn' ? 'A股板块刷新…' : '美股成分股…'),
+        running: true
+      };
+      if (currentSectorMkt() !== mkt || !isSectorPageActive()) {
+        if (!isSectorPageActive()) {
+          const elHide = document.getElementById('sectorProgressToast');
+          if (elHide) elHide.style.display = 'none';
+        } else {
+          try { syncSectorProgressVisibility(); } catch (e) {}
+        }
+        return;
+      }
+      const el = ensureSectorProgressToast();
+      const st = window.__sectorProgressByMkt[mkt];
+      const textEl = document.getElementById('sptText');
+      const subEl = document.getElementById('sptSub');
+      const fill = document.getElementById('sptFill');
+      if (textEl) textEl.textContent = st.label;
+      if (subEl) subEl.textContent = l + ' / ' + t + ' · ' + pct + '%';
+      if (fill) fill.style.width = pct + '%';
+      const cancelBtn = document.getElementById('sptCancelBtn');
+      if (cancelBtn) {
+        cancelBtn.style.display = 'block';
+        cancelBtn.onclick = function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          try { cancelSectorRefresh(mkt); } catch (err) {}
+        };
+      }
+      el.style.display = 'block';
+      // 有进度条时关掉「加载美股大类…」小提示
+      try {
+        const tip = document.getElementById('sectorToast');
+        if (tip) tip.style.display = 'none';
+      } catch (eTip) {}
+      try { paintSectorLiveStatus('loading'); } catch (e) {}
+    }
+    function hideSectorProgress(mkt, okMsg) {
+      mkt = mkt === 'cn' ? 'cn' : 'us';
+      window.__sectorProgressByMkt[mkt] = null;
+      if (currentSectorMkt() === mkt) {
+        const el = document.getElementById('sectorProgressToast');
+        if (el) el.style.display = 'none';
+        try {
+          if (okMsg && isSectorPageActive() && typeof setSectorToast === 'function') {
+            setSectorToast(true, okMsg, 2200);
+          }
+          if (isSectorPageActive()) paintSectorLiveStatus('live');
+        } catch (e) {}
+      }
+      try { syncSectorProgressVisibility(); } catch (e) {}
+    }
+    function syncSectorProgressVisibility() {
+      const el = document.getElementById('sectorProgressToast');
+      if (!isSectorPageActive()) {
+        if (el) el.style.display = 'none';
+        return;
+      }
+      const mkt = currentSectorMkt();
+      const st = window.__sectorProgressByMkt && window.__sectorProgressByMkt[mkt];
+      if (st && st.running) {
+        ensureSectorProgressToast();
+        const textEl = document.getElementById('sptText');
+        const subEl = document.getElementById('sptSub');
+        const fill = document.getElementById('sptFill');
+        if (textEl) textEl.textContent = st.label || (mkt === 'cn' ? 'A股板块刷新…' : '美股成分股…');
+        if (subEl) subEl.textContent = (st.loaded || 0) + ' / ' + (st.total || 0) + ' · ' + (st.pct || 0) + '%';
+        if (fill) fill.style.width = (st.pct || 0) + '%';
+        const cancelBtn2 = document.getElementById('sptCancelBtn');
+        if (cancelBtn2) {
+          cancelBtn2.style.display = 'block';
+          cancelBtn2.onclick = function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            try { cancelSectorRefresh(mkt); } catch (err) {}
+          };
+        }
+        const toast = document.getElementById('sectorProgressToast');
+        if (toast) toast.style.display = 'block';
+        try { paintSectorLiveStatus('loading'); } catch (e) {}
+      } else {
+        if (el) el.style.display = 'none';
+        try { paintSectorLiveStatus('live'); } catch (e) {}
+      }
+    }
+    function collectUSSectorAllSymbols() {
+      const set = {};
+      const out = [];
+      try {
+        (US_SECTOR_TREE || []).forEach(function (l1) {
+          (l1.children || []).forEach(function (c) {
+            (c.stocks || []).forEach(function (s) {
+              const k = String(s || '').toUpperCase().trim();
+              if (!k || set[k]) return;
+              set[k] = true;
+              out.push(k);
+            });
+          });
+        });
+      } catch (e) {}
+      return out;
+    }
+    // 全量刷新进度跑着时：只用 quoteCache 重算当前可见的大类/细分涨跌并写回页面
+    function avgStocksChgFromCacheOnly(symbols) {
+      if (!symbols || !symbols.length) return { chg: 0, n: 0 };
+      // 全量：该列表全部有有效当日涨跌的成分股简单平均，不再抽样
+      var sum = 0, n = 0;
+      for (var k = 0; k < symbols.length; k++) {
+        var q = quoteCache[symbols[k]];
+        var dp = (typeof getQuoteDailyDp === 'function') ? getQuoteDailyDp(q) : (q && q.dp);
+        if (dp != null && !isNaN(dp)) {
+          sum += dp;
+          n++;
+        }
+      }
+      return { chg: n ? sum / n : 0, n: n };
+    }
+    function repaintCurrentUSSectorFromCache() {
+      try {
+        if (typeof sectorMarket !== 'undefined' && sectorMarket !== 'us') return;
+        if (!isSectorPageActive || !isSectorPageActive()) return;
+        // 成分股抽屉打开时：不抢 DOM（抽屉自己会刷）
+        var drawer = document.getElementById('detailDrawer');
+        if (drawer && drawer.classList.contains('show')) return;
+
+        if (typeof usSectorView !== 'undefined' && usSectorView === 'l2' && usSectorL1) {
+          var l1 = (US_SECTOR_TREE || []).find(function (x) { return x.id === usSectorL1; });
+          if (!l1) return;
+          var rows = [];
+          (l1.children || []).forEach(function (c) {
+            var avg = avgStocksChgFromCacheOnly(c.stocks || []);
+            var chg = avg.n ? avg.chg : 0;
+            if (!avg.n && window.__usL2PrevRows && window.__usL2PrevRows[usSectorL1]) {
+              var prev = (window.__usL2PrevRows[usSectorL1] || []).find(function (r) { return r.id === c.id; });
+              if (prev) chg = prev.chg;
+            }
+            rows.push({ id: c.id, name: c.name, stocks: c.stocks || [], chg: chg, count: (c.stocks || []).length });
+          });
+          window.__usL2PrevRows = window.__usL2PrevRows || {};
+          window.__usL2PrevRows[usSectorL1] = rows;
+          var up = rows.filter(function (x) { return x.chg > 0; }).sort(function (a, b) { return b.chg - a.chg; });
+          var down = rows.filter(function (x) { return x.chg < 0; }).sort(function (a, b) { return a.chg - b.chg; });
+          var flat = rows.filter(function (x) { return x.chg === 0; });
+          function cardHtml(s) {
+            var cls = s.chg >= 0 ? 'up' : 'down';
+            var chgText = (s.chg >= 0 ? '+' : '') + Number(s.chg).toFixed(2) + '%';
+            return '<div class="sector-card ' + cls + '" style="cursor:pointer;position:relative;" onclick="openUSSectorL2(\'' + l1.id + '\',\'' + s.id + '\')">' +
+              '<span class="s-badge">' + s.count + '</span>' +
+              '<div class="s-name">' + s.name + '</div>' +
+              '<div class="s-chg">' + chgText + '</div></div>';
+          }
+          var html = '<div class="l2-head">' +
+            '<button type="button" class="back-mini" onclick="renderUSSectorL1()">← 大类</button>' +
+            '<span class="l2-title">' + l1.name + '</span></div>';
+          if (up.length || flat.length) {
+            html += '<div class="sector-group"><h3><span style="color:var(--green)">●</span> 上涨细分</h3><div class="sector-cards">';
+            html += up.concat(flat).map(cardHtml).join('') + '</div></div>';
+          }
+          if (down.length) {
+            html += '<div class="sector-group"><h3><span style="color:var(--red)">●</span> 下跌细分</h3><div class="sector-cards">';
+            html += down.map(cardHtml).join('') + '</div></div>';
+          }
+          var container = document.getElementById('sectorContent');
+          if (container && usSectorView === 'l2' && usSectorL1 === l1.id) container.innerHTML = html;
+          return;
+        }
+
+        // 默认：一级大类
+        if (typeof usSectorView !== 'undefined' && usSectorView !== 'l1' && usSectorView) return;
+        var cards = (US_SECTOR_TREE || []).map(function (l1) {
+          var all = [];
+          (l1.children || []).forEach(function (c) { all = all.concat(c.stocks || []); });
+          all = Array.from(new Set(all));
+          var childAvgs = [];
+          (l1.children || []).forEach(function (c) {
+            var a = avgStocksChgFromCacheOnly(c.stocks || []);
+            if (a.n) childAvgs.push(a.chg);
+          });
+          var chg = childAvgs.length ? (childAvgs.reduce(function (s, v) { return s + v; }, 0) / childAvgs.length) : 0;
+          if (!childAvgs.length && window.__usL1PrevCards && window.__usL1PrevCards[l1.id] != null) {
+            chg = window.__usL1PrevCards[l1.id];
+          } else if (childAvgs.length) {
+            window.__usL1PrevCards = window.__usL1PrevCards || {};
+            window.__usL1PrevCards[l1.id] = chg;
+          }
+          return {
+            id: l1.id,
+            name: l1.name,
+            en: l1.en,
+            chg: chg,
+            count: all.length,
+            subCount: (l1.children || []).length
+          };
+        });
+        if (typeof paintUSSectorL1Cards === 'function') paintUSSectorL1Cards(cards);
+      } catch (e) { console.warn('repaintCurrentUSSectorFromCache', e); }
+    }
+
+    async function prefetchSectorSymbols(mkt, symbols, labelPrefix) {
+      const list = symbols || [];
+      const total = list.length;
+      let loaded = 0;
+      let okCount = 0;
+      const myTok = window.__sectorRefreshTok[mkt];
+      showSectorProgress(mkt, 0, total, (labelPrefix || '拉取成分股') + '…');
+      const CONC = 5;
+      for (let i = 0; i < list.length; i += CONC) {
+        if (window.__sectorRefreshTok[mkt] !== myTok) break;
+        const batch = list.slice(i, i + CONC);
+        await Promise.all(batch.map(async function (sym) {
+          if (window.__sectorRefreshTok[mkt] !== myTok) return;
+          try {
+            // 不删旧缓存：失败时仍保留上一笔，避免刷新完点进细分全是「加载中」
+            const q = await Promise.race([
+              fetchQuote(sym),
+              new Promise(function (resolve) { setTimeout(function () { resolve(null); }, 4500); })
+            ]);
+            if (window.__sectorRefreshTok[mkt] !== myTok) return;
+            if (q && q.c > 0) {
+              try { putQuoteCache(sym, q); } catch (e1) {
+                try { quoteCache[sym] = q; } catch (e2) {}
+              }
+              okCount++;
+            }
+          } catch (e) {}
+          if (window.__sectorRefreshTok[mkt] !== myTok) return;
+          loaded++;
+          var label = (labelPrefix || '拉取成分股') + '…';
+          showSectorProgress(mkt, loaded, total, label);
+        }));
+        if (window.__sectorRefreshTok[mkt] !== myTok) break;
+        // 批次间稍歇，降低限流；但不要拖成「假进度」
+        await new Promise(function (r) { setTimeout(r, 80); });
+        if (window.__sectorRefreshTok[mkt] !== myTok) break;
+        // 每 3 批用最新缓存重画当前大类/细分数字，进度跑着页面就在变
+        if (mkt === 'us' && (Math.floor(i / CONC) % 3 === 0 || loaded >= total)) {
+          try { repaintCurrentUSSectorFromCache(); } catch (eR) {}
+        }
+      }
+      try { if (typeof saveQuoteCacheToDisk === 'function') saveQuoteCacheToDisk(); } catch (e) {}
+      // 收尾再刷一次，保证进度结束后页面已是最新
+      if (mkt === 'us') {
+        try { repaintCurrentUSSectorFromCache(); } catch (eR2) {}
+      }
+      return okCount;
+    }
+    /** 板块页「刷新」：
+     *  - 一级大类：全量进度刷新（拉全部成分股缓存）
+     *  - 二级细分：只刷新当前大类下的细分涨跌（不跑 500+ 全量进度）
+     *  - 成分股抽屉打开时：只重拉当前细分成分股
+     */
+    async function onSectorRefreshClick() {
+      try {
+        const mkt = (typeof currentSectorMkt === 'function') ? currentSectorMkt() : (sectorMarket || 'us');
+        const drawer = document.getElementById('detailDrawer');
+        const drawerOpen = drawer && drawer.classList.contains('show');
+
+        // 三级：成分股抽屉
+        if (drawerOpen && typeof detailUIMode !== 'undefined' && detailUIMode === 'sector-us') {
+          try {
+            if (typeof usSectorL1 !== 'undefined' && usSectorL1 && window.__lastUSSectorL2) {
+              var l2 = window.__lastUSSectorL2;
+              if (typeof openUSSectorL2 === 'function') {
+                await openUSSectorL2(usSectorL1, l2, true);
+                return;
+              }
+            }
+          } catch (e0) {}
+        }
+        if (drawerOpen && typeof detailUIMode !== 'undefined' && detailUIMode === 'sector-cn') {
+          try {
+            if (typeof openSectorStocks === 'function' && window.__lastCNSectorSym) {
+              await openSectorStocks(window.__lastCNSectorSym, window.__lastCNSectorName || '', true);
+              return;
+            }
+          } catch (e1) {}
+        }
+
+        if (mkt === 'us') {
+          if (typeof usSectorView !== 'undefined' && usSectorView === 'l2' && usSectorL1) {
+            try { setSectorToast(true, '刷新当前细分…', 2500); } catch (e) {}
+            if (typeof openUSSectorL1 === 'function') {
+              await openUSSectorL1(usSectorL1, true, true);
+            }
+            try { setSectorToast(true, '当前细分已更新', 1200); } catch (e2) {}
+            return;
+          }
+          // 一级：全量
+          return fullRefreshSectors();
+        }
+
+        // A股
+        if (typeof cnSectorView !== 'undefined' && cnSectorView === 'l2' && cnSectorL1) {
+          try { setSectorToast(true, '刷新当前细分…', 2500); } catch (e) {}
+          if (typeof openCNSectorL1 === 'function') {
+            await openCNSectorL1(cnSectorL1, true);
+          }
+          try { setSectorToast(true, '当前细分已更新', 1200); } catch (e3) {}
+          return;
+        }
+        return fullRefreshSectors();
+      } catch (err) {
+        console.warn('onSectorRefreshClick', err);
+        try { setSectorToast(true, '刷新失败，请重试', 1800); } catch (e4) {}
+      }
+    }
+
+    async function fullRefreshSectors() {
+      const mkt = currentSectorMkt();
+      if (window.__sectorRefreshBusy[mkt]) {
+        try { setSectorToast(true, (mkt === 'cn' ? 'A股' : '美股') + '正在完整刷新…', 1500); } catch (e) {}
+        try { syncSectorProgressVisibility(); } catch (e) {}
+        return;
+      }
+      window.__sectorRefreshBusy[mkt] = true;
+      const myTok = (window.__sectorRefreshTok[mkt] = (window.__sectorRefreshTok[mkt] || 0) + 1);
+      try {
+        if (mkt === 'us') {
+          try {
+            window.__usL1PrevCards = {};
+            window.__usL2PrevRows = {};
+          } catch (e) {}
+          const syms = collectUSSectorAllSymbols();
+          showSectorProgress('us', 0, syms.length || 1, '美股成分股…');
+          await prefetchSectorSymbols('us', syms, '美股成分股');
+          if (myTok !== window.__sectorRefreshTok.us) return;
+          showSectorProgress('us', syms.length, syms.length, '美股汇总二级 / 一级…');
+          if (currentSectorMkt() === 'us') {
+            if (typeof usSectorView !== 'undefined' && usSectorView === 'l2' && usSectorL1 && typeof openUSSectorL1 === 'function') {
+              await openUSSectorL1(usSectorL1, true, true);
+            } else if (typeof loadUSSectors === 'function') {
+              await loadUSSectors(true);
+            } else {
+              await loadSectors(true);
+            }
+          }
+          if (myTok === window.__sectorRefreshTok.us) {
+            hideSectorProgress('us', '美股板块已完整刷新');
+          }
+        } else {
+          try {
+            window.__cnBoardCacheAt = 0;
+            cnBoardCache = null;
+            window.__cnBoardMeta = {};
+            window.__cnBoardStocksCache = {};
+          } catch (e) {}
+          // 收集全部二级板块 BK 代码
+          const boards = [];
+          const boardSet = {};
+          try {
+            (CN_SECTOR_TREE || []).forEach(function (l1) {
+              (l1.children || []).forEach(function (c) {
+                const b = c && c.board ? String(c.board).trim() : '';
+                if (b && !boardSet[b]) {
+                  boardSet[b] = true;
+                  boards.push({ board: b, name: c.name || b });
+                }
+              });
+            });
+          } catch (e) {}
+
+          async function fetchAllBoardStocks(board) {
+            const stocks = [];
+            async function fetchBoardPage(pn) {
+              const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=' + pn +
+                '&pz=100&po=1&np=1&fltt=2&invt=2&fid=f3&fs=b:' + board +
+                '&fields=f12,f14,f2,f3&_=' + Date.now();
+              const proxies = [];
+              if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
+                proxies.push(WORKER_BASE + '?url=' + encodeURIComponent(url));
+              }
+              proxies.push(url);
+              for (let pi = 0; pi < proxies.length; pi++) {
+                try {
+                  const res = await (typeof fetchWithTimeoutSimple === 'function'
+                    ? fetchWithTimeoutSimple(proxies[pi], 6000)
+                    : fetch(proxies[pi]));
+                  if (!res || !res.ok) continue;
+                  let data = await res.json();
+                  if (data && data.contents) {
+                    try { data = JSON.parse(data.contents); } catch (e) {}
+                  }
+                  const diff = data && data.data && data.data.diff;
+                  if (Array.isArray(diff) && diff.length) {
+                    return {
+                      list: diff.map(function (it) {
+                        return {
+                          code: String(it.f12 || ''),
+                          name: it.f14 || '',
+                          price: it.f2 != null ? Number(it.f2) : null,
+                          chg: it.f3 != null ? Number(it.f3) : null
+                        };
+                      }).filter(function (x) { return x.code; }),
+                      total: (data.data && data.data.total) || diff.length
+                    };
+                  }
+                } catch (e) {}
+              }
+              return null;
+            }
+            let totalHint = 0;
+            for (let page = 1; page <= 30; page++) {
+              if (window.__sectorRefreshTok.cn !== myTok) break;
+              const pageData = await fetchBoardPage(page);
+              if (!pageData || !pageData.list.length) break;
+              totalHint = pageData.total || totalHint;
+              const exist = {};
+              stocks.forEach(function (s) { exist[s.code] = true; });
+              pageData.list.forEach(function (s) {
+                if (!exist[s.code]) {
+                  stocks.push(s);
+                  exist[s.code] = true;
+                }
+              });
+              if (stocks.length >= totalHint) break;
+              if (pageData.list.length < 100) break;
+            }
+            return { stocks: stocks, totalHint: totalHint || stocks.length };
+          }
+
+          // —— 阶段0：先算死总数（与一级大类角标同一口径：1527+772+…≈4029）——
+          // 必须先统计完再开始拉成分，分母全程不变；未跑完所有细分不得到 100%
+          showSectorProgress('cn', 0, 1, 'A股统计总数中…');
+          const boardTotals = {};
+          let universe0 = [];
+          try {
+            if (typeof loadCNBoardUniverse === 'function') {
+              universe0 = await loadCNBoardUniverse(true) || [];
+            }
+          } catch (e) {}
+          // 与 renderCNSectorL1 相同：每个大类下各细分 count 相加，再把各大类相加
+          function countForChild(c, universe) {
+            let count = 0;
+            let lead = null;
+            if (c.board) lead = universe.find(function (h) { return h.board === c.board; });
+            if (!lead) lead = universe.find(function (h) { return h.name === c.name; });
+            if (!lead && c.match) {
+              try {
+                const hits = matchCNBoards(c.match || [c.name], universe, [c.name]);
+                lead = hits[0] || null;
+              } catch (e) {}
+            }
+            if (lead && lead.count) count = lead.count || 0;
+            if (c.board && window.__cnBoardMeta && window.__cnBoardMeta[c.board] &&
+                window.__cnBoardMeta[c.board].count > count) {
+              count = window.__cnBoardMeta[c.board].count;
+            }
+            return count;
+          }
+          // 再补一轮 meta，尽量把每个 BK 的 count 填准
+          for (let bi = 0; bi < boards.length; bi++) {
+            if (myTok !== window.__sectorRefreshTok.cn) return;
+            const b = boards[bi].board;
+            try {
+              if (window.__cnBoardMeta) delete window.__cnBoardMeta[b];
+              if (typeof fetchCNBoardMeta === 'function') {
+                const meta = await fetchCNBoardMeta(b);
+                if (meta && meta.count > 0) boardTotals[b] = meta.count;
+              }
+            } catch (e) {}
+            showSectorProgress('cn', bi + 1, boards.length + 1, 'A股统计总数 ' + (bi + 1) + '/' + boards.length + '…');
+          }
+          let stockTotal = 0;
+          try {
+            (CN_SECTOR_TREE || []).forEach(function (l1) {
+              (l1.children || []).forEach(function (c) {
+                let n = 0;
+                if (c.board && boardTotals[c.board]) n = boardTotals[c.board];
+                else n = countForChild(c, universe0 || []);
+                if (c.board) boardTotals[c.board] = n || boardTotals[c.board] || 0;
+                stockTotal += n;
+              });
+            });
+          } catch (e) {}
+          // 仍异常时用页面上次一级角标合计
+          if (stockTotal < 100) {
+            try {
+              let s = 0;
+              document.querySelectorAll('#sectorContent .l1-card .s-badge').forEach(function (el) {
+                const v = parseInt(el.textContent, 10);
+                if (!isNaN(v)) s += v;
+              });
+              if (s > stockTotal) stockTotal = s;
+            } catch (e) {}
+          }
+          if (stockTotal < 1) stockTotal = 4029; // 最后兜底，与常见角标合计同级
+          // 锁定分母，后续只改分子
+          const lockedTotal = stockTotal;
+          let stockLoaded = 0;
+          let boardsDone = 0;
+          showSectorProgress('cn', 0, lockedTotal, 'A股成分股 0/' + lockedTotal + '…');
+
+          // —— 阶段1（三级）：全量成分股最新数据 ——
+          for (let bi = 0; bi < boards.length; bi++) {
+            if (myTok !== window.__sectorRefreshTok.cn) return;
+            const item = boards[bi];
+            showSectorProgress('cn', stockLoaded, stockTotal,
+              'A股成分股 · ' + (item.name || item.board) + '…');
+            try {
+              try {
+                if (window.__cnBoardMeta) delete window.__cnBoardMeta[item.board];
+              } catch (e0) {}
+              const pack = await fetchAllBoardStocks(item.board);
+              const stocks = (pack && pack.stocks) || [];
+              // 分母 lockedTotal 已锁定，只推进分子
+              window.__cnBoardStocksCache = window.__cnBoardStocksCache || {};
+              window.__cnBoardStocksCache[item.board] = {
+                list: stocks,
+                at: Date.now(),
+                total: stocks.length
+              };
+              if (stocks.length) {
+                let sum = 0, n = 0;
+                stocks.forEach(function (s) {
+                  if (typeof s.chg === 'number' && !isNaN(s.chg)) {
+                    sum += s.chg;
+                    n++;
+                  }
+                });
+                window.__cnBoardMeta = window.__cnBoardMeta || {};
+                window.__cnBoardMeta[item.board] = {
+                  count: stocks.length,
+                  chg: n ? (sum / n) : 0,
+                  hasChg: n > 0,
+                  _at: Date.now()
+                };
+              }
+              const expect = boardTotals[item.board] || stocks.length || 0;
+              stockLoaded += expect;
+              boardsDone++;
+              // 未跑完所有细分时，分子最多到 total-1，避免「100% 还在跑」
+              let showLoaded = stockLoaded;
+              if (boardsDone < boards.length && showLoaded >= lockedTotal) {
+                showLoaded = Math.max(0, lockedTotal - 1);
+              }
+              if (boardsDone >= boards.length) showLoaded = lockedTotal;
+            } catch (e) {
+              console.warn('cn full board', item.board, e);
+              boardsDone++;
+            }
+            {
+              let showLoaded = stockLoaded;
+              if (boardsDone < boards.length && showLoaded >= lockedTotal) showLoaded = Math.max(0, lockedTotal - 1);
+              if (boardsDone >= boards.length) showLoaded = lockedTotal;
+              showSectorProgress('cn', showLoaded, lockedTotal,
+                'A股成分股 ' + showLoaded + '/' + lockedTotal + '…');
+            }
+          }
+          showSectorProgress('cn', lockedTotal, lockedTotal, 'A股成分股 ' + lockedTotal + '/' + lockedTotal + '…');
+
+          if (myTok !== window.__sectorRefreshTok.cn) return;
+
+          // —— 阶段2（二级）：细分涨跌基于刚拉的成分股已写入 __cnBoardMeta ——
+          showSectorProgress('cn', lockedTotal, lockedTotal + 2, 'A股汇总细分（二级）…');
+          try {
+            if (typeof loadCNBoardUniverse === 'function') await loadCNBoardUniverse(true);
+          } catch (e) {}
+          if (myTok !== window.__sectorRefreshTok.cn) return;
+          if (currentSectorMkt() === 'cn' && typeof cnSectorView !== 'undefined' &&
+              cnSectorView === 'l2' && cnSectorL1 && typeof openCNSectorL1 === 'function') {
+            try { await openCNSectorL1(cnSectorL1, true); } catch (e) {}
+          }
+
+          // —— 阶段3（一级）：大类页面 ——
+          showSectorProgress('cn', lockedTotal + 1, lockedTotal + 2, 'A股汇总大类（一级）…');
+          if (myTok !== window.__sectorRefreshTok.cn) return;
+          if (currentSectorMkt() === 'cn') {
+            // 无论当前在几级，都刷新一级缓存；若在一级则直接重画
+            if (typeof cnSectorView !== 'undefined' && cnSectorView === 'l1') {
+              if (typeof loadCNSectors === 'function') await loadCNSectors();
+              else if (typeof renderCNSectorL1 === 'function') await renderCNSectorL1(true);
+            } else if (typeof renderCNSectorL1 === 'function') {
+              // 后台刷新一级 HTML 缓存，返回大类时能看到新数字
+              try {
+                const bakView = cnSectorView;
+                const bakL1 = cnSectorL1;
+                // 不改当前 UI：只预热 universe（已拉过）；openCNSectorL1 已更新二级
+              } catch (e) {}
+            }
+          }
+          showSectorProgress('cn', lockedTotal + 2, lockedTotal + 2, 'A股完成');
+          if (myTok === window.__sectorRefreshTok.cn) {
+            hideSectorProgress('cn', 'A股板块已完整刷新');
+          }
+        }
+      } catch (e) {
+        console.warn('fullRefreshSectors', mkt, e);
+        hideSectorProgress(mkt, '刷新失败，请重试');
+      } finally {
+        if (myTok === window.__sectorRefreshTok[mkt]) {
+          window.__sectorRefreshBusy[mkt] = false;
+        }
+      }
+    }
+
+
     function switchSectorMarket(m) {
       sectorMarket = m;
       sectorMarketToken += 1;
       const switchTok = sectorMarketToken;
+      try { if (typeof syncSectorProgressVisibility === 'function') syncSectorProgressVisibility(); } catch (e) {}
       usSectorView = 'l1';
       usSectorL1 = null;
       cnSectorView = 'l1';
@@ -9247,31 +10256,46 @@ const FALLBACK_SECTORS = {
     
     async function avgStocksChg(symbols, force) {
       if (!symbols || !symbols.length) return { chg: 0, n: 0 };
-      let sum = 0, n = 0;
-      const slice = symbols.slice(0, 3); // 少取几只，加快板块页
-      const tasks = slice.map(async function (sym) {
-        try {
-          // force=true 时跳过缓存，强制拿一次新数据——手动点刷新、
-          // 或者停留在板块页时的自动刷新都需要真的看到数字在变，
-          // 而不是每次都读到同一份从没过期过的旧缓存
-          let q = force ? null : quoteCache[sym];
-          if (!q) {
-            q = await Promise.race([
+      const list = symbols.slice();
+      // 需要补数时按并发拉全列表（force 全拉；非 force 只补没有缓存的）
+      const need = [];
+      for (let i = 0; i < list.length; i++) {
+        const sym = list[i];
+        const q = quoteCache[sym];
+        if (force || !q || !(q.c > 0)) need.push(sym);
+      }
+      const CONC = 5;
+      for (let i = 0; i < need.length; i += CONC) {
+        const batch = need.slice(i, i + CONC);
+        await Promise.all(batch.map(async function (sym) {
+          try {
+            const q = await Promise.race([
               fetchQuote(sym),
-              new Promise(function (resolve) { setTimeout(function () { resolve(null); }, 1800); })
+              new Promise(function (resolve) { setTimeout(function () { resolve(null); }, 2200); })
             ]);
-            if (q) quoteCache[sym] = q;
-          }
-          if (q && typeof q.dp === 'number' && !isNaN(q.dp)) {
-            sum += q.dp;
+            if (q && q.c > 0) {
+              try { putQuoteCache(sym, q); } catch (e1) { quoteCache[sym] = q; }
+            }
+          } catch (e) {}
+        }));
+      }
+      return avgStocksChgFromCacheOnly(list);
+    }
+
+    // 大类涨跌 = 各细分涨跌的平均（与点进二级看到的方向一致，避免只抽头部几只股票）
+    async function avgL1FromChildren(l1, force) {
+      const children = (l1 && l1.children) || [];
+      if (!children.length) return { chg: 0, n: 0 };
+      let sum = 0, n = 0;
+      for (let i = 0; i < children.length; i++) {
+        try {
+          const avg = await avgStocksChg(children[i].stocks || [], force);
+          if (avg && avg.n > 0) {
+            sum += avg.chg;
             n++;
           }
         } catch (e) {}
-      });
-      await Promise.race([
-        Promise.all(tasks),
-        new Promise(function (resolve) { setTimeout(resolve, 2500); })
-      ]);
+      }
       return { chg: n ? sum / n : 0, n: n };
     }
 
@@ -9297,11 +10321,26 @@ const FALLBACK_SECTORS = {
             await loadCNSectors();
           }
         } else {
-          // 美股同理：已在二级页（细分行业列表）就原地软刷新，不要跳回一级大类
+          // 美股：全量刷新进行中时不要并行再刷，避免两套数字来回跳
+          try {
+            if (window.__sectorRefreshBusy && window.__sectorRefreshBusy.us) return;
+          } catch (eBusy) {}
+          // 二级页：定时软刷新只用缓存重画；真正 force 才走网络
           if (typeof usSectorView !== 'undefined' && usSectorView === 'l2' && usSectorL1) {
-            await openUSSectorL1(usSectorL1, true, force);
+            if (force) {
+              await openUSSectorL1(usSectorL1, true, true);
+            } else if (typeof repaintCurrentUSSectorFromCache === 'function') {
+              repaintCurrentUSSectorFromCache();
+            } else {
+              await openUSSectorL1(usSectorL1, true, false);
+            }
           } else {
-            await loadUSSectors(force);
+            if (force) await loadUSSectors(true);
+            else if (typeof repaintCurrentUSSectorFromCache === 'function') {
+              repaintCurrentUSSectorFromCache();
+            } else {
+              await loadUSSectors(false);
+            }
           }
         }
       } catch (e) {
@@ -9376,7 +10415,7 @@ const FALLBACK_SECTORS = {
           chg: 0,
           count: all.length,
           subCount: l1.children.length,
-          _syms: all.slice(0, 3)
+          _l1: l1
         };
       });
       // 已经有内容（比如这是一次自动/手动刷新）时不用先画 0.00 的骨架再刷一遍，
@@ -9389,7 +10428,11 @@ const FALLBACK_SECTORS = {
 
       const cards = await Promise.all(baseCards.map(async function (card) {
         let avg = { chg: 0, n: 0 };
-        try { avg = await avgStocksChg(card._syms || [], force); } catch (e) {}
+        try {
+          avg = (typeof avgL1FromChildren === 'function')
+            ? await avgL1FromChildren(card._l1, force)
+            : await avgStocksChg([], force);
+        } catch (e) {}
         // 强制刷新时会跳过缓存直接发新请求，网络一慢或者接口一时限流就可能
         // 超时拿不到数据——avgStocksChg 这时候会返回 n=0（没拿到任何一只的
         // 真实行情），如果直接把这个「没拿到」当成「真的是0.00%」画出来，
@@ -9435,7 +10478,8 @@ const FALLBACK_SECTORS = {
       const myToken = usSectorLoadToken;
       try {
         const _d = document.getElementById('detailDrawer');
-        if (!(_d && _d.classList.contains('show'))) {
+        // 后台软刷新（isRestore）不弹「加载细分」，避免和实时数字抢戏、来回闪提示
+        if (!isRestore && !(_d && _d.classList.contains('show'))) {
           setSectorToast(true, '加载「' + (l1.name || '') + '」细分…', 10000);
         }
       } catch (e) {}
@@ -9509,6 +10553,8 @@ const FALLBACK_SECTORS = {
     }
 
     async function openUSSectorL2(l1id, l2id, isRestore) {
+      try { window.__lastUSSectorL2 = l2id; } catch (eL2) {}
+
       const l1 = US_SECTOR_TREE.find(function (x) { return x.id === l1id; });
       if (!l1) return;
       const l2 = l1.children.find(function (x) { return x.id === l2id; });
@@ -9540,10 +10586,12 @@ const FALLBACK_SECTORS = {
       const quoteMap = Object.assign({}, prevState.quoteMap || {});
       const loadingSet = {};
       // 不恢复旧的 loadingList，避免失败票一直卡在「加载中」
-      const CONC = 2; // 降低并发，减少 Finnhub 限流
+      const CONC = 4; // 有缓存时主要是补洞，可稍提高并发
       symbols.forEach(function (sym) {
         const cq = getQuoteCacheFresh(sym);
-        if (cq && cq.c > 0) quoteMap[sym] = cq;
+        // 全量刷新写入的缓存优先；即使软过期也先展示，避免刷新完仍一片「加载中」
+        const anyQ = (cq && cq.c > 0) ? cq : (quoteCache[sym] && quoteCache[sym].c > 0 ? quoteCache[sym] : null);
+        if (anyQ) quoteMap[sym] = anyQ;
         else if (quoteMap[sym] && quoteMap[sym].c > 0) { /* keep */ }
         else if (quoteMap[sym] && quoteMap[sym]._failed) {
           // 已知拉失败，先显示 --，仍会再试一次
@@ -9635,7 +10683,7 @@ const FALLBACK_SECTORS = {
           const isLoading = !!loadingSet[sym] && !(q && q.c > 0);
           if (isLoading) loadingCnt++;
           const price = q && q.c > 0 ? Number(q.c).toFixed(2) : (isLoading ? '' : '--');
-          const dp = q && q.c > 0 && q.dp != null ? q.dp : null;
+          let dp = getQuoteDailyDp(q);
           if (q && q.c > 0) got++;
           if (dp > 0) upCnt++; else if (dp < 0) downCnt++;
           let cn = '';
@@ -10342,6 +11390,13 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
 
       let stocks = [];
       if (boardCode && String(boardCode).startsWith('BK')) {
+        // 全量刷新写入的缓存优先使用（2分钟内）
+        try {
+          const cached = window.__cnBoardStocksCache && window.__cnBoardStocksCache[boardCode];
+          if (cached && cached.list && cached.list.length && cached.at && (Date.now() - cached.at) < 120000) {
+            stocks = cached.list.slice();
+          }
+        } catch (e) {}
         async function fetchBoardPage(pn) {
           const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=' + pn + '&pz=100&po=1&np=1&fltt=2&invt=2&fid=f3&fs=b:' + boardCode + '&fields=f12,f14,f2,f3&_=' + Date.now();
           const proxies = [];
@@ -10379,9 +11434,9 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           }
           return null;
         }
-        // 多页拉取，尽量拉全
+        // 多页拉取，尽量拉全（已有全量缓存则跳过）
         let totalHint = 0;
-        for (let page = 1; page <= 30; page++) {
+        if (!stocks.length) for (let page = 1; page <= 30; page++) {
           const pageData = await fetchBoardPage(page);
           if (!pageData || !pageData.list.length) break;
           totalHint = pageData.total || totalHint;
@@ -10483,6 +11538,9 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
     async function openCNDetail(code, name, isRestore) {
       chartStyle = 'mini';
       try { localStorage.setItem('tvChartStyle', 'mini'); } catch (e) {}
+      try { if (typeof stopLiveDetail === 'function') stopLiveDetail(); } catch (e0) {}
+      try { if (typeof stopMiniChartLive === 'function') stopMiniChartLive(); } catch (e1) {}
+      try { clearChartToLoading('走势图加载中…'); } catch (e2) {}
       const uiTok = beginDetailUI('stock');
       const cnIndexCodes = { '000001':1,'000300':1,'000688':1,'000905':1,'000852':1,'399001':1,'399006':1,'399005':1 };
       const isCnIdx = !!cnIndexCodes[String(code).replace(/\D/g,'').slice(0,6)];
@@ -10492,7 +11550,8 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           ' <span class="market-badge cn">A股</span>');
       document.getElementById('detailPrice').textContent = '加载中...';
       document.getElementById('detailChg').textContent = '';
-      document.getElementById('detailGrid').innerHTML = '';
+      document.getElementById('detailGrid').innerHTML =
+        '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:16px;">加载个股详情...</div>';
       document.getElementById('detailOverlay').classList.add('show');
       document.getElementById('detailDrawer').classList.add('show');
       if (!isRestore) pushDetailHistory({ type: 'stock-cn', symbol: code, name: name || '' });
@@ -10504,11 +11563,23 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         const cq = quoteCache[ck] || quoteCache[code];
         if (cq && cq.c > 0) {
           document.getElementById('detailPrice').textContent = Number(cq.c).toFixed(2);
-          const dp0 = cq.dp != null ? cq.dp : 0;
-          const d0 = cq.d != null ? cq.d : 0;
+          const dp0 = (typeof getQuoteDailyDp === 'function' && getQuoteDailyDp(cq) != null) ? getQuoteDailyDp(cq) : (cq.dp != null ? cq.dp : 0);
+          const d0 = (typeof cq.pc === 'number' && cq.pc > 0) ? (cq.c - cq.pc) : (cq.d != null ? cq.d : 0);
           const el0 = document.getElementById('detailChg');
           el0.innerHTML = chgAmtPctHtml(d0, dp0);
           el0.className = 'detail-chg ' + (dp0 > 0 ? 'up' : dp0 < 0 ? 'down' : 'flat');
+          var hi = (cq.h > 0) ? Number(cq.h).toFixed(2) : '--';
+          var lo = (cq.l > 0) ? Number(cq.l).toFixed(2) : '--';
+          var op = (cq.o > 0) ? Number(cq.o).toFixed(2) : '--';
+          var pc = (cq.pc > 0) ? Number(cq.pc).toFixed(2) : '--';
+          if (hi !== '--' || lo !== '--' || op !== '--' || pc !== '--') {
+            document.getElementById('detailGrid').innerHTML =
+              '<div class="detail-stat"><div class="label">最高</div><div class="val" style="color:var(--green);">' + hi + '</div></div>' +
+              '<div class="detail-stat"><div class="label">最低</div><div class="val" style="color:var(--red);">' + lo + '</div></div>' +
+              '<div class="detail-stat"><div class="label">今开</div><div class="val">' + op + '</div></div>' +
+              '<div class="detail-stat"><div class="label">昨收</div><div class="val">' + pc + '</div></div>' +
+              '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:8px;font-size:0.75rem;">近几日对比加载中…</div>';
+          }
         }
       } catch (e) {}
 
@@ -10576,25 +11647,14 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         document.getElementById('detailChg').textContent = '暂无报价';
       }
 
-      // 先渲染 OHLC + 昨/今日对比（不依赖日K接口）
-      // 用跟最终「近3日」列表完全一样的 compactDayRowHtml 渲染，避免加载中/加载完样式不一致，出现闪一下换样式的情况
+      // 先只画四格 OHLC + 加载提示；等日K到齐再一次性写入近几日（避免半成品昨日/今日再跳成完整近3日）
       const fmt = (v) => (v != null && !isNaN(v) ? Number(v).toFixed(2) : '--');
-      let quickDays = '';
-      if (prev != null) {
-        quickDays += compactDayRowHtml('昨日', '', '--', fmt(prev), '--', '--', null, null, true);
-      }
-      if (price != null) {
-        const dayDiff = prev != null ? (price - prev) : null;
-        const dayPct = (prev && dayDiff != null) ? (dayDiff / prev * 100) : null;
-        quickDays += compactDayRowHtml('今日', '', fmt(open), fmt(price), fmt(high), fmt(low), dayDiff, dayPct, false);
-      }
       document.getElementById('detailGrid').innerHTML =
         '<div class="detail-stat"><div class="label">最高</div><div class="val" style="color:var(--green);">' + fmt(high) + '</div></div>' +
         '<div class="detail-stat"><div class="label">最低</div><div class="val" style="color:var(--red);">' + fmt(low) + '</div></div>' +
         '<div class="detail-stat"><div class="label">今开</div><div class="val">' + fmt(open) + '</div></div>' +
         '<div class="detail-stat"><div class="label">昨收</div><div class="val">' + fmt(prev) + '</div></div>' +
-        quickDays +
-        '<div id="cnDayRows" style="grid-column:1/-1;"></div>';
+        '<div id="cnDayRows" style="grid-column:1/-1;text-align:center;color:var(--muted);padding:12px;font-size:0.78rem;">近几日对比加载中…</div>';
 
       // 近几日：优先东方财富日K（基金/指数更全），Yahoo 仅作备用
       let dayRows = '';
@@ -10804,7 +11864,9 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       INTC:'英特尔', QCOM:'高通', MU:'美光', ASML:'阿斯麦', JPM:'摩根大通', BAC:'美银',
       GS:'高盛', XOM:'埃克森', CVX:'雪佛龙', LLY:'礼来', UNH:'联合健康', JNJ:'强生',
       PFE:'辉瑞', WMT:'沃尔玛', COST:'好市多', HD:'家得宝', DIS:'迪士尼', BA:'波音',
-      CAT:'卡特彼勒', CRM:'Salesforce', ORCL:'甲骨文', ADBE:'Adobe', CSCO:'思科'
+      CAT:'卡特彼勒', CRM:'Salesforce', ORCL:'甲骨文', ADBE:'Adobe', CSCO:'思科',
+      PDD:'拼多多', BABA:'阿里巴巴', JD:'京东', BIDU:'百度', NIO:'蔚来', XPEV:'小鹏',
+      LI:'理想', SOUN:'SoundHound', IONQ:'IonQ', RGTI:'Rigetti', QBTS:'D-Wave'
     };
 
     function calImportance(symbol) {
@@ -10839,13 +11901,33 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
 
     async function fetchEarningsCalendar() {
       const now = new Date();
-      // 历史一个月 + 未来三周
       const from = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10);
       const to = new Date(now.getTime() + 21 * 86400000).toISOString().slice(0, 10);
       const url = `https://finnhub.io/api/v1/calendar/earnings?from=${from}&to=${to}&token=${FINNHUB_KEY}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      return (data && data.earningsCalendar) || [];
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 7000) : null;
+      try {
+        let data = null;
+        try {
+          if (typeof fetchViaProxies === 'function') {
+            data = await fetchViaProxies(url);
+          }
+        } catch (e) {}
+        if (!data) {
+          const res = await fetch(url, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          data = await res.json();
+        }
+        if (data && data.contents && typeof data.contents === 'string') {
+          try { data = JSON.parse(data.contents); } catch (e) {}
+        }
+        return (data && data.earningsCalendar) || [];
+      } catch (e) {
+        console.warn('earnings calendar', e);
+        return [];
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
     }
 
     // 从东方财富新闻里抓「财报/非农/CPI」相关标题作补充
@@ -10885,26 +11967,406 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       return [];
     }
 
-    async function loadCalendar() {
+    let calMarket = 'us';
+    // 每个市场各自一条独立序号：切换 美股/A股 或切到别的分栏，
+    // 都不该打断另一个市场正在后台跑着的抓取——只有「同一个市场」
+    // 又发起一次新的加载（比如点了刷新）才会让旧的那条失效。
+    let __calLoadSeq = { us: 0, cn: 0 };
+    const CAL_PAGE_CACHE_PREFIX = 'cal_page_v2_';
+    const CAL_PAGE_CACHE_MAX = 500;
+
+    function calLocalDayStr() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function readCalPageCache(mkt) {
+      try {
+        let raw = localStorage.getItem(CAL_PAGE_CACHE_PREFIX + mkt);
+        if (!raw) raw = localStorage.getItem('cal_page_v1_' + mkt);
+        if (!raw) return null;
+        const o = JSON.parse(raw);
+        if (!o || !o.html) return null;
+        return o;
+      } catch (e) { return null; }
+    }
+
+    function clearCalPageCache(mkt) {
+      try {
+        if (!mkt) {
+          clearCalPageCache('us');
+          clearCalPageCache('cn');
+          return;
+        }
+        localStorage.removeItem(CAL_PAGE_CACHE_PREFIX + mkt);
+        localStorage.removeItem('cal_page_v1_' + mkt);
+      } catch (e) {}
+    }
+
+    // 观察列表增删后：清日历缓存并强制重拉美股/A股，使自选联动与缓存一致
+    function refreshCalendarAfterWatchlistChange() {
+      try {
+        clearCalPageCache('us');
+        clearCalPageCache('cn');
+        try {
+          if (typeof preloadedPages !== 'undefined' && preloadedPages && typeof preloadedPages.delete === 'function') {
+            preloadedPages.delete('cal');
+          }
+        } catch (e0) {}
+        // 丢弃进行中的抓取，避免旧自选结果写回缓存
+        try {
+          if (typeof __calLoadSeq !== 'undefined') {
+            __calLoadSeq.us = (__calLoadSeq.us || 0) + 1;
+            __calLoadSeq.cn = (__calLoadSeq.cn || 0) + 1;
+          }
+          if (typeof __calInFlight !== 'undefined' && __calInFlight) {
+            __calInFlight.us = null;
+            __calInFlight.cn = null;
+          }
+        } catch (e1) {}
+        if (window.__calWatchRefreshTimer) {
+          try { clearTimeout(window.__calWatchRefreshTimer); } catch (e2) {}
+        }
+        window.__calWatchRefreshTimer = setTimeout(function () {
+          (async function () {
+            try {
+              if (typeof loadCalendarUS === 'function') {
+                const seqUs = (typeof __calLoadSeq !== 'undefined') ? ++__calLoadSeq.us : 1;
+                const pUs = loadCalendarUS(seqUs, true);
+                try {
+                  if (typeof __calInFlight !== 'undefined' && __calInFlight) __calInFlight.us = pUs;
+                } catch (e3) {}
+                await pUs;
+              }
+            } catch (e) { console.warn('cal us refresh after watch', e); }
+            try {
+              if (typeof loadCalendarCN === 'function') {
+                const seqCn = (typeof __calLoadSeq !== 'undefined') ? ++__calLoadSeq.cn : 1;
+                const pCn = loadCalendarCN(seqCn, true);
+                try {
+                  if (typeof __calInFlight !== 'undefined' && __calInFlight) __calInFlight.cn = pCn;
+                } catch (e4) {}
+                await pCn;
+              }
+            } catch (e) { console.warn('cal cn refresh after watch', e); }
+            // 若用户正在看日历页，用最新缓存/结果再刷一次当前 tab
+            try {
+              const page = document.getElementById('page-cal');
+              if (page && page.classList.contains('active') && typeof loadCalendar === 'function') {
+                loadCalendar(true);
+              }
+            } catch (e5) {}
+          })();
+        }, 280);
+      } catch (e) {
+        console.warn('refreshCalendarAfterWatchlistChange', e);
+      }
+    }
+
+
+    function calItemKey(it) {
+      if (!it) return '';
+      return String(it.symbol || it.event || '') + '|' + String(it.date || '') + '|' + (it.isMacro ? 'm' : 's') + '|' + (it.fromWatch ? 'w' : '');
+    }
+
+    function writeCalPageCache(mkt, html, pastHtml, pastCount, watchHtml, watchCount, items) {
+      try {
+        const day = calLocalDayStr();
+        const prev = readCalPageCache(mkt);
+        let merged = Array.isArray(items) ? items.slice() : [];
+        if (prev && Array.isArray(prev.items) && prev.items.length) {
+          const map = {};
+          prev.items.forEach(function (it) {
+            const k = it.key || calItemKey(it);
+            if (k) map[k] = it;
+          });
+          merged.forEach(function (it) {
+            const k = it.key || calItemKey(it);
+            if (k) map[k] = it;
+          });
+          merged = Object.keys(map).map(function (k) { return map[k]; });
+        }
+        // 自选项：必须仍在观察列表中，避免删自选后缓存里还留着旧股票
+        try {
+          const watchSet = {};
+          const list = (typeof watchlist !== 'undefined' && Array.isArray(watchlist)) ? watchlist : [];
+          list.forEach(function (s) {
+            let k = String(s || '').toUpperCase().trim();
+            if (/(\d{6})/.test(k)) {
+              const m = k.match(/(\d{6})/);
+              if (m) k = m[1];
+            }
+            if (k) watchSet[k] = true;
+          });
+          merged = merged.filter(function (it) {
+            if (!it || !it.fromWatch) return true;
+            let sym = String(it.symbol || '').toUpperCase().trim();
+            if (/(\d{6})/.test(sym)) {
+              const m2 = sym.match(/(\d{6})/);
+              if (m2) sym = m2[1];
+            }
+            return !!(sym && watchSet[sym]);
+          });
+        } catch (eFilt) {}
+        merged.sort(function (a, b) {
+          const da = String(a.date || '');
+          const db = String(b.date || '');
+          if (da !== db) return da > db ? -1 : 1;
+          return 0;
+        });
+        if (merged.length > CAL_PAGE_CACHE_MAX) merged = merged.slice(0, CAL_PAGE_CACHE_MAX);
+        localStorage.setItem(CAL_PAGE_CACHE_PREFIX + mkt, JSON.stringify({
+          ts: Date.now(),
+          day: day,
+          html: html || '',
+          pastHtml: pastHtml != null ? pastHtml : (prev && prev.pastHtml) || '',
+          pastCount: pastCount != null ? pastCount : (prev && prev.pastCount) || 0,
+          watchHtml: watchHtml != null ? watchHtml : (prev && prev.watchHtml) || '',
+          watchCount: watchCount != null ? watchCount : (prev && prev.watchCount) || 0,
+          items: merged
+        }));
+        try { localStorage.removeItem('cal_page_v1_' + mkt); } catch (e2) {}
+      } catch (e) {}
+    }
+
+    function applyCalCacheToWindow(cached) {
+      if (!cached) return;
+      window.__calPastHtml = cached.pastHtml || '';
+      window.__calPastCount = cached.pastCount || 0;
+      window.__calWatchHtml = cached.watchHtml || window.__calWatchHtml || '';
+      window.__calWatchCount = cached.watchCount != null ? cached.watchCount : (window.__calWatchCount || 0);
+    }
+    function paintCalMarketShell(mkt) {
+      const container = document.getElementById('calList');
+      if (!container) return false;
+      const cached = readCalPageCache(mkt);
+      if (cached && cached.html) {
+        container.innerHTML = cached.html;
+        applyCalCacheToWindow(cached);
+        return true;
+      }
+      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:28px 0;font-size:0.88rem;">'
+        + (mkt === 'cn' ? '正在加载 A 股日历…' : '正在加载美股日历…')
+        + '</div>';
+      window.__calPastHtml = '';
+      window.__calPastCount = 0;
+      return false;
+    }
+    function isCalLoadCurrent(seq, mkt) {
+      // 只看「这个市场自己的序号」有没有被更新的加载顶替——
+      // 不再因为用户当前正看着另一个市场就判定为过期，这样后台
+      // 抓取会一直跑到拿完数据为止，而不是被切走这个动作打断。
+      return seq === __calLoadSeq[mkt];
+    }
+    // 是否「正看着」这个市场的日历页——只用来决定要不要直接刷新屏幕上的 DOM，
+    // 不影响后台抓取是否继续进行（那个由 isCalLoadCurrent 单独判断）。
+    function isCalMarketVisible(mkt) {
+      return isCalPageActive() && ((calMarket === 'cn') ? 'cn' : 'us') === mkt;
+    }
+
+    function setCalMarket(m) {
+      calMarket = (m === 'cn') ? 'cn' : 'us';
+      try {
+        const usBtn = document.getElementById('calTabUS');
+        const cnBtn = document.getElementById('calTabCN');
+        if (usBtn && cnBtn) {
+          if (calMarket === 'us') {
+            usBtn.style.background = 'var(--blue)'; usBtn.style.color = '#fff';
+            cnBtn.style.background = 'var(--card)'; cnBtn.style.color = 'var(--muted)';
+          } else {
+            cnBtn.style.background = 'var(--blue)'; cnBtn.style.color = '#fff';
+            usBtn.style.background = 'var(--card)'; usBtn.style.color = 'var(--muted)';
+          }
+        }
+        const note = document.getElementById('calPageNote');
+        if (note) {
+          note.textContent = calMarket === 'cn'
+            ? 'A股：东方财富业绩披露预约 + 国内宏观节点 · 三档重要性'
+            : '美股：Finnhub 财报 + 宏观日程 · 三档重要性';
+        }
+      } catch (e) {}
+      // 立刻换成目标市场画布，绝不残留另一边
+      paintCalMarketShell(calMarket);
+      loadCalendar(false);
+    }
+
+    function isCalPageActive() {
+      try {
+        const page = document.getElementById('page-cal');
+        return !!(page && page.classList.contains('active'));
+      } catch (e) { return false; }
+    }
+    function paintCalUpdatingHint(count) {
+      try {
+        if (!isCalPageActive()) { clearCalUpdatingHint(); return; }
+        let tip = document.getElementById('calUpdatingTip');
+        if (!tip) {
+          tip = document.createElement('div');
+          tip.id = 'calUpdatingTip';
+          tip.style.cssText = 'position:fixed;left:50%;top:72px;transform:translateX(-50%);z-index:120;pointer-events:none;'
+            + 'padding:8px 16px;border-radius:20px;font-size:0.78rem;font-weight:500;'
+            + 'color:rgba(232,238,245,0.95);background:rgba(15,20,28,0.55);'
+            + 'border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(10px);'
+            + '-webkit-backdrop-filter:blur(10px);box-shadow:0 4px 16px rgba(0,0,0,0.25);'
+            + 'opacity:0;transition:opacity 0.2s ease;';
+          document.body.appendChild(tip);
+        }
+        // A 股这边没有单次拉全量的接口，得一只只查，慢是正常的——
+        // 但光显示一句不变的「更新中」看着像卡死，这里改成把已经拿到手
+        // 的条数实时报出来，滚动着涨，能看出是真的在动、不是卡住了
+        const label = (count != null) ? ('日历更新中… 已获取 ' + count + ' 条') : '日历更新中…';
+        tip.innerHTML = '<span class="cal-spinner" style="width:14px;height:14px;display:inline-block;vertical-align:-3px;margin-right:8px;border-width:2px;"></span>' + label;
+        tip.style.display = 'flex';
+        tip.style.alignItems = 'center';
+        requestAnimationFrame(function () {
+          if (isCalPageActive()) tip.style.opacity = '1';
+          else clearCalUpdatingHint();
+        });
+      } catch (e) {}
+    }
+    function clearCalUpdatingHint() {
+      try {
+        const tip = document.getElementById('calUpdatingTip');
+        if (!tip) return;
+        tip.style.opacity = '0';
+        setTimeout(function () {
+          if (tip && tip.style.opacity === '0') tip.style.display = 'none';
+        }, 220);
+      } catch (e) {}
+    }
+
+    function calDaysLabel(dateStr, todayStr) {
+      try {
+        if (!dateStr || !todayStr) return '';
+        const a = String(dateStr).slice(0, 10).split('-').map(Number);
+        const b = String(todayStr).slice(0, 10).split('-').map(Number);
+        if (a.length < 3 || b.length < 3 || !a[0] || !b[0]) return '';
+        const d0 = Date.UTC(b[0], b[1] - 1, b[2]);
+        const d1 = Date.UTC(a[0], a[1] - 1, a[2]);
+        const days = Math.round((d1 - d0) / 86400000);
+        if (days === 0) return '今天';
+        if (days === 1) return '明天 · 1天后';
+        if (days > 1) return days + '天后';
+        if (days === -1) return '昨天';
+        return Math.abs(days) + '天前';
+      } catch (e) { return ''; }
+    }
+
+    function withTimeout(promise, ms, fallback) {
+      return new Promise(function (resolve) {
+        var done = false;
+        var timer = setTimeout(function () {
+          if (done) return;
+          done = true;
+          resolve(fallback);
+        }, ms || 8000);
+        Promise.resolve(promise).then(function (v) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve(v);
+        }).catch(function () {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve(fallback);
+        });
+      });
+    }
+
+    // 每个市场同一时间只允许一条抓取链路在跑；切换市场/页面时不再重复起新请求，
+    // 而是复用正在进行中的那一条，跑完的结果也总会写入缓存（见 loadCalendarCN / loadCalendarUS 末尾）。
+    let __calInFlight = { us: null, cn: null };
+
+    async function loadCalendar(force) {
       const container = document.getElementById('calList');
       if (!container) return;
-      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载日历中...</div>';
-
-      let earnings = [];
-      let newsHints = [];
+      const mkt = (calMarket === 'cn') ? 'cn' : 'us';
+      // 先不急着弹提示条——等真的开始一条条拉取、有具体数字了
+      // （下面 paintCalUpdatingHint(count)）再显示，不要出现「更新中」
+      // 但看不出数字、像是卡住了的那种空提示
+      // 有缓存先上屏；当天的缓存直接当真、不用再发请求——只有跨天了
+      // 或者用户手动点了刷新（force）才会真的再去拉一次
       try {
-        [earnings, newsHints] = await Promise.all([
-          fetchEarningsCalendar().catch(() => []),
-          fetchNewsCalendarHints().catch(() => [])
-        ]);
+        const cached0 = readCalPageCache(mkt);
+        if (cached0 && cached0.html) {
+          if (!container.querySelector('.cal-item')) paintCalMarketShell(mkt);
+          else applyCalCacheToWindow(cached0);
+          if (cached0.day && cached0.day !== calLocalDayStr()) {
+            force = true; // 跨天了，缓存过期，强制刷新一次
+          } else if (!force) {
+            // 当天的缓存还新鲜：已经加载过了，直接用缓存显示，不用再重新加载
+            clearCalUpdatingHint();
+            return;
+          }
+        } else if (!container.querySelector('.cal-item')) {
+          paintCalMarketShell(mkt);
+        }
       } catch (e) {
-        console.error(e);
+        if (!container.querySelector('.cal-item')) paintCalMarketShell(mkt);
       }
 
-      // 财报：优先高/中重要
-      const focus = earnings.filter(e => CAL_HIGH.has(e.symbol) || CAL_MID.has(e.symbol));
-      const rest = earnings.filter(e => !CAL_HIGH.has(e.symbol) && !CAL_MID.has(e.symbol)).slice(0, 15);
-      const merged = [...focus, ...rest].slice(0, 30);
+      // 这个市场已经有一条抓取在后台跑着：不再并发开第二条（避免重复消耗代理/接口配额），
+      // 也绝不能在这里就给这个市场分配新序号——那样会让正在跑的这条自己的
+      // 分页/自选逐个查询判定「已过期」而提前中断，切回来看到的就会是个半成品。
+      // 直接复用这条正在跑的 Promise，等它自己跑完。
+      if (__calInFlight[mkt] && !force) {
+        const existing = __calInFlight[mkt];
+        try { await existing; } catch (e) {}
+        if (isCalMarketVisible(mkt)) {
+          const cached = readCalPageCache(mkt);
+          if (cached && cached.html) {
+            container.innerHTML = cached.html;
+            applyCalCacheToWindow(cached);
+          }
+        }
+        clearCalUpdatingHint();
+        return;
+      }
+
+      // 走到这里才是真的要开一条新的抓取（要么没有在跑的，要么是强制刷新）——
+      // 这时候才分配新序号，让旧的那条（如果还没跑完）知道自己已经被顶替。
+      const seq = ++__calLoadSeq[mkt];
+      const runner = (mkt === 'cn') ? loadCalendarCN(seq, force) : loadCalendarUS(seq, force);
+      __calInFlight[mkt] = runner;
+      try {
+        await runner;
+      } finally {
+        if (__calInFlight[mkt] === runner) __calInFlight[mkt] = null;
+        // 兜底：万一里面哪个分支漏了清或者中途抛了没兜住的异常，
+        // 这里保证提示条最终一定会收起来，不会卡死在「更新中」
+        clearCalUpdatingHint();
+      }
+    }
+
+    // 纯函数：把「已经拿到手的」财报 + 新闻线索拼成日历 html。
+    // 不碰任何 window/container 状态，方便在抓取进行到不同阶段时反复调用，
+    // 实现和 A 股一样「边加载边展示」。opts.loading=true 时顶部会显示
+    // 「已加载 N 条，继续拉取中…」，而不是最终的自选联动统计文案。
+    function buildUSCalHtml(earnings, watchUS, newsHints, opts) {
+      opts = opts || {};
+      const watchSet = {};
+      (watchUS || []).forEach(function (s) {
+        const k = String(s || '').toUpperCase().trim();
+        if (k) watchSet[k] = true;
+      });
+      function isWatchSym(sym) {
+        const k = String(sym || '').toUpperCase().trim();
+        return !!(k && watchSet[k]);
+      }
+      (earnings || []).forEach(function (e) {
+        if (e && e.symbol) e.symbol = String(e.symbol).toUpperCase().trim();
+        if (e && isWatchSym(e.symbol)) e.fromWatch = true;
+      });
+
+      const watchItems = (earnings || []).filter(function (e) { return e.fromWatch || isWatchSym(e.symbol); });
+      const focus = (earnings || []).filter(function (e) {
+        return !e.fromWatch && !isWatchSym(e.symbol) && (CAL_HIGH.has(e.symbol) || CAL_MID.has(e.symbol));
+      });
+      const rest = (earnings || []).filter(function (e) {
+        return !e.fromWatch && !isWatchSym(e.symbol) && !CAL_HIGH.has(e.symbol) && !CAL_MID.has(e.symbol);
+      }).slice(0, 40);
+      const merged = watchItems.concat(focus).concat(rest).slice(0, 80);
 
       // 收集全部事件（财报 + 宏观），再按「今天起 / 历史」拆分
       const todayStr = (() => {
@@ -10919,24 +12381,57 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
 
       for (const e of merged) {
         const dt = e.date || '';
-        if (!dt) continue;
-        const level = calImportance(e.symbol);
+        const onWatch = !!(e.fromWatch || isWatchSym(e.symbol));
+        e.fromWatch = onWatch;
+        // 自选无日期：仍进自选抽屉，不进「即将到来」主列表；日期位与标签统一蓝色「暂无」
+        if (!dt || e.noSchedule) {
+          if (!onWatch) continue;
+          const cn0 = (STOCK_NAMES_CAL[e.symbol] || e.name || '').trim();
+          const nameStr0 = (cn0 && cn0 !== e.symbol) ? (e.symbol + ' ' + cn0) : e.symbol;
+          const card0 = `
+            <div class="cal-item" ${e.symbol ? `onclick="openDetail('${e.symbol}')" style="cursor:pointer;"` : ''}>
+              <div class="cal-date"><div class="day">—</div><div class="week">自选</div><div class="week cal-none-text">暂无</div></div>
+              <div class="cal-content">
+                <div class="event">${nameStr0} · <span class="cal-none-text">暂无</span></div>
+                <div class="note">近窗暂无财报安排 · 持续跟踪</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+                  <span class="importance imp-watch">自选</span>
+                  <span class="importance imp-none">暂无</span>
+                </div>
+              </div>
+            </div>`;
+          allItems.push({ date: '', level: 'mid', html: card0, isPast: false, isMacro: false, fromWatch: true, symbol: e.symbol, noSchedule: true });
+          continue;
+        }
+
+        let level = calImportance(e.symbol);
+        if (onWatch && level === 'low') level = 'mid';
         const cn = STOCK_NAMES_CAL[e.symbol] || '';
         const hourHint = e.hour === 'bmo' ? '盘前' : e.hour === 'amc' ? '盘后' : (e.hour || '');
-        const nameStr = cn ? `${e.symbol} ${cn}` : e.symbol;
+        const nameStr = cn ? (e.symbol + ' ' + cn) : e.symbol;
         const { day, week, month } = fmtCalDate(dt);
         const isPast = dt < todayStr;
         const isToday = dt === todayStr;
+        const daysLab = calDaysLabel(dt, todayStr);
+        const daysHtml = daysLab
+          ? (isPast
+              ? ' · <span style="color:var(--muted);">' + daysLab + '</span>'
+              : ' · <span style="color:var(--orange);font-weight:600;">' + daysLab + '</span>')
+          : '';
+        const watchBadge = onWatch ? '<span class="importance imp-watch">自选</span>' : '';
+        const watchCls = onWatch ? (isPast ? ' cal-item-watch-past' : ' cal-item-watch') : '';
         const card = `
-            <div class="cal-item" ${e.symbol ? `onclick="openDetail('${e.symbol}')" style="cursor:pointer;"` : ''}>
+            <div class="cal-item${watchCls}" ${e.symbol ? `onclick="openDetail('${e.symbol}')" style="cursor:pointer;"` : ''}>
               <div class="cal-date"><div class="day">${day}</div><div class="week">${month}</div><div class="week">${isToday ? '今天' : week}</div></div>
               <div class="cal-content">
-                <div class="event">${nameStr}${hourHint ? ' · ' + hourHint : ''}</div>
-                <div class="note">财报发布 · ${dt}</div>
-                <span class="importance ${calImpClass(level)}">${calImpLabel(level)}</span>
+                <div class="event">${nameStr}${hourHint ? ' · ' + hourHint : ''}${daysHtml}</div>
+                <div class="note">财报发布 · ${dt}${daysLab && !isPast ? ' · ' + daysLab : ''}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+                  ${watchBadge}<span class="importance ${calImpClass(level)}">${calImpLabel(level)}</span>
+                </div>
               </div>
             </div>`;
-        allItems.push({ date: dt, level, html: card, isPast });
+        allItems.push({ date: dt, level: level, html: card, isPast: isPast, isMacro: false, fromWatch: onWatch, symbol: e.symbol });
       }
 
       // 宏观事件
@@ -10963,12 +12458,18 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         const { day, week, month } = fmtCalDate(dt);
         const isPast = dt < todayStr;
         const isToday = dt === todayStr;
+        const daysLab = calDaysLabel(dt, todayStr);
+        const daysHtml = daysLab
+          ? (isPast
+              ? '<span style="color:var(--muted);font-size:0.78rem;"> · ' + daysLab + '</span>'
+              : '<span style="color:var(--orange);font-weight:600;font-size:0.82rem;"> · ' + daysLab + '</span>')
+          : '';
         const card = `
             <div class="cal-item">
               <div class="cal-date"><div class="day">${day}</div><div class="week">${month}</div><div class="week">${isToday ? '今天' : week}</div></div>
               <div class="cal-content">
-                <div class="event">${m.event}</div>
-                <div class="note">${m.time}<br/>${m.note}</div>
+                <div class="event">${m.event}${daysHtml}</div>
+                <div class="note">${m.time}${daysLab && !isPast ? ' · ' + daysLab : ''}<br/>${m.note}</div>
                 <span class="importance ${calImpClass(m.level)}">${calImpLabel(m.level)}</span>
               </div>
             </div>`;
@@ -10986,13 +12487,15 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         return `${y}-${m}-${day}`;
       })();
 
-      const upcoming = allItems.filter(x => !x.isPast).sort((a, b) => {
+      // 「暂无」自选只进自选抽屉，不进主列表「即将到来」
+      const upcoming = allItems.filter(x => !x.isPast && !x.noSchedule && x.date).sort((a, b) => {
         if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+        if (!!a.fromWatch !== !!b.fromWatch) return a.fromWatch ? -1 : 1;
         return (rank[a.level] || 9) - (rank[b.level] || 9);
       });
       // 历史：昨天 → 前天 → …（近一个月），最近的在前
       const past = allItems
-        .filter(x => x.isPast && x.date >= monthAgoStr)
+        .filter(x => x.isPast && !x.noSchedule && x.date && x.date >= monthAgoStr)
         .sort((a, b) => {
           if (a.date !== b.date) return a.date > b.date ? -1 : 1;
           return (rank[a.level] || 9) - (rank[b.level] || 9);
@@ -11006,19 +12509,67 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           <span><span class="importance imp-low">一般</span> 其他</span>
         </div>
       `;
+      if (opts.loading) {
+        html += '<div class="cal-spinner-wrap"><div class="cal-spinner"></div><span>已加载 ' + (earnings || []).length + ' 条，继续拉取中…</span></div>';
+      } else if (watchUS && watchUS.length) {
+        html += '<div style="font-size:0.75rem;color:var(--blue);margin:-4px 0 12px 0;line-height:1.45;">'
+          + '已联动观察列表 ' + watchUS.length + ' 只美股自选（名称带「自选」）· 有财报日会优先展示'
+          + '</div>';
+      } else {
+        html += '<div style="font-size:0.75rem;color:var(--muted);margin:-4px 0 12px 0;line-height:1.45;">'
+          + '提示：在「观察」添加美股代码后，日历会自动跟踪其财报日'
+          + '</div>';
+      }
 
-      // 历史：做成可点击进入的板块
-      window.__calPastHtml = past.length
+      // 历史 / 自选联动区块：先算成局部变量，别急着写 window——
+      // 如果这条链路已经不是当前正在看的市场了，直接写 window 会把另一个
+      // 市场（比如你已经切到 A 股）正在显示的自选/历史数据给冲掉。
+      const localPastHtml = past.length
         ? past.map(x => x.html).join('')
         : '<div style="color:var(--muted);font-size:0.85rem;padding:20px 0;text-align:center;">近一个月暂无历史事件</div>';
-      window.__calPastCount = past.length;
+      const localPastCount = past.length;
+
+      const watchOnly = allItems.filter(function (x) {
+          return x.fromWatch || (x.symbol && isWatchSym(x.symbol));
+        })
+        .sort(function (a, b) {
+          if (a.isPast !== b.isPast) return a.isPast ? 1 : -1;
+          if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+          return 0;
+        });
+      const localWatchHtml = watchOnly.length
+        ? watchOnly.map(function (x) { return x.html; }).join('')
+        : '<div style="color:var(--muted);font-size:0.85rem;padding:20px 0;text-align:center;">观察列表自选暂无财报安排<br/>可在「观察」添加后点刷新</div>';
+      const localWatchCount = watchOnly.length;
+      const localAllItems = allItems.map(function (x) {
+        return {
+          key: calItemKey(x),
+          date: x.date || '',
+          symbol: x.symbol || '',
+          fromWatch: !!x.fromWatch,
+          isPast: !!x.isPast,
+          isMacro: !!x.isMacro,
+          noSchedule: !!x.noSchedule,
+          level: x.level || '',
+          html: x.html || ''
+        };
+      });
 
       html += `
-        <div class="cal-item" onclick="openCalHistory()" style="cursor:pointer;border-color:var(--blue);margin-bottom:14px;">
+        <div class="cal-item" onclick="openCalHistory()" style="cursor:pointer;border-color:var(--blue);margin-bottom:10px;">
           <div class="cal-date"><div class="day">史</div><div class="week">历史</div></div>
           <div class="cal-content">
             <div class="event">近一个月历史事件</div>
             <div class="note">${past.length ? '共 ' + past.length + ' 条 · 点击查看昨天/前天及更早' : '暂无记录 · 点击仍可打开'}</div>
+          </div>
+        </div>
+      `;
+      html += `
+        <div class="cal-item" onclick="openCalWatch()" style="cursor:pointer;border-color:rgba(77,159,255,0.55);margin-bottom:14px;">
+          <div class="cal-date"><div class="day">选</div><div class="week">自选</div></div>
+          <div class="cal-content">
+            <div class="event">自选跟踪 · 财报日程</div>
+            <div class="note">${watchOnly.length ? '共 ' + watchOnly.length + ' 条 · 点击查看观察列表相关' : ((watchUS && watchUS.length) ? ('已联动 ' + watchUS.length + ' 只 · 近期暂无财报日') : '在观察添加美股后自动跟踪')}</div>
           </div>
         </div>
       `;
@@ -11048,14 +12599,782 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         }
       }
 
-      container.innerHTML = html;
+      return {
+        html: html, pastHtml: localPastHtml, pastCount: localPastCount,
+        watchHtml: localWatchHtml, watchCount: localWatchCount, allItems: localAllItems
+      };
     }
 
-    function openCalHistory() {
-      // 复用详情抽屉展示历史
+    async function loadCalendarUS(seq, force) {
+      const container = document.getElementById('calList');
+      if (!container) return;
+      const watchUS = (typeof getWatchlistUSSymbols === 'function') ? getWatchlistUSSymbols() : [];
+
+      // 只有「正看着美股这个 tab」时才直接改屏幕，避免这条后台抓取
+      // 在用户已经切去 A股/别的分栏时，偷偷把当前画面替换掉；
+      // 抓取本身（下面的 fetch/for 循环）不受这个限制，会一直跑到拿完数据。
+      function paintUS(list, hints, loading) {
+        if (!isCalLoadCurrent(seq, 'us')) return null;
+        const built = buildUSCalHtml(list || [], watchUS, hints || [], { loading: !!loading });
+        if (isCalMarketVisible('us')) {
+          try { container.innerHTML = built.html; } catch (e) { console.error('us cal render', e); }
+          window.__calPastHtml = built.pastHtml;
+          window.__calPastCount = built.pastCount;
+          window.__calWatchHtml = built.watchHtml;
+          window.__calWatchCount = built.watchCount;
+          window.__calAllItems = built.allItems;
+        }
+        // 每次进度更新都顺手存一份到缓存（哪怕美股现在不在屏幕上）——
+        // 这样切回来至少能看到最新一次进度，而不是更旧的快照。
+        if (loading) {
+          try {
+            writeCalPageCache('us', built.html, built.pastHtml, built.pastCount, built.watchHtml, built.watchCount, built.allItems);
+          } catch (e) {}
+        }
+        return built;
+      }
+      function isUSStale() { return !isCalLoadCurrent(seq, 'us'); }
+
+      if (force || !readCalPageCache('us') || !container.querySelector('.cal-item')) {
+        paintUS([], [], true);
+      }
+
+      let earnings = [];
+      let newsHints = [];
+      try {
+        earnings = await withTimeout(fetchEarningsCalendar().catch(function () { return []; }), 10000, []);
+      } catch (e) {
+        console.error(e);
+        earnings = [];
+      }
+      // 财报主列表一到手就先展示一版（自选缺口 / 新闻线索还在后台继续拉），
+      // 这样美股也能像 A 股一样边加载边展示，而不是转圈到底才一次性出现。
+      paintUS(earnings, [], true);
+
+      try {
+        const have = {};
+        (earnings || []).forEach(function (e) {
+          if (!e || !e.symbol) return;
+          e.symbol = String(e.symbol).toUpperCase().trim();
+          have[e.symbol] = true;
+        });
+        const watchSetNow = {};
+        (watchUS || []).forEach(function (s) { const k = String(s || '').toUpperCase().trim(); if (k) watchSetNow[k] = true; });
+        const missing = (watchUS || []).filter(function (s) {
+          return !have[String(s || '').toUpperCase().trim()];
+        });
+        if (missing.length && typeof fetchUSEarningsForSymbols === 'function') {
+          const extra = await withTimeout(
+            fetchUSEarningsForSymbols(missing, isUSStale, function (partial) {
+              // 自选逐个查完一个就重画一次，而不是等 20 个都查完才更新
+              const merged = earnings.concat(partial);
+              paintUS(merged, [], true);
+              paintCalUpdatingHint(merged.length);
+            }).catch(function () { return []; }),
+            15000, []
+          );
+          if (extra && extra.length) {
+            extra.forEach(function (e) {
+              if (!e) return;
+              e.symbol = String(e.symbol || '').toUpperCase().trim();
+              e.fromWatch = true;
+            });
+            earnings = (earnings || []).concat(extra);
+          }
+        }
+        // 自选美股在窗口内仍无财报日：补占位，避免「自选跟踪」里直接消失
+        // （例如 PDD 已过财报日进历史后，主列表「即将到来」不再显示，自选抽屉仍应能看到）
+        (function () {
+          const haveSym = {};
+          (earnings || []).forEach(function (e) {
+            if (!e || !e.symbol) return;
+            const k = String(e.symbol).toUpperCase().trim();
+            if (k && !e.noSchedule) haveSym[k] = true;
+          });
+          (watchUS || []).forEach(function (s) {
+            const k = String(s || '').toUpperCase().trim();
+            if (!k || haveSym[k]) return;
+            let nm = '';
+            try { if (typeof STOCK_NAMES_CAL !== 'undefined' && STOCK_NAMES_CAL[k]) nm = STOCK_NAMES_CAL[k]; } catch (e2) {}
+            earnings = earnings || [];
+            earnings.push({
+              symbol: k, name: nm || k, date: '', hour: '', fromWatch: true, market: 'us',
+              noSchedule: true, reportType: '暂无近窗财报安排'
+            });
+          });
+        })();
+      } catch (e) { console.warn('watch us cal', e); }
+
+      try {
+        newsHints = await withTimeout(fetchNewsCalendarHints().catch(function () { return []; }), 8000, []);
+      } catch (e) { newsHints = []; }
+
+      // 注意：这里不再因为 tab 已切走就提前 return——后面还要把 html 拼完并写入缓存，
+      // 否则切走这一步做的所有请求就白跑了，回来还要重新拉一遍。
+      const built = buildUSCalHtml(earnings || [], watchUS, newsHints || [], { loading: false });
+      try {
+        writeCalPageCache('us', built.html, built.pastHtml, built.pastCount, built.watchHtml, built.watchCount, built.allItems);
+      } catch (err) {
+        console.warn('us cal cache write', err);
+      }
+      if (!isCalLoadCurrent(seq, 'us')) { clearCalUpdatingHint(); return; }
+      if (isCalMarketVisible('us')) {
+        window.__calPastHtml = built.pastHtml;
+        window.__calPastCount = built.pastCount;
+        window.__calWatchHtml = built.watchHtml;
+        window.__calWatchCount = built.watchCount;
+        window.__calAllItems = built.allItems;
+        try {
+          container.innerHTML = built.html;
+        } catch (err) {
+          console.error('us cal render', err);
+          container.innerHTML = '<div style="color:var(--red);padding:20px;text-align:center;">美股日历渲染失败，请点刷新重试</div>';
+        }
+      }
+      clearCalUpdatingHint();
+    }
+
+    
+    
+    async function fetchEastMoneyJson(url) {
+      const proxies = [
+        (typeof WORKER_BASE !== 'undefined' ? WORKER_BASE + '?url=' + encodeURIComponent(url) : null),
+        'https://corsproxy.io/?' + encodeURIComponent(url),
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+        url
+      ].filter(Boolean);
+      for (let i = 0; i < proxies.length; i++) {
+        try {
+          const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 6000) : null;
+          const res = await fetch(proxies[i], { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+          if (timer) clearTimeout(timer);
+          if (!res.ok) continue;
+          let data = await res.json();
+          if (data && data.contents && typeof data.contents === 'string') {
+            try { data = JSON.parse(data.contents); } catch (e) {}
+          }
+          if (data && data.status && data.contents) {
+            try { data = JSON.parse(data.contents); } catch (e) {}
+          }
+          if (data && (data.success === true || (data.result && data.result.data) || data.result)) return data;
+        } catch (e) {}
+      }
+      return null;
+    }
+
+    async function fetchCNEarningsCalendar(onProgress, isStale) {
+      try {
+        function stale() { try { return !!(isStale && isStale()); } catch (e) { return false; } }
+        const now = new Date();
+        function ymd(d) {
+          return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+        const todayS = ymd(now);
+        const pastFrom = ymd(new Date(now.getTime() - 25 * 86400000));
+        const futureTo = ymd(new Date(now.getTime() + 50 * 86400000));
+        const cols = 'SECURITY_CODE,SECURITY_NAME_ABBR,FIRST_APPOINT_DATE,REPORT_DATE,REPORT_TYPE_NAME,IS_PUBLISH';
+        const out = [];
+        const seen = {};
+
+        function pushRows(rows, meta) {
+          meta = meta || {};
+          if (!Array.isArray(rows)) return;
+          for (let i = 0; i < rows.length; i++) {
+            const r = rows[i];
+            const code = String(r.SECURITY_CODE || '').trim();
+            const name = String(r.SECURITY_NAME_ABBR || '').trim();
+            const dt = String(r.FIRST_APPOINT_DATE || r.NOTICE_DATE || '').slice(0, 10);
+            if (!code || !dt || seen[code + '_' + dt]) continue;
+            seen[code + '_' + dt] = true;
+            out.push({
+              symbol: code, name: name, date: dt, hour: '', market: 'cn',
+              reportType: String(r.REPORT_TYPE_NAME || meta.reportType || '').trim(),
+              published: meta.published != null ? meta.published : (String(r.IS_PUBLISH || '') === '1')
+            });
+          }
+          try { if (typeof onProgress === 'function') onProgress(out.slice()); } catch (e) {}
+        }
+
+        async function pullAppointPages(filter, sortTypes, maxPages, pageSize) {
+          for (let page = 1; page <= maxPages; page++) {
+            if (stale()) return; // 已经切走这个市场，别再接着翻下一页了
+            const url = 'https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_PUBLIC_BS_APPOIN'
+              + '&columns=' + cols
+              + '&pageNumber=' + page + '&pageSize=' + pageSize
+              + '&sortColumns=FIRST_APPOINT_DATE&sortTypes=' + sortTypes
+              + '&filter=' + encodeURIComponent(filter)
+              + '&source=WEB&client=WEB';
+            const data = await fetchEastMoneyJson(url);
+            const rows = (data && data.result && data.result.data) || [];
+            pushRows(rows);
+            if (!rows.length || rows.length < pageSize || out.length > 200) break;
+          }
+        }
+
+        await pullAppointPages("(FIRST_APPOINT_DATE>='" + todayS + "')(FIRST_APPOINT_DATE<='" + futureTo + "')", 1, 3, 100);
+        if (stale()) return out;
+        await pullAppointPages("(FIRST_APPOINT_DATE>='" + pastFrom + "')(FIRST_APPOINT_DATE<'" + todayS + "')", -1, 2, 100);
+        if (stale()) return out;
+
+        try {
+          const f2 = "(NOTICE_DATE>='" + pastFrom + "')(NOTICE_DATE<='" + todayS + "')";
+          const url2 = 'https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_FCI_PERFORMANCEE'
+            + '&columns=SECURITY_CODE,SECURITY_NAME_ABBR,NOTICE_DATE,REPORT_DATE'
+            + '&pageNumber=1&pageSize=80&sortColumns=NOTICE_DATE&sortTypes=-1'
+            + '&filter=' + encodeURIComponent(f2) + '&source=WEB&client=WEB';
+          const data2 = await fetchEastMoneyJson(url2);
+          pushRows((data2 && data2.result && data2.result.data) || [], { reportType: '业绩公告', published: true });
+        } catch (e) {}
+
+        return out;
+      } catch (e) {
+        console.warn('cn earnings cal', e);
+        return [];
+      }
+    }
+
+    function getWatchlistAShareCodes() {
+      try {
+        const list = (typeof watchlist !== 'undefined' && Array.isArray(watchlist))
+          ? watchlist
+          : JSON.parse(localStorage.getItem('watchlist') || '[]');
+        const out = [];
+        const seen = {};
+        (list || []).forEach(function (sym) {
+          try {
+            if (typeof isAShareSymbol === 'function' && !isAShareSymbol(sym)) return;
+            let code = String(sym || '').toUpperCase().replace(/\s/g, '');
+            const m = code.match(/(\d{6})/);
+            if (!m) return;
+            code = m[1];
+            if (seen[code]) return;
+            seen[code] = true;
+            out.push(code);
+          } catch (e) {}
+        });
+        return out;
+      } catch (e) { return []; }
+    }
+
+    
+    function getWatchlistUSSymbols() {
+      try {
+        const list = (typeof watchlist !== 'undefined' && Array.isArray(watchlist))
+          ? watchlist
+          : JSON.parse(localStorage.getItem('watchlist') || '[]');
+        const out = [];
+        const seen = {};
+        (list || []).forEach(function (sym) {
+          try {
+            if (typeof isAShareSymbol === 'function' && isAShareSymbol(sym)) return;
+            let s = String(sym || '').toUpperCase().replace(/\s/g, '');
+            if (!s) return;
+            s = s.replace(/^(NASDAQ|NYSE|AMEX|US):/, '');
+            if (/^\d{6}/.test(s)) return;
+            if (seen[s]) return;
+            seen[s] = true;
+            out.push(s);
+          } catch (e) {}
+        });
+        return out;
+      } catch (e) { return []; }
+    }
+
+    async function fetchUSEarningsForSymbols(symbols, isStale, onProgress) {
+      if (!symbols || !symbols.length) return [];
+      const now = new Date();
+      const from = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10);
+      const to = new Date(now.getTime() + 45 * 86400000).toISOString().slice(0, 10);
+      const out = [];
+      const uniq = symbols.slice(0, 20);
+      for (let i = 0; i < uniq.length; i++) {
+        // 注意：这里的 isStale 只用于判断「这条抓取本身是否已经被更新的同市场加载顶替」，
+        // 不再因为用户切去了别的 tab/市场就中断——让它把自选逐个查完。
+        if (isStale && isStale()) break;
+        const sym = uniq[i];
+        try {
+          const url = 'https://finnhub.io/api/v1/calendar/earnings?from=' + from + '&to=' + to
+            + '&symbol=' + encodeURIComponent(sym) + '&token=' + FINNHUB_KEY;
+          let data = null;
+          try {
+            if (typeof fetchViaProxies === 'function') data = await fetchViaProxies(url);
+          } catch (e) {}
+          if (!data) {
+            const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 5000) : null;
+            try {
+              const res = await fetch(url, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+              if (res.ok) data = await res.json();
+            } catch (e) {}
+            if (timer) clearTimeout(timer);
+          }
+          if (data && data.contents && typeof data.contents === 'string') {
+            try { data = JSON.parse(data.contents); } catch (e) {}
+          }
+          const rows = (data && data.earningsCalendar) || [];
+          if (!Array.isArray(rows)) continue;
+          for (let r = 0; r < rows.length; r++) {
+            const row = rows[r];
+            const dt = String(row.date || '').slice(0, 10);
+            if (!dt) continue;
+            out.push({ symbol: sym, date: dt, hour: row.hour || '', fromWatch: true });
+          }
+        } catch (e) {}
+        try { if (typeof onProgress === 'function') onProgress(out.slice(), i + 1, uniq.length); } catch (e) {}
+      }
+      return out;
+    }
+
+    // 解析东财日期：可能是 "2026-08-29 00:00:00" / "2026-08-29"
+    function cnCalYmd(v) {
+      const s = String(v || '').trim();
+      if (!s) return '';
+      const m = s.match(/(\d{4}-\d{2}-\d{2})/);
+      return m ? m[1] : s.slice(0, 10);
+    }
+    // 避免标题变成「688825 688825」
+    function cnCalNameStr(code, name) {
+      const c = String(code || '').trim();
+      const n = String(name || '').trim();
+      if (!n || n === c) return c;
+      return c + ' ' + n;
+    }
+    async function resolveCNStockName(code) {
+      const c = String(code || '').trim();
+      if (!c) return '';
+      try {
+        if (typeof STOCK_NAMES_CAL !== 'undefined' && STOCK_NAMES_CAL[c]) return STOCK_NAMES_CAL[c];
+      } catch (e) {}
+      try {
+        const url = 'https://searchapi.eastmoney.com/api/suggest/get?input=' + encodeURIComponent(c) + '&type=14&count=5';
+        const data = typeof fetchEastMoneyJson === 'function' ? await fetchEastMoneyJson(url) : null;
+        const arr = (data && data.QuotationCodeTable && data.QuotationCodeTable.Data) || [];
+        for (let i = 0; i < arr.length; i++) {
+          if (String(arr[i].Code || '') === c && arr[i].Name) return String(arr[i].Name).trim();
+        }
+        if (arr[0] && arr[0].Name) return String(arr[0].Name).trim();
+      } catch (e) {}
+      return '';
+    }
+    async function fetchCNEarningsForCodes(codes, isStale) {
+      if (!codes || !codes.length) return [];
+      const out = [];
+      const uniq = codes.slice(0, 25);
+      const cols = 'SECURITY_CODE,SECURITY_NAME_ABBR,FIRST_APPOINT_DATE,REPORT_DATE,REPORT_TYPE_NAME,IS_PUBLISH';
+      // 注意：部分科创板代码在东财 filter 里「单引号」会返回空、「双引号」才有数据（实测 688825）
+      async function pullCode(code) {
+        const filters = [
+          '(SECURITY_CODE="' + code + '")',
+          "(SECURITY_CODE='" + code + "')",
+          '(SECURITY_CODE=' + code + ')'
+        ];
+        for (let f = 0; f < filters.length; f++) {
+          try {
+            const url = 'https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_PUBLIC_BS_APPOIN'
+              + '&columns=' + cols + '&pageNumber=1&pageSize=50&sortColumns=FIRST_APPOINT_DATE&sortTypes=-1'
+              + '&filter=' + encodeURIComponent(filters[f]) + '&source=WEB&client=WEB';
+            const data = typeof fetchEastMoneyJson === 'function' ? await fetchEastMoneyJson(url) : null;
+            const rows = (data && data.result && data.result.data) || [];
+            if (rows.length) return { rows: rows, reportType: '' };
+          } catch (e) {}
+        }
+        // 预约表没有时，再试业绩公告表
+        try {
+          const filt = '(SECURITY_CODE="' + code + '")';
+          const url2 = 'https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_FCI_PERFORMANCEE'
+            + '&columns=SECURITY_CODE,SECURITY_NAME_ABBR,NOTICE_DATE,REPORT_DATE'
+            + '&pageNumber=1&pageSize=20&sortColumns=NOTICE_DATE&sortTypes=-1'
+            + '&filter=' + encodeURIComponent(filt) + '&source=WEB&client=WEB';
+          const data2 = typeof fetchEastMoneyJson === 'function' ? await fetchEastMoneyJson(url2) : null;
+          const rows2 = (data2 && data2.result && data2.result.data) || [];
+          if (rows2.length) return { rows: rows2, reportType: '业绩公告', published: true };
+        } catch (e) {}
+        return { rows: [], reportType: '' };
+      }
+      for (let i = 0; i < uniq.length; i++) {
+        if (isStale && isStale()) break;
+        const code = String(uniq[i] || '').trim();
+        if (!code) continue;
+        try {
+          const pulled = await pullCode(code);
+          const rows = pulled.rows || [];
+          if (!rows.length) continue;
+          const seen = {};
+          for (let r = 0; r < rows.length; r++) {
+            const row = rows[r];
+            const dt = cnCalYmd(row.FIRST_APPOINT_DATE || row.NOTICE_DATE || row.REPORT_DATE || '');
+            if (!dt || seen[dt]) continue;
+            seen[dt] = true;
+            const nm = String(row.SECURITY_NAME_ABBR || '').trim();
+            out.push({
+              symbol: code,
+              name: nm,
+              date: dt,
+              hour: '',
+              market: 'cn',
+              fromWatch: true,
+              reportType: String(row.REPORT_TYPE_NAME || pulled.reportType || '').trim(),
+              published: pulled.published != null ? !!pulled.published : (String(row.IS_PUBLISH || '') === '1')
+            });
+          }
+        } catch (e) {}
+      }
+      return out;
+    }
+    function buildCNCalHtml(earnings, watchCN, opts) {
+      opts = opts || {};
+      const todayStr = (function () {
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      })();
+      const CN_MACRO = [
+        { date: '2026-07-15', time: '09:30 北京时间', event: '中国 GDP / 经济数据窗口', note: '二季度相关数据参考窗口', level: 'high' },
+        { date: '2026-08-09', time: '09:30 北京时间', event: '中国 CPI / PPI 数据', note: '国家统计局 · 参考窗口', level: 'high' },
+        { date: '2026-08-15', time: '09:15 北京时间', event: 'LPR 报价公布', note: '全国银行间同业拆借中心 · 每月', level: 'high' },
+        { date: '2026-08-31', time: '09:30 北京时间', event: '中国官方制造业 PMI', note: '国家统计局 · 月末前后', level: 'mid' },
+        { date: '2026-09-15', time: '09:15 北京时间', event: 'LPR 报价公布', note: '1年期 / 5年期以上', level: 'high' },
+        { date: '2026-09-30', time: '09:30 北京时间', event: '中国官方制造业 PMI', note: '国家统计局', level: 'mid' },
+        { date: '2026-10-15', time: '09:15 北京时间', event: 'LPR 报价公布', note: '全国银行间同业拆借中心', level: 'high' },
+        { date: '2026-10-31', time: '09:30 北京时间', event: '中国官方制造业 PMI', note: '国家统计局', level: 'mid' },
+      ];
+      const CN_HIGH = new Set(['600519','000858','300750','002594','601318','600036','601166','000001','601012','300059','688981','002230','603259','600276']);
+      const CN_MID = new Set(['600030','601688','000063','002415','300760','601888','600900','601899']);
+      const allItems = [];
+      const list = earnings || [];
+      for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        const code = String(e.symbol || '').trim();
+        if (!code) continue;
+        const isWatch = !!(e.fromWatch || (watchCN && watchCN.indexOf(code) >= 0));
+        e.fromWatch = isWatch;
+        const dt = e.date || '';
+        if (!dt || e.noSchedule) {
+          if (!isWatch) continue;
+          const nameStr0 = (typeof cnCalNameStr === 'function') ? cnCalNameStr(code, e.name) : (e.name && e.name !== code ? (code + ' ' + e.name) : code);
+          const card0 = '<div class="cal-item" onclick="openDetail(\'' + code + '\')" style="cursor:pointer;">'
+            + '<div class="cal-date"><div class="day">—</div><div class="week">自选</div><div class="week cal-none-text">暂无</div></div>'
+            + '<div class="cal-content"><div class="event">' + nameStr0 + ' · <span class="cal-none-text">暂无</span></div>'
+            + '<div class="note">近窗暂无披露安排 · 持续跟踪</div>'
+            + '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">'
+            + '<span class="importance imp-watch">自选</span>'
+            + '<span class="importance imp-none">暂无</span>'
+            + '</div></div></div>';
+          allItems.push({ date: '', level: 'mid', html: card0, isPast: false, isMacro: false, fromWatch: true, symbol: code, noSchedule: true });
+          continue;
+        }
+        let level = CN_HIGH.has(code) ? 'high' : (CN_MID.has(code) ? 'mid' : 'low');
+        if (isWatch) {
+          if (level === 'low') level = 'mid';
+        } else if (level === 'low' && allItems.filter(function (x) { return !x.isMacro; }).length > 120) {
+          continue;
+        }
+        const nameStr = (typeof cnCalNameStr === 'function') ? cnCalNameStr(code, e.name) : (e.name && e.name !== code ? (code + ' ' + e.name) : code);
+        const fd = fmtCalDate(dt);
+        const isPast = dt < todayStr;
+        const isToday = dt === todayStr;
+        const daysLab = calDaysLabel(dt, todayStr);
+        const daysHtml = daysLab
+          ? (isPast
+              ? ' · <span style="color:var(--muted);">' + daysLab + '</span>'
+              : ' · <span style="color:var(--orange);font-weight:600;">' + daysLab + '</span>')
+          : '';
+        const watchCls = isWatch ? (isPast ? ' cal-item-watch-past' : ' cal-item-watch') : '';
+        const card = '<div class="cal-item' + watchCls + '" onclick="openDetail(\'' + code + '\')" style="cursor:pointer;">'
+          + '<div class="cal-date"><div class="day">' + fd.day + '</div><div class="week">' + fd.month + '</div><div class="week">' + (isToday ? '今天' : fd.week) + '</div></div>'
+          + '<div class="cal-content"><div class="event">' + nameStr + daysHtml + '</div>'
+          + '<div class="note">' + (e.reportType ? e.reportType + ' · ' : '业绩披露 · ') + dt + (daysLab && !isPast ? ' · ' + daysLab : '') + (e.published ? ' · 已公告' : ' · 预约') + '</div>'
+          + '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">'
+          + (isWatch ? '<span class="importance imp-watch">自选</span>' : '')
+          + '<span class="importance ' + calImpClass(level) + '">' + calImpLabel(level) + '</span></div></div></div>';
+        allItems.push({ date: dt, level: level, html: card, isPast: isPast, isMacro: false, fromWatch: isWatch, symbol: code });
+      }
+      for (let i = 0; i < CN_MACRO.length; i++) {
+        const m = CN_MACRO[i];
+        const dt = m.date;
+        const fd = fmtCalDate(dt);
+        const isPast = dt < todayStr;
+        const isToday = dt === todayStr;
+        const daysLab = calDaysLabel(dt, todayStr);
+        const daysHtml = daysLab
+          ? (isPast
+              ? '<span style="color:var(--muted);font-size:0.78rem;"> · ' + daysLab + '</span>'
+              : '<span style="color:var(--orange);font-weight:600;font-size:0.82rem;"> · ' + daysLab + '</span>')
+          : '';
+        const card = '<div class="cal-item"><div class="cal-date"><div class="day">' + fd.day + '</div><div class="week">' + fd.month + '</div><div class="week">' + (isToday ? '今天' : fd.week) + '</div></div>'
+          + '<div class="cal-content"><div class="event">' + m.event + daysHtml + '</div>'
+          + '<div class="note">' + m.time + (daysLab && !isPast ? ' · ' + daysLab : '') + '<br/>' + m.note + '</div>'
+          + '<span class="importance ' + calImpClass(m.level) + '">' + calImpLabel(m.level) + '</span></div></div>';
+        allItems.push({ date: dt, level: m.level, html: card, isPast: isPast, isMacro: true, fromWatch: false });
+      }
+      const rank = { high: 0, mid: 1, low: 2 };
+      const monthAgoStr = (function () {
+        const d = new Date(); d.setDate(d.getDate() - 30);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      })();
+      const past = allItems.filter(function (x) { return x.isPast && !x.noSchedule && x.date && x.date >= monthAgoStr; })
+        .sort(function (a, b) { if (a.date !== b.date) return a.date > b.date ? -1 : 1; return (rank[a.level] || 9) - (rank[b.level] || 9); });
+      const upcoming = allItems.filter(function (x) { return !x.isPast && !x.noSchedule && x.date; })
+        .sort(function (a, b) {
+          if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+          if (!!a.fromWatch !== !!b.fromWatch) return a.fromWatch ? -1 : 1;
+          return (rank[a.level] || 9) - (rank[b.level] || 9);
+        });
+      let html = '<div style="display:flex;gap:10px;margin-bottom:12px;font-size:0.72rem;color:var(--muted);flex-wrap:wrap;">'
+        + '<span><span class="importance imp-high">高重要</span> 龙头/宏观</span>'
+        + '<span><span class="importance imp-mid">中重要</span> 关注个股</span>'
+        + '<span><span class="importance imp-low">一般</span> 其他披露</span></div>';
+      if (!list.length && opts.loading) {
+        html += '<div class="cal-spinner-wrap"><div class="cal-spinner"></div><span>正在拉取个股披露数据</span></div>';
+      } else if (!list.length) {
+        html += '<div style="font-size:0.75rem;color:var(--orange);margin:-4px 0 12px 0;line-height:1.45;">个股披露暂时未拉到，可点右上角刷新重试（下方为宏观节点）</div>';
+      } else if (opts.loading) {
+        html += '<div class="cal-spinner-wrap"><div class="cal-spinner"></div><span>已加载 ' + list.length + ' 条，继续拉取中…</span></div>';
+      } else if (watchCN && watchCN.length) {
+        html += '<div style="font-size:0.75rem;color:var(--blue);margin:-4px 0 12px 0;">已联动自选 ' + watchCN.length + ' 只 · 披露 ' + list.length + ' 条</div>';
+      } else {
+        html += '<div style="font-size:0.75rem;color:var(--muted);margin:-4px 0 12px 0;">本批披露 ' + list.length + ' 条</div>';
+      }
+      const pastHtml = past.length ? past.map(function (x) { return x.html; }).join('')
+        : '<div style="color:var(--muted);font-size:0.85rem;padding:20px 0;text-align:center;">近一个月暂无历史事件</div>';
+      const watchOnly = allItems.filter(function (x) { return x.fromWatch; })
+        .sort(function (a, b) {
+          if (a.isPast !== b.isPast) return a.isPast ? 1 : -1;
+          if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+          return 0;
+        });
+      // 这几项只作为返回值给调用方，不直接写 window——
+      // 调用方（loadCalendarCN）会自己判断此时是不是还停在 A 股这个 tab，
+      // 是才落 window，避免把美股 tab 正在显示的自选/历史数据冲掉。
+      const localWatchHtml = watchOnly.length
+        ? watchOnly.map(function (x) { return x.html; }).join('')
+        : '<div style="color:var(--muted);font-size:0.85rem;padding:20px 0;text-align:center;">观察列表自选暂无披露安排<br/>可在「观察」添加 A 股后点刷新</div>';
+      const localWatchCount = watchOnly.length;
+      const localAllItems = allItems.map(function (x) {
+        return {
+          key: calItemKey(x),
+          date: x.date || '',
+          symbol: x.symbol || '',
+          fromWatch: !!x.fromWatch,
+          isPast: !!x.isPast,
+          isMacro: !!x.isMacro,
+          noSchedule: !!x.noSchedule,
+          level: x.level || '',
+          html: x.html || ''
+        };
+      });
+
+      html += '<div class="cal-item" onclick="openCalHistory()" style="cursor:pointer;border-color:var(--blue);margin-bottom:10px;">'
+        + '<div class="cal-date"><div class="day">史</div><div class="week">历史</div></div>'
+        + '<div class="cal-content"><div class="event">近一个月历史事件</div>'
+        + '<div class="note">' + (past.length ? ('共 ' + past.length + ' 条 · 点击查看') : '暂无记录') + '</div></div></div>';
+      html += '<div class="cal-item" onclick="openCalWatch()" style="cursor:pointer;border-color:rgba(77,159,255,0.55);margin-bottom:14px;">'
+        + '<div class="cal-date"><div class="day">选</div><div class="week">自选</div></div>'
+        + '<div class="cal-content"><div class="event">自选跟踪 · 披露日程</div>'
+        + '<div class="note">' + (watchOnly.length
+          ? ('共 ' + watchOnly.length + ' 条 · 点击查看观察列表相关')
+          : ((watchCN && watchCN.length) ? ('已联动 ' + watchCN.length + ' 只 · 近期暂无披露') : '在观察添加 A 股后自动跟踪')) + '</div></div></div>';
+      html += '<div class="section-title" style="margin-top:8px;">即将到来 · 从今天起</div>';
+      html += upcoming.length ? upcoming.map(function (x) { return x.html; }).join('')
+        : '<div style="text-align:center;color:var(--muted);padding:16px 0;font-size:0.85rem;">暂无今日及之后的重点事件</div>';
+      return {
+        html: html, pastHtml: pastHtml, pastCount: past.length,
+        watchHtml: localWatchHtml, watchCount: localWatchCount, allItems: localAllItems
+      };
+    }
+
+    async function loadCalendarCN(seq, force) {
+      const container = document.getElementById('calList');
+      if (!container) return;
+      let watchCN = [];
+      try { watchCN = getWatchlistAShareCodes() || []; } catch (e) { watchCN = []; }
+
+      // 无论有无缓存，先尽量画出宏观骨架，避免长时间空白
+      // （只有正看着 A 股这个 tab 时才直接改屏幕，避免把切走后正在看的
+      // 美股/别的分栏画面冲掉；抓取本身不受影响，照样在后台跑完。）
+      try {
+        if (isCalLoadCurrent(seq, 'cn') && isCalMarketVisible('cn') && (force || !container.querySelector('.cal-item'))) {
+          const shell = buildCNCalHtml([], watchCN, { loading: true });
+          container.innerHTML = shell.html;
+          window.__calPastHtml = shell.pastHtml;
+          window.__calPastCount = shell.pastCount;
+          window.__calWatchHtml = shell.watchHtml || '';
+          window.__calWatchCount = shell.watchCount || 0;
+          window.__calAllItems = shell.allItems || [];
+        }
+      } catch (e) {
+        console.warn('cn shell', e);
+      }
+
+      let earnings = [];
+      function paintPartial(list, loading) {
+        if (!isCalLoadCurrent(seq, 'cn') || !isCalMarketVisible('cn')) return;
+        try {
+          const built = buildCNCalHtml(list || [], watchCN, { loading: !!loading });
+          container.innerHTML = built.html;
+          window.__calPastHtml = built.pastHtml;
+          window.__calPastCount = built.pastCount;
+          window.__calWatchHtml = built.watchHtml || '';
+          window.__calWatchCount = built.watchCount || 0;
+          window.__calAllItems = built.allItems || [];
+        } catch (e) { console.warn('partial', e); }
+      }
+      function calStale() { return !isCalLoadCurrent(seq, 'cn'); }
+      // 每次进度更新都顺手把当前进度存一份到缓存（哪怕这个市场现在不在屏幕上）——
+      // 这样即使中途被别的因素打断，切回来至少能看到最新一次进度，而不是更旧的快照。
+      function checkpointCN(list) {
+        try {
+          const built = buildCNCalHtml(list || [], watchCN, { loading: true });
+          writeCalPageCache('cn', built.html, built.pastHtml, built.pastCount, built.watchHtml || '', built.watchCount || 0, built.allItems || []);
+        } catch (e) {}
+      }
+      try {
+        paintPartial([], true);
+        // 1) 先查自选代码（东财全表只翻前几页，自选很容易不在 200 条里；688825 等必须按代码查）
+        if (watchCN && watchCN.length && typeof fetchCNEarningsForCodes === 'function') {
+          try {
+            const watchRows = await withTimeout(
+              fetchCNEarningsForCodes(watchCN, calStale).catch(function () { return []; }),
+              20000,
+              []
+            );
+            if (watchRows && watchRows.length) {
+              earnings = (earnings || []).concat(watchRows);
+              paintPartial(earnings, true);
+              paintCalUpdatingHint(earnings.length);
+              checkpointCN(earnings);
+            }
+          } catch (eW) { console.warn('cn watch first', eW); }
+        }
+        // 2) 再拉全市场预约（补充宏观关注池）
+        const bulk = await withTimeout(
+          (typeof fetchCNEarningsCalendar === 'function'
+            ? fetchCNEarningsCalendar(function (partial) {
+                const watchSet = {};
+                (watchCN || []).forEach(function (c) { watchSet[String(c)] = true; });
+                (partial || []).forEach(function (e) {
+                  if (e && watchSet[String(e.symbol || '').trim()]) e.fromWatch = true;
+                });
+                // 合并已拿到的自选行，避免 progress 把自选冲掉
+                const merged = (earnings || []).slice();
+                const seen = {};
+                merged.forEach(function (e) {
+                  if (e && e.symbol && e.date) seen[e.symbol + '_' + e.date] = true;
+                });
+                (partial || []).forEach(function (e) {
+                  if (!e || !e.symbol || !e.date) return;
+                  const k = e.symbol + '_' + e.date;
+                  if (seen[k]) return;
+                  seen[k] = true;
+                  merged.push(e);
+                });
+                paintPartial(merged, true);
+                paintCalUpdatingHint(merged.length);
+                checkpointCN(merged);
+              }, calStale)
+            : Promise.resolve([])
+          ).catch(function () { return []; }),
+          55000,
+          []
+        );
+        if (bulk && bulk.length) {
+          const seen = {};
+          (earnings || []).forEach(function (e) {
+            if (e && e.symbol && e.date) seen[e.symbol + '_' + e.date] = true;
+          });
+          (bulk || []).forEach(function (e) {
+            if (!e || !e.symbol || !e.date) return;
+            const k = e.symbol + '_' + e.date;
+            if (seen[k]) return;
+            seen[k] = true;
+            earnings.push(e);
+          });
+        }
+      } catch (e) { earnings = earnings || []; }
+
+      try {
+        const have = {};
+        (earnings || []).forEach(function (e) {
+          if (e && e.symbol && !e.noSchedule) have[String(e.symbol).trim()] = true;
+        });
+        const missing = (watchCN || []).filter(function (c) { return !have[String(c)]; });
+        if (missing.length && typeof fetchCNEarningsForCodes === 'function') {
+          const extra = await withTimeout(fetchCNEarningsForCodes(missing, calStale).catch(function () { return []; }), 15000, []);
+          if (extra && extra.length) earnings = (earnings || []).concat(extra);
+        }
+        const watchSetCN = {};
+        (watchCN || []).forEach(function (c) { watchSetCN[String(c)] = true; });
+        (earnings || []).forEach(function (e) {
+          if (!e) return;
+          e.symbol = String(e.symbol || '').trim();
+          if (watchSetCN[e.symbol]) e.fromWatch = true;
+        });
+        // 仍无日期的自选：占位 + 尽量补中文名（避免 688825 688825）
+        for (let wi = 0; wi < (watchCN || []).length; wi++) {
+          const code = String(watchCN[wi] || '').trim();
+          if (!code) continue;
+          let has = false;
+          for (let i = 0; i < (earnings || []).length; i++) {
+            if (String(earnings[i].symbol || '') === code && !earnings[i].noSchedule) { has = true; break; }
+          }
+          if (has) continue;
+          let nm = '';
+          try { if (typeof STOCK_NAMES_CAL !== 'undefined' && STOCK_NAMES_CAL[code]) nm = STOCK_NAMES_CAL[code]; } catch (e2) {}
+          if (!nm && typeof resolveCNStockName === 'function') {
+            try { nm = await resolveCNStockName(code); } catch (e3) {}
+          }
+          earnings = earnings || [];
+          earnings.push({
+            symbol: code,
+            name: nm || '',
+            date: '',
+            fromWatch: true,
+            market: 'cn',
+            noSchedule: true,
+            reportType: '暂无近窗披露安排'
+          });
+        }
+      } catch (e) { console.warn('watch cn cal', e); }
+
+      // 无论此时是不是还停在 A 股这个 tab，只要数据拉完了就落缓存——
+      // 这样切走再切回来能直接命中缓存，不用把上面这几轮东财请求重新跑一遍。
+      try {
+        const built = buildCNCalHtml(earnings || [], watchCN, { loading: false });
+        // 无论有无财报行都落缓存（至少有宏观骨架 + 自选占位），避免 A 股日历空白、切回重拉
+        try {
+          writeCalPageCache('cn', built.html, built.pastHtml, built.pastCount, built.watchHtml || '', built.watchCount || 0, built.allItems || []);
+        } catch (eCache) {}
+        if (isCalLoadCurrent(seq, 'cn') && isCalMarketVisible('cn')) {
+          container.innerHTML = built.html;
+          window.__calPastHtml = built.pastHtml;
+          window.__calPastCount = built.pastCount;
+          window.__calWatchHtml = built.watchHtml || '';
+          window.__calWatchCount = built.watchCount || 0;
+          window.__calAllItems = built.allItems || [];
+        }
+      } catch (err) {
+        console.error('cn cal render', err);
+        if (isCalLoadCurrent(seq, 'cn') && isCalMarketVisible('cn')) {
+          container.innerHTML = '<div style="color:var(--red);padding:20px;text-align:center;">A股日历渲染失败，请点刷新</div>';
+        }
+      }
+      clearCalUpdatingHint();
+    }
+
+    function openCalHistory(isRestore) {
+      // 复用详情抽屉展示历史；跟个股详情、板块成分股走的是同一套返回栈，
+      // 手机的系统返回键/手势会一级一级退（历史 → 日历列表），不会直接
+      // 退出整个抽屉体系或跳出应用
       const overlay = document.getElementById('detailOverlay');
       const drawer = document.getElementById('detailDrawer');
       if (!drawer) return;
+      try {
+        if ((!window.__calPastHtml || !(window.__calPastCount > 0))) {
+          const cached = readCalPageCache(calMarket === 'cn' ? 'cn' : 'us');
+          if (cached) applyCalCacheToWindow(cached);
+        }
+      } catch (e) {}
+      beginDetailUI('cal');
       document.getElementById('detailSymbol').textContent = '近一个月历史';
       document.getElementById('detailPrice').textContent = (window.__calPastCount || 0) + ' 条';
       document.getElementById('detailChg').textContent = '昨天 → 更早';
@@ -11070,6 +13389,34 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         </div>`;
       if (overlay) overlay.classList.add('show');
       drawer.classList.add('show');
+      if (!isRestore) pushDetailHistory({ type: 'cal-history' });
+    }
+
+    function openCalWatch(isRestore) {
+      const overlay = document.getElementById('detailOverlay');
+      const drawer = document.getElementById('detailDrawer');
+      if (!drawer) return;
+      try {
+        if ((!window.__calWatchHtml || !(window.__calWatchCount > 0))) {
+          const cached = readCalPageCache(calMarket === 'cn' ? 'cn' : 'us');
+          if (cached) applyCalCacheToWindow(cached);
+        }
+      } catch (e) {}
+      beginDetailUI('cal');
+      const mkt = (calMarket === 'cn') ? 'A股' : '美股';
+      document.getElementById('detailSymbol').textContent = '自选跟踪 · ' + mkt;
+      document.getElementById('detailPrice').textContent = (window.__calWatchCount || 0) + ' 条';
+      document.getElementById('detailChg').textContent = '观察列表联动';
+      document.getElementById('detailChg').className = 'detail-chg flat';
+      const chartWrap = document.querySelector('.chart-wrap');
+      if (chartWrap) chartWrap.style.display = 'none';
+      document.getElementById('detailGrid').innerHTML = `
+        <div style="grid-column:1/-1;max-height:60vh;overflow-y:auto;">
+          ${window.__calWatchHtml || '<div style="color:var(--muted);padding:20px;text-align:center;">暂无自选相关日程</div>'}
+        </div>`;
+      if (overlay) overlay.classList.add('show');
+      drawer.classList.add('show');
+      if (!isRestore) pushDetailHistory({ type: 'cal-watch' });
     }
 
     function toggleCalHistory() { openCalHistory(); }
@@ -12552,10 +14899,15 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
         if (typeof setNewsLoadingHint === 'function' && target !== 'hot') {
           setNewsLoadingHint(false);
         }
-        // 离开宏观页立即收起宏观专用提示
+        // 离开宏观/日历页立即收起专用提示
         if (target !== 'macro') {
           try { if (typeof clearMacroUpdatingHint === 'function') clearMacroUpdatingHint(); } catch (e) {}
         }
+        if (target !== 'cal') {
+          try { if (typeof clearCalUpdatingHint === 'function') clearCalUpdatingHint(); } catch (e) {}
+        }
+        // 板块完整刷新可在后台继续；进度条只在板块页显示
+        try { if (typeof syncSectorProgressVisibility === 'function') syncSectorProgressVisibility(); } catch (e) {}
         if (target === 'watch') refreshQuotes();
         else if (target === 'asset') {
           try { if (typeof refreshAssets === 'function') refreshAssets(false); } catch (e) {}
@@ -12667,7 +15019,10 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
     }
 
     let sectorQuoteWarmed = false;
-    async function warmUSSectorQuoteCache(forceAll) {
+        async function warmUSSectorQuoteCache(forceAll) {
+      try {
+        if (window.__sectorRefreshBusy && window.__sectorRefreshBusy.us) return;
+      } catch (eW) {}
       if (sectorQuoteWarmed && !forceAll) return;
       sectorQuoteWarmed = true;
       const symbols = collectUSSectorSymbols();
@@ -12708,6 +15063,7 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
     // ==================== 初始化 ====================
     updateWeightModelBtn();
     renderWatchlist();
+    try { updateWatchCountBadge(); } catch (e) {}
     refreshQuotes();
     renderValL1(); // 纯静态占位卡片，不用等预加载，直接先画出来
     setTimeout(function () { if (typeof enrichWatchlistRefSignals === 'function') enrichWatchlistRefSignals(); }, 1500);
@@ -12740,7 +15096,11 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
     setInterval(function () {
       const page = document.getElementById('page-sector');
       if (page && page.classList.contains('active')) {
-        loadSectors(true);
+        // 软刷新：优先用缓存重画；全量刷新忙时跳过，避免图1/图2两套数来回跳
+        try {
+          if (window.__sectorRefreshBusy && (window.__sectorRefreshBusy.us || window.__sectorRefreshBusy.cn)) return;
+        } catch (eB) {}
+        loadSectors(false);
       }
     }, 15000);
 
