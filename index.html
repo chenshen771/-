@@ -12528,8 +12528,16 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         : '<div style="color:var(--muted);font-size:0.85rem;padding:20px 0;text-align:center;">近一个月暂无历史事件</div>';
       const localPastCount = past.length;
 
+      const tenDaysAgoStrUS = (function () {
+        const d = new Date();
+        d.setDate(d.getDate() - 10);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      })();
       const watchOnly = allItems.filter(function (x) {
-          return x.fromWatch || (x.symbol && isWatchSym(x.symbol));
+          if (!(x.fromWatch || (x.symbol && isWatchSym(x.symbol)))) return false;
+          if (x.noSchedule || !x.date) return true;
+          if (!x.isPast) return true;
+          return x.date >= tenDaysAgoStrUS;
         })
         .sort(function (a, b) {
           if (a.isPast !== b.isPast) return a.isPast ? 1 : -1;
@@ -12568,7 +12576,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           <div class="cal-date"><div class="day">选</div><div class="week">自选</div></div>
           <div class="cal-content">
             <div class="event">自选跟踪 · 财报日程</div>
-            <div class="note">${watchOnly.length ? '共 ' + watchOnly.length + ' 条 · 点击查看观察列表相关' : ((watchUS && watchUS.length) ? ('已联动 ' + watchUS.length + ' 只 · 近期暂无财报日') : '在观察添加美股后自动跟踪')}</div>
+            <div class="note">${watchOnly.length ? '共 ' + watchOnly.length + ' 条 · 近10天+未来 · 更早见历史' : ((watchUS && watchUS.length) ? ('已联动 ' + watchUS.length + ' 只 · 近期暂无财报日') : '在观察添加美股后自动跟踪')}</div>
           </div>
         </div>
       `;
@@ -13149,7 +13157,18 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       }
       const pastHtml = past.length ? past.map(function (x) { return x.html; }).join('')
         : '<div style="color:var(--muted);font-size:0.85rem;padding:20px 0;text-align:center;">近一个月暂无历史事件</div>';
-      const watchOnly = allItems.filter(function (x) { return x.fromWatch; })
+      // 自选抽屉：只保留「未过期 + 近 10 天内过期」；更早过期的去「近一个月历史」看
+      const tenDaysAgoStr = (function () {
+        const d = new Date();
+        d.setDate(d.getDate() - 10);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      })();
+      const watchOnly = allItems.filter(function (x) {
+          if (!x.fromWatch) return false;
+          if (x.noSchedule || !x.date) return true;
+          if (!x.isPast) return true;
+          return x.date >= tenDaysAgoStr;
+        })
         .sort(function (a, b) {
           if (a.isPast !== b.isPast) return a.isPast ? 1 : -1;
           if (a.date !== b.date) return a.date < b.date ? -1 : 1;
@@ -13184,7 +13203,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         + '<div class="cal-date"><div class="day">选</div><div class="week">自选</div></div>'
         + '<div class="cal-content"><div class="event">自选跟踪 · 披露日程</div>'
         + '<div class="note">' + (watchOnly.length
-          ? ('共 ' + watchOnly.length + ' 条 · 点击查看观察列表相关')
+          ? ('共 ' + watchOnly.length + ' 条 · 近10天+未来 · 更早见历史')
           : ((watchCN && watchCN.length) ? ('已联动 ' + watchCN.length + ' 只 · 近期暂无披露') : '在观察添加 A 股后自动跟踪')) + '</div></div></div>';
       html += '<div class="section-title" style="margin-top:8px;">即将到来 · 从今天起</div>';
       html += upcoming.length ? upcoming.map(function (x) { return x.html; }).join('')
