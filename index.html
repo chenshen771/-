@@ -2246,18 +2246,27 @@
           _syms: all.slice(0, 3)
         };
       });
-      // 若一个有效价都没有，不要把界面刷成全 0
-      const any = cards.some(function (c) {
-        const avg = avgChgFromCacheOnly(
-          (function () {
-            let a = [];
-            const l1 = US_SECTOR_TREE.find(function (x) { return x.id === c.id; });
-            if (!l1) return a;
-            (l1.children || []).forEach(function (ch) { a = a.concat(ch.stocks || []); });
-            return a;
-          })(), 8
-        );
-        return avg.n > 0;
+      window.__usL1PrevCards = window.__usL1PrevCards || {};
+      var any = false;
+      cards.forEach(function (c) {
+        var arr = [];
+        try {
+          const l1 = US_SECTOR_TREE.find(function (x) { return x.id === c.id; });
+          if (l1) (l1.children || []).forEach(function (ch) { arr = arr.concat(ch.stocks || []); });
+        } catch (e1) {}
+        var a = avgStocksChgFromCacheOnly(arr);
+        if (a.n > 0) {
+          c.chg = a.chg;
+          window.__usL1PrevCards[c.id] = a.chg;
+          c._pending = false;
+          any = true;
+        } else if (window.__usL1PrevCards[c.id] != null) {
+          c.chg = window.__usL1PrevCards[c.id];
+          c._pending = false;
+          any = true;
+        } else {
+          c._pending = true;
+        }
       });
       if (!any) return;
       if (typeof paintUSSectorL1Cards === 'function') paintUSSectorL1Cards(cards);
@@ -10419,25 +10428,44 @@ const FALLBACK_SECTORS = {
         }
       } catch (e) {}
       // 先立刻画出结构（不阻塞），再补涨跌
+      window.__usL1PrevCards = window.__usL1PrevCards || {};
       const baseCards = US_SECTOR_TREE.map(function (l1) {
         let all = [];
         l1.children.forEach(function (c) { all = all.concat(c.stocks || []); });
         all = Array.from(new Set(all));
+        var cacheAvg = { chg: 0, n: 0 };
+        try {
+          var sum = 0, nn = 0;
+          (l1.children || []).forEach(function (c) {
+            var a = avgStocksChgFromCacheOnly(c.stocks || []);
+            if (a && a.n > 0) { sum += a.chg; nn++; }
+          });
+          if (nn > 0) cacheAvg = { chg: sum / nn, n: nn };
+        } catch (e0) {}
+        var chg0 = 0;
+        var pending = false;
+        if (cacheAvg.n > 0) {
+          chg0 = cacheAvg.chg;
+          window.__usL1PrevCards[l1.id] = chg0;
+        } else if (window.__usL1PrevCards[l1.id] != null && typeof window.__usL1PrevCards[l1.id] === 'number') {
+          chg0 = window.__usL1PrevCards[l1.id];
+        } else {
+          pending = true;
+        }
         return {
           id: l1.id,
           name: l1.name,
           en: l1.en,
-          chg: 0,
+          chg: chg0,
           count: all.length,
           subCount: l1.children.length,
-          _l1: l1
+          _l1: l1,
+          _pending: pending
         };
       });
-      // 已经有内容（比如这是一次自动/手动刷新）时不用先画 0.00 的骨架再刷一遍，
-      // 免得眼前的数字先跳回 0 再跳回真实值，反而显得在「闪烁」——
-      // 只有真的第一次进来、什么都还没画出来时，才需要这个骨架垫一下
-      // 若当前没有「美股」大类卡（可能还残留 A 股结构），立刻画美股骨架
-      if (!document.querySelector('#sectorContent .l1-card[data-mkt="us"]')) {
+      var hasUsCards = !!document.querySelector('#sectorContent .l1-card[data-mkt="us"]');
+      var anyKnown = baseCards.some(function (c) { return !c._pending; });
+      if (!hasUsCards || anyKnown) {
         paintUSSectorL1Cards(baseCards);
       }
 
@@ -10448,18 +10476,16 @@ const FALLBACK_SECTORS = {
             ? await avgL1FromChildren(card._l1, force)
             : await avgStocksChg([], force);
         } catch (e) {}
-        // 强制刷新时会跳过缓存直接发新请求，网络一慢或者接口一时限流就可能
-        // 超时拿不到数据——avgStocksChg 这时候会返回 n=0（没拿到任何一只的
-        // 真实行情），如果直接把这个「没拿到」当成「真的是0.00%」画出来，
-        // 就会出现你看到的那种「刷新一下所有数字先变成0.00%，过一下才变回真实
-        // 数字」的假闪烁。这里改成：这一轮真的没拿到数据时，就沿用上一次
-        // 成功拿到的数字，不用0覆盖它，画面上就感觉不到「刷新」这个动作，
-        // 数字只会在真的有新数据时才跳
         window.__usL1PrevCards = window.__usL1PrevCards || {};
         let chg = avg.chg || 0;
+        let pending = false;
         if (!avg.n) {
-          const prev = window.__usL1PrevCards[card.id];
-          if (prev) chg = prev;
+          if (window.__usL1PrevCards[card.id] != null && typeof window.__usL1PrevCards[card.id] === 'number') {
+            chg = window.__usL1PrevCards[card.id];
+          } else {
+            pending = true;
+            chg = 0;
+          }
         } else {
           window.__usL1PrevCards[card.id] = chg;
         }
@@ -10469,7 +10495,8 @@ const FALLBACK_SECTORS = {
           en: card.en,
           chg: chg,
           count: card.count,
-          subCount: card.subCount
+          subCount: card.subCount,
+          _pending: pending
         };
       }));
       // 这份结果出来的时候，用户可能已经点进了某个大类的二级页、
