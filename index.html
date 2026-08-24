@@ -8796,9 +8796,10 @@ function loadFullTVChart(symbol) {
     function isCompleteNewsList(list, completeFlag) {
       if (!list || !list.length) return false;
       const span = newsDaySpan(list);
-      if (completeFlag === true) return list.length >= 40 && span >= 12;
+      // 覆盖多日即可视为完整；过严会导致刷新后只用半截结果、历史日期消失
+      if (completeFlag === true) return list.length >= 30 && span >= 7;
       if (completeFlag === false) return false;
-      return list.length >= 80 && span >= 12;
+      return list.length >= 60 && span >= 7;
     }
 
     function readNewsCacheFromDisk() {
@@ -8958,10 +8959,17 @@ function loadFullTVChart(symbol) {
           if (list && list.length) {
             if (lang === 'cn') {
               const merged = mergeNewsLists(oldCache, list);
-              if (isCompleteNewsList(merged, true)) saveNewsCache('cn', merged, true);
-              else setNewsProgress('cn', merged);
-              renderNewsItems(merged);
+              var preferF = merged;
+              if (oldCache && oldCache.length) {
+                if (newsDaySpan(merged) < newsDaySpan(oldCache) && merged.length < oldCache.length) preferF = oldCache;
+              }
+              if (isCompleteNewsList(preferF, true)) saveNewsCache('cn', preferF, true);
+              else setNewsProgress('cn', preferF);
+              renderNewsItems(preferF);
             }
+          } else if (oldCache && oldCache.length && loadId === newsLoadId) {
+            // 刷新失败：保留旧完整列表，不要清空历史日期
+            renderNewsItems(oldCache);
           }
           return true;
         }
@@ -9083,14 +9091,19 @@ function loadFullTVChart(symbol) {
             const newTop = merged[0] ? (merged[0].title + '|' + merged[0].time) : '';
             const changed = (newTop !== oldTop) || (merged.length > oldLen) || (newsDaySpan(merged) > oldSpan);
 
-            if (isCompleteNewsList(merged, true)) {
+            // 展示与缓存一律优先「更全」的那份，禁止用只有今天几条的半截结果盖掉历史日期
+            var prefer = merged;
+            if (old && old.length) {
+              if (newsDaySpan(merged) < newsDaySpan(old) && merged.length < old.length) prefer = old;
+            }
+            if (isCompleteNewsList(prefer, true)) {
+              saveNewsCache('cn', prefer, true);
+            } else if (isCompleteNewsList(merged, true)) {
               saveNewsCache('cn', merged, true);
-            } else if (isCompleteNewsList(list, true)) {
-              saveNewsCache('cn', list, true);
             }
 
             if (onHot && newsLang === 'cn' && changed) {
-              renderNewsItems(isCompleteNewsList(merged, true) ? merged : list);
+              renderNewsItems(prefer);
             }
           }
         } else if (lang === 'en') {
@@ -9113,12 +9126,14 @@ function loadFullTVChart(symbol) {
     }
 
     function startNewsAutoRefresh() {
-      if (newsAutoTimer) return;
+      if (newsAutoTimer) {
+        try { clearInterval(newsAutoTimer); } catch (e) {}
+        newsAutoTimer = null;
+      }
       newsAutoTimer = setInterval(function () {
-        const page = document.getElementById('page-hot');
-        // 热点页打开时自动检查；即使不在热点页也预热完整缓存
+        // 后台静默刷新；在热点页会合并展示，不丢历史日期
         quietRefreshNews(newsLang === 'en' ? 'en' : 'cn');
-      }, 5 * 60 * 1000); // 每 5 分钟静默刷新完整新闻
+      }, 60 * 1000); // 每 1 分钟
     }
 
     // ========== 后台预加载逻辑（与打开页展示分离）==========
