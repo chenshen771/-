@@ -109,6 +109,20 @@
       from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
     }
+    @keyframes sectorAnimIn {
+      from { opacity: 0; transform: translateX(16px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes sectorAnimBack {
+      from { opacity: 0; transform: translateX(-16px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    #sectorContent.sector-anim-in {
+      animation: sectorAnimIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    #sectorContent.sector-anim-back {
+      animation: sectorAnimBack 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
 
     .section-title {
       font-size: 0.85rem;
@@ -349,6 +363,48 @@
     #sectorProgressToast .spt-cancel:active {
       background: rgba(255,80,80,0.35);
     }
+    .detail-tabs {
+      display: flex; gap: 8px; margin-top: 10px; padding: 0 2px;
+    }
+    .detail-tab {
+      flex: 1; text-align: center; padding: 8px 0; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--card); color: var(--muted);
+      font-size: 0.82rem; font-weight: 600; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .detail-tab.active {
+      background: rgba(77, 159, 255, 0.16); color: var(--blue);
+      border-color: rgba(77, 159, 255, 0.45);
+    }
+    .detail-day-toggle {
+      grid-column: 1 / -1; margin-top: 6px; text-align: center;
+      font-size: 0.75rem; color: var(--blue); padding: 8px 0 2px; cursor: pointer;
+    }
+    .detail-finance-placeholder {
+      text-align: center; color: var(--muted); font-size: 0.85rem;
+      padding: 36px 16px; line-height: 1.5;
+    }
+    .detail-loading {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 10px; padding: 20px 12px; color: var(--muted); font-size: 0.78rem;
+    }
+    .detail-loading.inline {
+      flex-direction: row; padding: 10px 8px; gap: 8px; font-size: 0.75rem;
+    }
+    .detail-loading .dl-spin {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 2px solid rgba(77,159,255,0.22);
+      border-top-color: var(--blue);
+      animation: sectorSpin 0.75s linear infinite;
+      flex-shrink: 0;
+    }
+    .detail-loading.inline .dl-spin {
+      width: 14px; height: 14px; border-width: 2px;
+    }
+    .detail-loading.chart {
+      min-height: 120px;
+    }
+
     .importance.imp-watch {
       background: rgba(77,159,255,0.18);
       color: #6eb6ff;
@@ -675,6 +731,12 @@
       padding-bottom: 24px;
     }
     .detail-drawer.show { transform: translateY(0); }
+    /* 成分股列表：加载时也保持接近全屏高度，避免先矮后高跳动 */
+    .detail-drawer.sector-sheet {
+      height: 92vh;
+      max-height: 92vh;
+      min-height: 92vh;
+    }
     .detail-handle {
       width: 36px; height: 4px;
       background: var(--border);
@@ -1100,7 +1162,8 @@
       position: fixed;
       right: 4px;
       top: 132px;
-      bottom: 78px;
+      /* 抬高底部，滑到最底时不挡 page-note 说明文字 */
+      bottom: 128px;
       transform: none;
       z-index: 15;
       display: none;
@@ -1149,6 +1212,14 @@
       font-weight: 500;
     }
     #newsList { padding-right: 44px; }
+    /* 热点页底部说明避开右侧日期栏 */
+    #page-hot .page-note {
+      padding-right: 48px;
+      padding-left: 12px;
+      padding-bottom: 20px;
+      margin-top: 28px;
+    }
+    @keyframes newsHintSpin { to { transform: rotate(360deg); } }
 
     .sector-card { cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
     .sector-card:active { transform: scale(0.97); opacity: 0.9; }
@@ -1607,7 +1678,7 @@
       <div style="text-align:center;color:var(--muted);padding:30px 0;">加载新闻中...</div>
     </div>
     <div id="newsDayRail" aria-label="日期索引"></div>
-    <div class="page-note">中文=东方财富多栏目近约30天 · 英文=Finnhub · 可切换 · 点击标题打开原文</div>
+    <div class="page-note">中文=东方财富多栏目近约30天（各日期不限条数，尽量拉全）· 英文=Finnhub · 可切换 · 点击标题打开原文</div>
   </div>
 
   <!-- ========== 下周日历 ========== -->
@@ -1738,9 +1809,14 @@
         <div class="detail-symbol" id="detailSymbol">--</div>
         <div class="detail-price" id="detailPrice">--</div>
         <div class="detail-chg" id="detailChg">--</div>
+        <div class="detail-tabs" id="detailMainTabs" style="display:none;">
+          <button type="button" class="detail-tab active" id="detailTabBtnChart" onclick="switchDetailMainTab('chart')">图表</button>
+          <button type="button" class="detail-tab" id="detailTabBtnFinance" onclick="switchDetailMainTab('finance')">财务</button>
+        </div>
       </div>
       <button class="detail-close" onclick="closeDetail()">×</button>
     </div>
+    <div id="detailPanelChart">
     <div class="detail-grid" id="detailGrid"></div>
     <div class="chart-wrap">
       <div class="chart-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
@@ -1751,6 +1827,10 @@
         </span>
       </div>
       <div id="tvChart" style="height:260px; border-radius:10px; overflow:hidden;"></div>
+    </div>
+    </div>
+    <div id="detailPanelFinance" style="display:none;">
+      <div class="detail-finance-placeholder">财务数据即将接入<br/><span style="font-size:0.75rem;">营收 / 净利润等后续开放</span></div>
     </div>
   </div>
 
@@ -2073,17 +2153,10 @@
       try { saved = localStorage.getItem(QUOTE_CACHE_DAY_KEY) || ''; } catch (e) {}
       if (!force && saved === today) return false;
       try {
-        // 内存行情
-        if (typeof quoteCache === 'object' && quoteCache) {
-          Object.keys(quoteCache).forEach(function (k) { delete quoteCache[k]; });
-        }
-        try { localStorage.removeItem(QUOTE_LS_KEY); } catch (e) {}
+        // 跨日：不再清空旧行情缓存（可先顶着显示），后台拉到最新后直接覆盖、强制上屏
         try { localStorage.setItem(QUOTE_CACHE_DAY_KEY, today); } catch (e) {}
-        // 美股板块会话态（成分股加载中/半成品）
+        try { window.__sectorNewDayForcePaint = true; } catch (e) {}
         try { window.__usSectorLoadState = {}; } catch (e) {}
-        // A股板块 HTML / 行业宇宙
-        try { window.__cnL1HtmlCache = null; } catch (e) {}
-        try { if (typeof cnBoardCache !== 'undefined') cnBoardCache = null; } catch (e) {}
         try { sectorQuoteWarmed = false; } catch (e) {}
         try { window.__usQuoteBgStarted = false; } catch (e) {}
       } catch (e) {
@@ -2159,6 +2232,19 @@
       if (!sym || !q || !(q.c > 0)) return;
       normalizeQuoteDailyChg(q);
       q._cachedAt = Date.now();
+      try {
+        var prev = quoteCache[sym];
+        if (prev && prev.c > 0 && !window.__sectorNewDayForcePaint) {
+          var sameC = Math.abs(Number(prev.c) - Number(q.c)) < 1e-6;
+          var pc = prev.dp != null ? Number(prev.dp) : (prev.chgp != null ? Number(prev.chgp) : null);
+          var nc = q.dp != null ? Number(q.dp) : (q.chgp != null ? Number(q.chgp) : null);
+          var sameChg = (pc == null && nc == null) || (pc != null && nc != null && Math.abs(pc - nc) < 0.005);
+          if (sameC && sameChg) {
+            prev._cachedAt = q._cachedAt;
+            return;
+          }
+        }
+      } catch (e0) {}
       quoteCache[sym] = q;
       // 后台预热/其它路径写入缓存时：若三级成分股抽屉正开着，立刻刷新对应卡片
       try { if (typeof onQuoteCacheUpdated === 'function') onQuoteCacheUpdated(sym, q); } catch (e) {}
@@ -2326,6 +2412,16 @@
         html += '</div></div>';
       }
       html += '<p style="font-size:0.72rem;color:var(--muted);margin-top:12px;line-height:1.4;">一级角标=大类成分股总数 · 二级角标=该产业成分股数 · 系统返回逐层回退</p>';
+      try {
+        var sig2 = (rows || []).map(function (r) {
+          return String(r.id) + ':' + Number(r.chg || 0).toFixed(2) + ':' + String(r.count || 0);
+        }).join('|');
+        var force2 = !!window.__sectorNewDayForcePaint;
+        if (!force2 && container.dataset.l1Id === l1id && window.__usL2PaintSig && window.__usL2PaintSig === sig2 && container.querySelector('.sector-card')) {
+          return;
+        }
+        window.__usL2PaintSig = sig2;
+      } catch (eSig) {}
       container.innerHTML = html;
       container.dataset.l1Id = l1id;
     }
@@ -2338,6 +2434,16 @@
 
     // 全局半透明加载/更新提示（一级/二级/三级通用）
     let sectorToastHideTimer = null;
+    function playSectorViewAnim(dir) {
+      try {
+        var c = document.getElementById('sectorContent');
+        if (!c) return;
+        c.classList.remove('sector-anim-in', 'sector-anim-back');
+        void c.offsetWidth;
+        c.classList.add(dir === 'back' ? 'sector-anim-back' : 'sector-anim-in');
+      } catch (e) {}
+    }
+
     function setSectorToast(show, msg, autoHideMs) {
       let el = document.getElementById('sectorToast');
       if (!el) {
@@ -2388,6 +2494,19 @@
             }
           }
         } catch (e) {}
+        // 美股/A股提示互不串台：文案带市场或调用方指定 forMkt 时，只在对应 Tab 显示
+        try {
+          var mktHint = (arguments.length >= 4) ? arguments[3] : null;
+          if (!mktHint && msg) {
+            if (/美股/.test(msg)) mktHint = 'us';
+            else if (/A股/.test(msg)) mktHint = 'cn';
+          }
+          if (mktHint && typeof sectorMarket !== 'undefined' && sectorMarket !== mktHint) {
+            el.style.display = 'none';
+            return;
+          }
+          window.__sectorToastMkt = mktHint || null;
+        } catch (eM) {}
         el.textContent = msg || '加载中…';
         el.style.display = 'block';
         // 完成类提示自动消失，避免一直卡在屏幕上
@@ -2403,6 +2522,7 @@
         }
       } else {
         el.style.display = 'none';
+        try { window.__sectorToastMkt = null; } catch (e0) {}
       }
     }
 
@@ -2678,7 +2798,12 @@
           const scale = function (v) {
             if (v == null || v === '-' || isNaN(Number(v))) return null;
             const n = Number(v);
-            if (Number.isInteger(n) && Math.abs(n) >= 100) return n / 100;
+            // 股票常见 x100；ETF/基金常见 x1000（否则会出现列表 9.5、详情 95）
+            if (Number.isInteger(n) && Math.abs(n) >= 100) {
+              var fund = (typeof isCnFundOrEtfSymbol === 'function') ? isCnFundOrEtfSymbol(c) : (c.charAt(0) === '5' || /^1[5-8]/.test(c));
+              if (fund && Math.abs(n) >= 1000) return n / 1000;
+              return n / 100;
+            }
             return n;
           };
           const price = scale(q.f43);
@@ -6952,13 +7077,31 @@ async function refreshAssets(force, opts) {
           { code: '511010', name: '国债ETF', unit: '利率' },
           { code: '513100', name: '纳指ETF', unit: '海外科技' }
         ];
+        const cnAssetSecids = cnAssets.map(function (it) {
+          var c = String(it.code).replace(/\D/g, '').slice(0, 6);
+          // 5/6 开头多为沪市 ETF，其余深市
+          return (c.charAt(0) === '5' || c.charAt(0) === '6') ? ('1.' + c) : ('0.' + c);
+        });
+        var cnAssetBatch = {};
+        try {
+          cnAssetBatch = await fetchCNIndicesBatch(cnAssetSecids) || {};
+        } catch (eBat) { cnAssetBatch = {}; }
         for (const item of cnAssets) {
           let price = null, dp = null;
           try {
-            const q = await fetchCNQuote(item.code);
-            if (q && (q.c > 0 || q.price > 0)) {
-              price = Number(q.c != null ? q.c : q.price);
-              dp = (getQuoteDailyDp(q) != null ? getQuoteDailyDp(q) : (q.dp != null ? q.dp : q.chgPct));
+            var c0 = String(item.code).replace(/\D/g, '').slice(0, 6);
+            var sid = (c0.charAt(0) === '5' || c0.charAt(0) === '6') ? ('1.' + c0) : ('0.' + c0);
+            var row = cnAssetBatch[sid];
+            if (row && row.price != null) {
+              price = Number(row.price);
+              dp = row.dp != null ? Number(row.dp) : null;
+            } else {
+              // 批量未命中时再单拉（兜底）
+              const q = await fetchCNQuote(item.code);
+              if (q && (q.c > 0 || q.price > 0)) {
+                price = Number(q.c != null ? q.c : q.price);
+                dp = (getQuoteDailyDp(q) != null ? getQuoteDailyDp(q) : (q.dp != null ? q.dp : q.chgPct));
+              }
             }
           } catch (e) {}
           if (price !== null && !isNaN(price)) {
@@ -6972,7 +7115,6 @@ async function refreshAssets(force, opts) {
             assetHtml += '<div class="asset-card"><div class="asset-left"><div class="name">' + item.name + '</div><div class="unit">' + item.code + '</div></div>' +
               '<div class="asset-right"><div class="asset-price">--</div></div></div>';
           }
-          await new Promise(function (r) { setTimeout(r, 100); });
         }
       }
 
@@ -7285,43 +7427,147 @@ async function refreshAssets(force, opts) {
      * - 未收盘：去掉与「交易所今天」同日的未完成K线，取最近3个已完成日 → 标签 前前日/前日/昨日
      * - 已收盘：含今日 → 标签 前日/昨日/今日
      */
-    function pickNear3TradingDays(pairs, market) {
+    function pickNearNTradingDays(pairs, market, n) {
+      n = Math.max(1, Math.min(8, parseInt(n, 10) || 3));
       market = market === 'cn' ? 'cn' : 'us';
       const tz = market === 'cn' ? 'Asia/Shanghai' : 'America/New_York';
       const settled = market === 'cn' ? isCNEquitySessionSettled() : isUSEquitySessionSettled();
-      // 过滤无效 bar，并按日期去重
       let list = [];
       const seen = {};
       (pairs || []).forEach(function (b) {
         if (!b || b.c == null || isNaN(b.c)) return;
         const y = barYmd(b, tz);
         if (!y) return;
-        const nb = Object.assign({}, b, { date: y, t: b.t > 0 ? b.t : Math.floor(new Date(y + 'T12:00:00+08:00').getTime() / 1000) });
-        seen[y] = nb;
+        seen[y] = Object.assign({}, b, { date: y, t: b.t > 0 ? b.t : Math.floor(new Date(y + 'T12:00:00+08:00').getTime() / 1000) });
       });
-      list = Object.keys(seen).sort().map(function (k) { return seen[k]; });
+      list = Object.keys(seen).sort().map(function (kk) { return seen[kk]; });
       if (!settled && list.length) {
         const todayY = todayYmdInZone(tz);
-        while (list.length && barYmd(list[list.length - 1], tz) === todayY) {
-          list = list.slice(0, -1);
-        }
+        while (list.length && barYmd(list[list.length - 1], tz) === todayY) list = list.slice(0, -1);
       }
-      const last3 = list.slice(-3);
-      let labels;
+      const lastN = list.slice(-n);
       const todayY = todayYmdInZone(tz);
-      const lastY = last3.length ? barYmd(last3[last3.length - 1], tz) : '';
-      // 最后一根已是「交易所日历今天」且已收盘 → 前日/昨日/今日
-      // 否则（盘中剔掉未完成今日，或跨日尚未开出新K）→ 前前日/前日/昨日
-      // 不用「最近交易日」这种含糊叫法
+      const lastY = lastN.length ? barYmd(lastN[lastN.length - 1], tz) : '';
       const lastIsCalendarToday = !!(lastY && todayY && lastY === todayY);
-      if (settled && lastIsCalendarToday) {
-        labels = last3.length === 3 ? ['前日', '昨日', '今日'] : (last3.length === 2 ? ['昨日', '今日'] : (last3.length === 1 ? ['今日'] : []));
-      } else {
-        labels = last3.length === 3 ? ['前前日', '前日', '昨日'] : (last3.length === 2 ? ['前日', '昨日'] : (last3.length === 1 ? ['昨日'] : []));
+      const tagsSettled = ['今日', '昨日', '前日', '前前日', '前4日', '前5日', '前6日', '前7日'];
+      const tagsOpen = ['昨日', '前日', '前前日', '前4日', '前5日', '前6日', '前7日', '前8日'];
+      const tags = (settled && lastIsCalendarToday) ? tagsSettled : tagsOpen;
+      const labels = [];
+      for (let ii = 0; ii < lastN.length; ii++) {
+        const fromEnd = lastN.length - 1 - ii;
+        labels.push(tags[fromEnd] || ('前' + (fromEnd + 1) + '日'));
       }
-      const baseBefore = list.length > last3.length ? list[list.length - last3.length - 1] : null;
-      return { last3: last3, labels: labels, baseBefore: baseBefore, settled: settled };
+      const baseBefore = list.length > lastN.length ? list[list.length - lastN.length - 1] : null;
+      return { lastN: lastN, last3: lastN.slice(-3), labels: labels, baseBefore: baseBefore, settled: settled, list: list };
     }
+    function pickNear3TradingDays(pairs, market) {
+      return pickNearNTradingDays(pairs, market, 3);
+    }
+    function buildDayHistSectionHtml(pairs, market, expanded) {
+      market = market === 'cn' ? 'cn' : 'us';
+      const tz = market === 'cn' ? 'Asia/Shanghai' : 'America/New_York';
+      // 展开最多 6 个交易日（默认 3；在昨日后再多看更早的几天）
+      const near = pickNearNTradingDays(pairs, market, 5);
+      const all = near.lastN || [];
+      if (!all.length) return '';
+      const show = expanded ? all : all.slice(-3);
+      const labAll = near.labels || [];
+      const offset = expanded ? 0 : Math.max(0, all.length - show.length);
+      let html = '<div id="detailDayHistWrap" style="grid-column:1/-1;display:contents;">';
+      for (let ii = 0; ii < show.length; ii++) {
+        const p = show[ii];
+        const gi = offset + ii;
+        let dateStr;
+        try {
+          const zp = getZonedParts(new Date((p.t || 0) * 1000), tz);
+          dateStr = zp.month + '/' + zp.day;
+        } catch (e) {
+          dateStr = (p.date || '').slice(5).replace('-', '/') || '--';
+        }
+        // 日期后追加「N天前」（相对交易所日历今天）
+        try {
+          var ymdBar = p.date || (typeof barYmd === 'function' ? barYmd(p, tz) : '');
+          var ymdToday = (typeof todayYmdInZone === 'function') ? todayYmdInZone(tz) : '';
+          if (ymdBar && ymdToday) {
+            var pa = ymdBar.split('-').map(Number);
+            var pb = ymdToday.split('-').map(Number);
+            if (pa.length >= 3 && pb.length >= 3) {
+              var da = Date.UTC(pa[0], pa[1] - 1, pa[2]);
+              var db = Date.UTC(pb[0], pb[1] - 1, pb[2]);
+              var daysAgo = Math.round((db - da) / 86400000);
+              if (daysAgo <= 0) dateStr += ' · 今天';
+              else if (daysAgo === 1) dateStr += ' · 1天前';
+              else dateStr += ' · ' + daysAgo + '天前';
+            }
+          }
+        } catch (eAgo) {}
+        const label = labAll[gi] || dateStr;
+        let prevClose = null;
+        if (gi > 0) prevClose = all[gi - 1].c;
+        else if (near.baseBefore && near.baseBefore.c != null) prevClose = near.baseBefore.c;
+        let diffVal = null, pctVal = null;
+        if (prevClose != null && prevClose > 0 && p.c != null) {
+          diffVal = p.c - prevClose;
+          pctVal = (diffVal / prevClose) * 100;
+        }
+        const hi = p.h != null ? Number(p.h).toFixed(2) : '--';
+        const lo = p.l != null ? Number(p.l).toFixed(2) : '--';
+        const op = (p.o != null && !isNaN(p.o)) ? Number(p.o).toFixed(2) : '--';
+        html += compactDayRowHtml(label, dateStr, op, Number(p.c).toFixed(2), hi, lo, diffVal, pctVal, ii === 0);
+      }
+      try {
+        const firstIdx = offset;
+        let base = null;
+        if (firstIdx > 0) base = all[firstIdx - 1].c;
+        else if (near.baseBefore && near.baseBefore.c != null) base = near.baseBefore.c;
+        const last = show[show.length - 1].c;
+        if (base != null && base > 0 && last != null) {
+          html += compactCumRowHtml('近' + show.length + '日累计', last - base, ((last - base) / base) * 100);
+        }
+      } catch (eCum) {}
+      if (all.length > 3) {
+        html += '<div class="detail-day-toggle" onclick="toggleDetailDayHist()">' +
+          (expanded ? '收起 · 近3日' : '展开 · 近5日') + '</div>';
+      } else if (all.length > 0 && all.length < 3) {
+        html += '<div style="grid-column:1/-1;font-size:0.72rem;color:var(--muted);padding:4px 4px 0;">历史不足 3 个交易日时只显示已有日期</div>';
+      }
+      html += '</div>';
+      return html;
+    }
+    function switchDetailMainTab(tab) {
+      // 非个股详情：不展示财务 Tab，强制图表面板（里面是成分股列表等）
+      if (typeof detailUIMode !== 'undefined' && detailUIMode && detailUIMode !== 'stock') {
+        tab = 'chart';
+        try {
+          var tabs0 = document.getElementById('detailMainTabs');
+          if (tabs0) tabs0.style.display = 'none';
+        } catch (e0) {}
+      }
+      tab = tab === 'finance' ? 'finance' : 'chart';
+      var chartP = document.getElementById('detailPanelChart');
+      var finP = document.getElementById('detailPanelFinance');
+      var btnC = document.getElementById('detailTabBtnChart');
+      var btnF = document.getElementById('detailTabBtnFinance');
+      if (chartP) chartP.style.display = tab === 'chart' ? '' : 'none';
+      if (finP) finP.style.display = tab === 'finance' ? '' : 'none';
+      if (btnC) btnC.classList.toggle('active', tab === 'chart');
+      if (btnF) btnF.classList.toggle('active', tab === 'finance');
+    }
+    function toggleDetailDayHist() {
+      window.__detailDayHistExpanded = !window.__detailDayHistExpanded;
+      var ctx = window.__detailHistCtx;
+      if (!ctx || !ctx.pairs || !ctx.pairs.length) return;
+      var hist = buildDayHistSectionHtml(ctx.pairs, ctx.market, !!window.__detailDayHistExpanded);
+      var grid = document.getElementById('detailGrid');
+      if (!grid) return;
+      var stats = grid.querySelectorAll(':scope > .detail-stat');
+      var head = '';
+      var keep = Math.min(4, stats.length);
+      for (var ii = 0; ii < keep; ii++) head += stats[ii].outerHTML;
+      grid.innerHTML = head + hist;
+    }
+
+
 
 async function openDetail(symbol, isRestore) {
       // 日历等入口点到 A 股代码时，走 A 股详情（观察列表同逻辑）
@@ -7349,12 +7595,15 @@ async function openDetail(symbol, isRestore) {
       if (typeof stopMiniChartLive === 'function') stopMiniChartLive();
       try { clearChartToLoading('走势图加载中…'); } catch (eClr) {}
       const uiTok = beginDetailUI('stock');
+      try { setDetailMainTabsForSymbol(symbol); } catch (eTabs) {}
       document.getElementById('detailSymbol').innerHTML = symbol + ' <span class="market-badge us">美股</span>';
       document.getElementById('detailPrice').textContent = '加载中...';
       document.getElementById('detailChg').textContent = '';
       document.getElementById('detailChg').className = 'detail-chg flat';
+      try { switchDetailMainTab('chart'); } catch (eTab) {}
+      window.__detailDayHistExpanded = false;
       document.getElementById('detailGrid').innerHTML =
-        '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:16px;">加载个股详情...</div>';
+        '<div style="grid-column:1/-1;"><div class="detail-loading"><div class="dl-spin"></div><div>加载个股详情…</div></div></div>';
       document.getElementById('detailOverlay').classList.add('show');
       document.getElementById('detailDrawer').classList.add('show');
       if (!isRestore) pushDetailHistory({ type: 'stock-us', symbol: symbol });
@@ -7382,7 +7631,7 @@ async function openDetail(symbol, isRestore) {
               '<div class="detail-stat"><div class="label">最低</div><div class="val" style="color:var(--red);">' + lo + '</div></div>' +
               '<div class="detail-stat"><div class="label">今开</div><div class="val">' + op + '</div></div>' +
               '<div class="detail-stat"><div class="label">昨收</div><div class="val">' + pc + '</div></div>' +
-              '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:8px;font-size:0.75rem;">近3日对比加载中…</div>';
+              '<div style="grid-column:1/-1;"><div class="detail-loading inline"><div class="dl-spin"></div><div>近3日对比加载中…</div></div></div>';
           }
         }
       } catch (e) {}
@@ -7478,7 +7727,7 @@ async function openDetail(symbol, isRestore) {
           const YM = { SPX: '^GSPC', DJI: '^DJI', IXIC: '^IXIC', NDX: '^NDX', RUT: '^RUT', VIX: '^VIX' };
           ySym = YM[String(symbol).toUpperCase()] || ('^' + symbol);
         }
-        const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySym)}?interval=1d&range=10d`;
+        const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySym)}?interval=1d&range=20d`;
         const data = await fetchViaProxies(yUrl);
         const result = data && data.chart && data.chart.result && data.chart.result[0];
         if (result && result.timestamp && result.indicators && result.indicators.quote) {
@@ -7501,59 +7750,11 @@ async function openDetail(symbol, isRestore) {
             }
           }
           histPairs = pairs;
-          // 未收盘：不含今日未完成K线；已收盘：含今日
-          const near = (typeof pickNear3TradingDays === 'function')
-            ? pickNear3TradingDays(pairs, 'us')
-            : { last3: pairs.slice(-3), labels: ['前日','昨日','今日'], baseBefore: null };
-          const last3 = near.last3 || [];
-          if (last3.length) {
-            const labels = near.labels || ['前日', '昨日', '今日'];
-            const baseBefore = near.baseBefore;
-            for (let i = 0; i < last3.length; i++) {
-              const p = last3[i];
-              let dateStr;
-              try {
-                const zp = getZonedParts(new Date(p.t * 1000), 'America/New_York');
-                dateStr = zp.month + '/' + zp.day;
-              } catch (e) {
-                const d = new Date(p.t * 1000);
-                dateStr = (d.getMonth() + 1) + '/' + d.getDate();
-              }
-              const label = labels[i] || dateStr;
-              let diffVal = null, pctVal = null;
-              let prevClose = null;
-              if (i > 0) {
-                prevClose = last3[i - 1].c;
-              } else if (baseBefore && baseBefore.c != null) {
-                prevClose = baseBefore.c;
-              }
-              if (prevClose != null && prevClose > 0) {
-                diffVal = p.c - prevClose;
-                pctVal = (diffVal / prevClose * 100);
-              }
-              const hi = p.h != null ? p.h.toFixed(2) : '--';
-              const lo = p.l != null ? p.l.toFixed(2) : '--';
-              const op = (p.o != null && !isNaN(p.o)) ? Number(p.o).toFixed(2) : '--';
-              dayRows += compactDayRowHtml(label, dateStr, op, p.c.toFixed(2), hi, lo, diffVal, pctVal, i === 0);
-            }
-            // 近3日累计：从「前日」再前一天收盘起算（含前日+昨日+今日三段涨跌）
-            // 例：8/12、8/13、8/14 三日 → 基准为 8/11 收盘，不是 8/12 收盘
-            if (last3.length >= 1) {
-              const first = (baseBefore && baseBefore.c != null) ? baseBefore.c : null;
-              const last = last3[last3.length - 1].c;
-              if (first != null && first > 0 && last != null) {
-                const diff = last - first;
-                const pct = (diff / first * 100);
-                dayRows += compactCumRowHtml('近' + last3.length + '日累计', diff, pct);
-              } else if (last3.length >= 2) {
-                // 无更早基准时退回旧算法
-                const f = last3[0].c;
-                const diff = last - f;
-                const pct = f ? (diff / f * 100) : 0;
-                dayRows += compactCumRowHtml('近' + last3.length + '日累计', diff, pct);
-              }
-            }
-          }
+          try {
+            window.__detailHistCtx = { pairs: pairs, market: 'us' };
+            window.__detailDayHistExpanded = false;
+            dayRows = buildDayHistSectionHtml(pairs, 'us', false);
+          } catch (eHist) { console.warn('day hist', eHist); }
         }
       } catch (e) {
         console.warn('3day compare fail', e);
@@ -7672,6 +7873,15 @@ async function openDetail(symbol, isRestore) {
         } catch (e) {}
         try { activeUSSectorL3 = null; } catch (e) {}
       }
+      // Tab 默认关；个股由 setDetailMainTabsForSymbol 打开；指数/板块列表保持关
+      try {
+        var tabs = document.getElementById('detailMainTabs');
+        var finP = document.getElementById('detailPanelFinance');
+        var chartP = document.getElementById('detailPanelChart');
+        if (tabs) tabs.style.display = 'none';
+        if (chartP) chartP.style.display = '';
+        if (finP) finP.style.display = 'none';
+      } catch (eTabIso) {}
       return detailUIToken;
     }
     function isDetailUI(mode, token) {
@@ -7692,7 +7902,10 @@ async function openDetail(symbol, isRestore) {
       const overlay = document.getElementById('detailOverlay');
       const drawer = document.getElementById('detailDrawer');
       if (overlay) overlay.classList.remove('show');
-      if (drawer) drawer.classList.remove('show');
+      if (drawer) {
+        drawer.classList.remove('show');
+        drawer.classList.remove('sector-sheet');
+      }
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = '';
       // A股详情页靠自己的1秒/2秒定时轮询把价格缓存一直保持最新，但外面
@@ -7822,6 +8035,13 @@ async function openDetail(symbol, isRestore) {
 
     // 切换股票时作废进行中的图表加载，避免上一个标的的走势图串台
     window.__chartLoadTok = window.__chartLoadTok || 0;
+    
+    function detailLoadingHtml(msg, kind) {
+      kind = kind || '';
+      var cls = 'detail-loading' + (kind ? (' ' + kind) : '');
+      return '<div class="' + cls + '"><div class="dl-spin"></div><div>' + (msg || '加载中…') + '</div></div>';
+    }
+
     function clearChartToLoading(hint) {
       window.__chartLoadTok = (window.__chartLoadTok || 0) + 1;
       try { stopMiniChartLive(); } catch (e0) {}
@@ -7836,8 +8056,8 @@ async function openDetail(symbol, isRestore) {
       const wrap = document.getElementById('tvChart');
       if (wrap) {
         wrap.innerHTML = '<div style="width:100%;height:300px;display:flex;align-items:center;justify-content:center;' +
-          'background:#0d1117;border-radius:10px;color:var(--muted);font-size:0.85rem;">' +
-          (hint || '走势图加载中…') + '</div>';
+          'background:#0d1117;border-radius:10px;">' +
+          detailLoadingHtml(hint || '走势图加载中…', 'chart') + '</div>';
       }
       return window.__chartLoadTok;
     }
@@ -8148,7 +8368,7 @@ function loadFullTVChart(symbol) {
       const tz = isCN ? 'Asia%2FShanghai' : 'America%2FNew_York';
       const fid = 'tv_' + myTok + '_' + Date.now();
       // 先占位，避免仍显示上一只
-      wrap.innerHTML = '<div style="width:100%;height:320px;display:flex;align-items:center;justify-content:center;background:#0d1117;border-radius:10px;color:var(--muted);font-size:0.85rem;">走势图加载中…</div>';
+      wrap.innerHTML = '<div style="width:100%;height:320px;display:flex;align-items:center;justify-content:center;background:#0d1117;border-radius:10px;"><div class="detail-loading chart"><div class="dl-spin"></div><div>走势图加载中…</div></div></div>';
       const src = 'https://s.tradingview.com/widgetembed/?' +
         'frameElementId=' + fid +
         '&symbol=' + sym +
@@ -8605,13 +8825,18 @@ function loadFullTVChart(symbol) {
       }
 
       const run = (async function () {
-        // 先并行拉各栏目第 1 页 → 秒出首屏；再补后续页到约 30 天
+        // 策略：
+        // - 当天/全量：每个日期不限条数，能拿多少拿多少
+        // - 近约 30 天：尽量覆盖全部日期，不人为砍条数
+        // - 首屏：各栏目第 1 页全部并行
+        // - 后续页：每次 2 个请求并行（两两一组）往前补
         const columns = [350, 344, 351, 355, 403];
-        const pageSize = 30;
-        const maxPages = 8;
+        const pageSize = 50;
+        const maxPages = 25; // 足够往前翻到约 30 天；空页/过期会提前停
         const merged = [];
         const seen = {};
         const cutoff = Date.now() - 31 * 86400000;
+        const colStopped = {}; // 某栏目已翻到头/失败则不再排后续页
 
         function mapAndFilter() {
           const mapped = merged.map(function (item) {
@@ -8636,6 +8861,7 @@ function loadFullTVChart(symbol) {
             return it.ts >= cutoff;
           });
           mapped.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
+          // 不按日期限流、不切片：当天/历史有多少保留多少
           return mapped;
         }
 
@@ -8667,26 +8893,66 @@ function loadFullTVChart(symbol) {
           }
         }
 
-        // 首屏并行
+        // 首屏：各栏目第 1 页全部并行（当天通常在这里就很多）
         const firstPages = await Promise.all(columns.map(function (col) {
           return fetchEastMoneyNewsPage(col, 1, pageSize).catch(function () { return null; });
         }));
         for (let i = 0; i < firstPages.length; i++) {
-          if (firstPages[i] && firstPages[i].length) ingest(firstPages[i]);
+          const col = columns[i];
+          const list = firstPages[i];
+          if (list && list.length) {
+            ingest(list);
+            // 首页就空：该栏目后面也别翻了
+            if (!list.length) colStopped[col] = true;
+          } else {
+            colStopped[col] = true;
+          }
         }
         if (merged.length) emit(false);
 
-        // 后续页串行补全
-        for (let c = 0; c < columns.length; c++) {
-          const col = columns[c];
-          for (let page = 2; page <= maxPages; page++) {
-            const list = await fetchEastMoneyNewsPage(col, page, pageSize);
-            if (!list) break; // 网络失败：停这栏
-            if (!list.length) break; // 翻到头
-            const r = ingest(list);
-            if (r.added > 0) emit(false);
-            if (r.added === 0) break;
-            if (r.oldestTs < cutoff - 2 * 86400000) break;
+        // 后续页：两两并行。按「页码轮次」推进，每轮最多 2 个在途请求
+        // 某栏目空页 / 全重复 / 已早于 30 天窗口 → 标记停止，不再为它排更后页
+        for (let page = 2; page <= maxPages; page++) {
+          const jobs = [];
+          for (let c = 0; c < columns.length; c++) {
+            const col = columns[c];
+            if (colStopped[col]) continue;
+            jobs.push({ col: col, page: page });
+          }
+          if (!jobs.length) break;
+
+          // 每次并行 2 个
+          for (let j = 0; j < jobs.length; j += 2) {
+            const pair = jobs.slice(j, j + 2);
+            const results = await Promise.all(pair.map(function (job) {
+              return fetchEastMoneyNewsPage(job.col, job.page, pageSize)
+                .then(function (list) { return { job: job, list: list }; })
+                .catch(function () { return { job: job, list: null }; });
+            }));
+            let anyAdded = false;
+            for (let r = 0; r < results.length; r++) {
+              const job = results[r].job;
+              const list = results[r].list;
+              if (!list) {
+                colStopped[job.col] = true; // 网络失败：停这栏
+                continue;
+              }
+              if (!list.length) {
+                colStopped[job.col] = true; // 翻到头
+                continue;
+              }
+              const info = ingest(list);
+              if (info.added > 0) anyAdded = true;
+              if (info.added === 0) {
+                colStopped[job.col] = true; // 全是重复，再往后意义不大
+                continue;
+              }
+              // 这一页最旧已早于约 30 天：该栏目后续页也基本出窗口外
+              if (info.oldestTs < cutoff) {
+                colStopped[job.col] = true;
+              }
+            }
+            if (anyAdded) emit(false);
           }
         }
 
@@ -8796,19 +9062,19 @@ function loadFullTVChart(symbol) {
       (newList || []).forEach(add);
       (oldList || []).forEach(add);
       out.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
-      // 控制体积
-      return out.slice(0, 500);
+      // 不人为限条数：各日期能合并多少保留多少（仅去重）
+      return out;
     }
 
-    // 「完整」标准：覆盖近约 30 天里足够多的日期（>=12 天）且条数够多
-    // 只有达到这个标准才允许写入后台缓存；未达标只用于当前屏展示
+    // 「完整」标准：尽量覆盖近 30 天日期；不按「每天条数上限」卡
+    // 达到较多日期覆盖才允许写入后台缓存；未达标只用于当前屏展示
     function isCompleteNewsList(list, completeFlag) {
       if (!list || !list.length) return false;
       const span = newsDaySpan(list);
-      // 覆盖多日即可视为完整；过严会导致刷新后只用半截结果、历史日期消失
-      if (completeFlag === true) return list.length >= 30 && span >= 7;
+      // 日期尽量全：优先看跨度；条数只做下限，不设上限
+      if (completeFlag === true) return list.length >= 40 && span >= 12;
       if (completeFlag === false) return false;
-      return list.length >= 60 && span >= 7;
+      return list.length >= 80 && span >= 15;
     }
 
     function readNewsCacheFromDisk() {
@@ -8835,8 +9101,8 @@ function loadFullTVChart(symbol) {
         const c = window.__newsCache || {};
         // 只落盘完整缓存
         const payload = {
-          cn: (c.cnComplete && c.cn) ? c.cn.slice(0, 500) : [],
-          en: (c.enComplete && c.en) ? c.en.slice(0, 100) : [],
+          cn: (c.cnComplete && c.cn) ? c.cn.slice(0, 3000) : [],
+          en: (c.enComplete && c.en) ? c.en.slice(0, 200) : [],
           cnAt: c.cnAt || 0,
           enAt: c.enAt || 0,
           cnComplete: !!c.cnComplete,
@@ -8878,16 +9144,24 @@ function loadFullTVChart(symbol) {
         el = document.createElement('div');
         el.id = 'newsLoadingHint';
         el.style.cssText = 'display:none;position:fixed;left:50%;top:72px;transform:translateX(-50%);z-index:45;' +
-          'padding:6px 14px;border-radius:20px;font-size:0.75rem;font-weight:600;letter-spacing:0.02em;' +
-          'background:rgba(15,22,32,0.72);color:#d7e6f7;border:1px solid rgba(77,159,255,0.35);' +
-          'backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(0,0,0,0.28);pointer-events:none;';
+          'padding:7px 14px;border-radius:20px;' +
+          'background:rgba(15,22,32,0.82);border:1px solid rgba(77,159,255,0.4);' +
+          'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);' +
+          'box-shadow:0 4px 16px rgba(0,0,0,0.32);pointer-events:none;' +
+          'align-items:center;justify-content:center;gap:8px;';
+        el.innerHTML =
+          '<span class="nlh-spin" style="width:14px;height:14px;border-radius:50%;box-sizing:border-box;' +
+          'border:2px solid rgba(77,159,255,0.22);border-top-color:#4d9fff;' +
+          'display:inline-block;flex-shrink:0;animation:newsHintSpin 0.65s linear infinite;"></span>' +
+          '<span class="nlh-text" style="font-size:0.75rem;font-weight:600;letter-spacing:0.02em;color:#d7e6f7;white-space:nowrap;"></span>';
         document.body.appendChild(el);
       }
       const page = document.getElementById('page-hot');
       const onHot = page && page.classList.contains('active');
       if (show && onHot) {
-        el.textContent = text || '新闻更新中…';
-        el.style.display = 'block';
+        el.style.display = 'flex';
+        var tx = el.querySelector('.nlh-text');
+        if (tx) tx.textContent = text || '新闻更新中…';
       } else {
         el.style.display = 'none';
       }
@@ -9255,7 +9529,7 @@ function loadFullTVChart(symbol) {
       {
         id: 'consumer', name: '大消费与地产', en: 'Consumer & RE',
         children: [
-          { id: 'staples', name: '日常消费', stocks: ['PG','KO','PEP','COST','WMT','PM','MO','CL','KMB','GIS','K','HSY','SYY','KR','TGT','DG','DLTR'] },
+          { id: 'staples', name: '日常消费', stocks: ['PG','KO','PEP','COST','WMT','PM','MO','CL','KMB','GIS','HSY','SYY','KR','TGT','DG','DLTR'] },
           { id: 'discretionary', name: '可选消费', stocks: ['AMZN','HD','MCD','NKE','SBUX','LOW','TJX','ROST','CMG','DPZ','YUM','MAR','HLT','BKNG','ABNB','LULU','DECK','POOL'] },
           { id: 'reit', name: '地产与基础设施REIT', stocks: ['EQIX','DLR','PLD','AMT','CCI','SBAC','SPG','O','PSA','EXR','AVB','EQR','WELL','VTR','INVH','MAA','IRM'] },
           { id: 'luxury', name: '奢侈品与品牌', stocks: ['LVMUY','HESAY','PPRUY','TPR','CPRI','RL','VFC','PVH','NKE','LULU'] }
@@ -9778,13 +10052,14 @@ const FALLBACK_SECTORS = {
       } catch (e) { console.warn('repaintCurrentUSSectorFromCache', e); }
     }
 
-    async function prefetchSectorSymbols(mkt, symbols, labelPrefix) {
+    async function prefetchSectorSymbols(mkt, symbols, labelPrefix, progressTotal) {
       const list = symbols || [];
-      const total = list.length;
+      // progressTotal：与汇总合成一条进度时，总数 = 成分股数 + 汇总步
+      const total = (progressTotal > 0 ? progressTotal : list.length) || 1;
       let loaded = 0;
       let okCount = 0;
       const myTok = window.__sectorRefreshTok[mkt];
-      showSectorProgress(mkt, 0, total, (labelPrefix || '拉取成分股') + '…');
+      showSectorProgress(mkt, 0, total, (labelPrefix || '更新中') + '…');
       const CONC = 5;
       for (let i = 0; i < list.length; i += CONC) {
         if (window.__sectorRefreshTok[mkt] !== myTok) break;
@@ -9903,10 +10178,15 @@ const FALLBACK_SECTORS = {
             window.__usL2PrevRows = {};
           } catch (e) {}
           const syms = collectUSSectorAllSymbols();
-          showSectorProgress('us', 0, syms.length || 1, '美股成分股…');
-          await prefetchSectorSymbols('us', syms, '美股成分股');
+          var isNewDay = !!window.__sectorNewDayRefresh;
+          // 一条进度：拉行情 + 最后 1 步汇总画界面
+          var lab = isNewDay ? '最新数据更新中' : '美股更新中';
+          var nSym = syms.length || 0;
+          var totalSteps = Math.max(1, nSym + 1);
+          showSectorProgress('us', 0, totalSteps, lab + '…');
+          await prefetchSectorSymbols('us', syms, lab, totalSteps);
           if (myTok !== window.__sectorRefreshTok.us) return;
-          showSectorProgress('us', syms.length, syms.length, '美股汇总二级 / 一级…');
+          showSectorProgress('us', nSym, totalSteps, lab + '…');
           if (currentSectorMkt() === 'us') {
             if (typeof usSectorView !== 'undefined' && usSectorView === 'l2' && usSectorL1 && typeof openUSSectorL1 === 'function') {
               await openUSSectorL1(usSectorL1, true, true);
@@ -9917,8 +10197,10 @@ const FALLBACK_SECTORS = {
             }
           }
           if (myTok === window.__sectorRefreshTok.us) {
-            hideSectorProgress('us', '美股板块已完整刷新');
+            showSectorProgress('us', totalSteps, totalSteps, lab + '…');
+            hideSectorProgress('us', isNewDay ? '最新数据已更新' : '美股板块已更新');
           }
+          try { window.__sectorNewDayRefresh = false; } catch (eNd) {}
         } else {
           try {
             window.__cnBoardCacheAt = 0;
@@ -9926,6 +10208,7 @@ const FALLBACK_SECTORS = {
             window.__cnBoardMeta = {};
             window.__cnBoardStocksCache = {};
           } catch (e) {}
+          var isNewDayCn = !!window.__sectorNewDayRefresh;
           // 收集全部二级板块 BK 代码
           const boards = [];
           const boardSet = {};
@@ -10000,9 +10283,13 @@ const FALLBACK_SECTORS = {
             return { stocks: stocks, totalHint: totalHint || stocks.length };
           }
 
-          // —— 阶段0：先算死总数（与一级大类角标同一口径：1527+772+…≈4029）——
-          // 必须先统计完再开始拉成分，分母全程不变；未跑完所有细分不得到 100%
-          showSectorProgress('cn', 0, 1, 'A股统计总数中…');
+          // —— 统一进度：0～100%，成分股+二级+一级全部完成才到 100%（不再拆成「统计/成分」两条）——
+          // 权重：统计约 0–5% · 成分股约 5–90% · 二级约 90–95% · 一级约 95–100%
+          function showCnUnified(pct, label) {
+            var p = Math.max(0, Math.min(100, Math.round(pct)));
+            showSectorProgress('cn', p, 100, label || (isNewDayCn ? '最新数据更新中…' : 'A股完整刷新…'));
+          }
+          showCnUnified(0, isNewDayCn ? '最新数据更新中…' : 'A股完整刷新…');
           const boardTotals = {};
           let universe0 = [];
           try {
@@ -10010,7 +10297,6 @@ const FALLBACK_SECTORS = {
               universe0 = await loadCNBoardUniverse(true) || [];
             }
           } catch (e) {}
-          // 与 renderCNSectorL1 相同：每个大类下各细分 count 相加，再把各大类相加
           function countForChild(c, universe) {
             let count = 0;
             let lead = null;
@@ -10029,18 +10315,28 @@ const FALLBACK_SECTORS = {
             }
             return count;
           }
-          // 再补一轮 meta，尽量把每个 BK 的 count 填准
-          for (let bi = 0; bi < boards.length; bi++) {
-            if (myTok !== window.__sectorRefreshTok.cn) return;
-            const b = boards[bi].board;
-            try {
-              if (window.__cnBoardMeta) delete window.__cnBoardMeta[b];
-              if (typeof fetchCNBoardMeta === 'function') {
-                const meta = await fetchCNBoardMeta(b);
-                if (meta && meta.count > 0) boardTotals[b] = meta.count;
-              }
-            } catch (e) {}
-            showSectorProgress('cn', bi + 1, boards.length + 1, 'A股统计总数 ' + (bi + 1) + '/' + boards.length + '…');
+          // 统计各细分只数（并入总进度 0–5%；并行拉 meta，加快准备阶段）
+          {
+            const META_CONC = 5;
+            let metaDone = 0;
+            for (let bi = 0; bi < boards.length; bi += META_CONC) {
+              if (myTok !== window.__sectorRefreshTok.cn) return;
+              const batch = boards.slice(bi, bi + META_CONC);
+              await Promise.all(batch.map(async function (item) {
+                const b = item.board;
+                try {
+                  if (window.__cnBoardMeta) delete window.__cnBoardMeta[b];
+                  if (typeof fetchCNBoardMeta === 'function') {
+                    const meta = await fetchCNBoardMeta(b);
+                    if (meta && meta.count > 0) boardTotals[b] = meta.count;
+                  }
+                } catch (e) {}
+                metaDone++;
+                var statPct = boards.length ? (metaDone / boards.length) * 5 : 5;
+                showCnUnified(statPct, (isNewDayCn ? '最新数据更新中' : 'A股刷新') +
+                  ' · 准备 ' + metaDone + '/' + boards.length + '…');
+              }));
+            }
           }
           let stockTotal = 0;
           try {
@@ -10054,7 +10350,6 @@ const FALLBACK_SECTORS = {
               });
             });
           } catch (e) {}
-          // 仍异常时用页面上次一级角标合计
           if (stockTotal < 100) {
             try {
               let s = 0;
@@ -10065,104 +10360,150 @@ const FALLBACK_SECTORS = {
               if (s > stockTotal) stockTotal = s;
             } catch (e) {}
           }
-          if (stockTotal < 1) stockTotal = 4029; // 最后兜底，与常见角标合计同级
-          // 锁定分母，后续只改分子
+          if (stockTotal < 1) stockTotal = 4029;
           const lockedTotal = stockTotal;
           let stockLoaded = 0;
           let boardsDone = 0;
-          showSectorProgress('cn', 0, lockedTotal, 'A股成分股 0/' + lockedTotal + '…');
+          showCnUnified(5, (isNewDayCn ? '最新数据更新中' : 'A股刷新') +
+            ' · 成分股 0/' + lockedTotal + '…');
 
-          // —— 阶段1（三级）：全量成分股最新数据 ——
-          for (let bi = 0; bi < boards.length; bi++) {
-            if (myTok !== window.__sectorRefreshTok.cn) return;
-            const item = boards[bi];
-            showSectorProgress('cn', stockLoaded, stockTotal,
-              'A股成分股 · ' + (item.name || item.board) + '…');
-            try {
-              try {
-                if (window.__cnBoardMeta) delete window.__cnBoardMeta[item.board];
-              } catch (e0) {}
-              const pack = await fetchAllBoardStocks(item.board);
-              const stocks = (pack && pack.stocks) || [];
-              // 分母 lockedTotal 已锁定，只推进分子
-              window.__cnBoardStocksCache = window.__cnBoardStocksCache || {};
-              window.__cnBoardStocksCache[item.board] = {
-                list: stocks,
-                at: Date.now(),
-                total: stocks.length
-              };
-              if (stocks.length) {
-                let sum = 0, n = 0;
-                stocks.forEach(function (s) {
-                  if (typeof s.chg === 'number' && !isNaN(s.chg)) {
-                    sum += s.chg;
-                    n++;
+          // 阶段1：成分股（约 5%→90%）；多板块并行（BOARD_CONC），比串行快很多
+          {
+            const BOARD_CONC = 3;
+            for (let bi = 0; bi < boards.length; bi += BOARD_CONC) {
+              if (myTok !== window.__sectorRefreshTok.cn) return;
+              const batch = boards.slice(bi, bi + BOARD_CONC);
+              await Promise.all(batch.map(async function (item) {
+                if (myTok !== window.__sectorRefreshTok.cn) return;
+                try {
+                  try {
+                    if (window.__cnBoardMeta) delete window.__cnBoardMeta[item.board];
+                  } catch (e0) {}
+                  const pack = await fetchAllBoardStocks(item.board);
+                  const stocks = (pack && pack.stocks) || [];
+                  window.__cnBoardStocksCache = window.__cnBoardStocksCache || {};
+                  window.__cnBoardStocksCache[item.board] = {
+                    list: stocks,
+                    at: Date.now(),
+                    total: stocks.length
+                  };
+                  if (stocks.length) {
+                    let sum = 0, n = 0;
+                    stocks.forEach(function (s) {
+                      if (typeof s.chg === 'number' && !isNaN(s.chg)) {
+                        sum += s.chg;
+                        n++;
+                      }
+                    });
+                    window.__cnBoardMeta = window.__cnBoardMeta || {};
+                    window.__cnBoardMeta[item.board] = {
+                      count: stocks.length,
+                      chg: n ? (sum / n) : 0,
+                      hasChg: n > 0,
+                      _at: Date.now()
+                    };
                   }
-                });
-                window.__cnBoardMeta = window.__cnBoardMeta || {};
-                window.__cnBoardMeta[item.board] = {
-                  count: stocks.length,
-                  chg: n ? (sum / n) : 0,
-                  hasChg: n > 0,
-                  _at: Date.now()
-                };
-              }
-              const expect = boardTotals[item.board] || stocks.length || 0;
-              stockLoaded += expect;
-              boardsDone++;
-              // 未跑完所有细分时，分子最多到 total-1，避免「100% 还在跑」
-              let showLoaded = stockLoaded;
-              if (boardsDone < boards.length && showLoaded >= lockedTotal) {
-                showLoaded = Math.max(0, lockedTotal - 1);
-              }
-              if (boardsDone >= boards.length) showLoaded = lockedTotal;
-            } catch (e) {
-              console.warn('cn full board', item.board, e);
-              boardsDone++;
-            }
-            {
-              let showLoaded = stockLoaded;
-              if (boardsDone < boards.length && showLoaded >= lockedTotal) showLoaded = Math.max(0, lockedTotal - 1);
-              if (boardsDone >= boards.length) showLoaded = lockedTotal;
-              showSectorProgress('cn', showLoaded, lockedTotal,
-                'A股成分股 ' + showLoaded + '/' + lockedTotal + '…');
+                  const expect = boardTotals[item.board] || stocks.length || 0;
+                  stockLoaded += expect;
+                  boardsDone++;
+                } catch (e) {
+                  console.warn('cn full board', item.board, e);
+                  boardsDone++;
+                }
+                var ratio = lockedTotal > 0 ? Math.min(1, stockLoaded / lockedTotal) : (boardsDone / Math.max(1, boards.length));
+                var stockPct = 5 + ratio * 85;
+                if (boardsDone < boards.length && stockPct > 89) stockPct = 89;
+                if (boardsDone >= boards.length) stockPct = 90;
+                var showN = Math.min(stockLoaded, lockedTotal);
+                showCnUnified(stockPct, (isNewDayCn ? '最新数据更新中' : 'A股刷新') +
+                  ' · ' + (item.name || item.board) + ' · ' + showN + '/' + lockedTotal + '…');
+              }));
             }
           }
-          showSectorProgress('cn', lockedTotal, lockedTotal, 'A股成分股 ' + lockedTotal + '/' + lockedTotal + '…');
+          showCnUnified(90, (isNewDayCn ? '最新数据更新中' : 'A股刷新') +
+            ' · 成分股 ' + lockedTotal + '/' + lockedTotal + ' · 汇总中…');
 
           if (myTok !== window.__sectorRefreshTok.cn) return;
 
-          // —— 阶段2（二级）：细分涨跌基于刚拉的成分股已写入 __cnBoardMeta ——
-          showSectorProgress('cn', lockedTotal, lockedTotal + 2, 'A股汇总细分（二级）…');
+          // 阶段2+3：二级 / 一级汇总（尽量并行）
+          // 说明：界面只能画「当前这一页」，但网络请求 + 各二级缓存可并行算完
+          showCnUnified(92, (isNewDayCn ? '最新数据更新中' : 'A股刷新') + ' · 并行汇总二级/一级…');
           try {
-            if (typeof loadCNBoardUniverse === 'function') await loadCNBoardUniverse(true);
-          } catch (e) {}
-          if (myTok !== window.__sectorRefreshTok.cn) return;
-          if (currentSectorMkt() === 'cn' && typeof cnSectorView !== 'undefined' &&
-              cnSectorView === 'l2' && cnSectorL1 && typeof openCNSectorL1 === 'function') {
-            try { await openCNSectorL1(cnSectorL1, true); } catch (e) {}
-          }
+            // 1) 行业宇宙（一份请求）与「用已有成分缓存重算所有二级行」并行
+            window.__cnL2RowsByL1 = window.__cnL2RowsByL1 || {};
+            const buildAllL2Caches = (async function () {
+              const tasks = (CN_SECTOR_TREE || []).map(async function (l1) {
+                const rows = (l1.children || []).map(function (c) {
+                  const meta = (c.board && window.__cnBoardMeta && window.__cnBoardMeta[c.board])
+                    ? window.__cnBoardMeta[c.board] : null;
+                  const cache = (c.board && window.__cnBoardStocksCache && window.__cnBoardStocksCache[c.board])
+                    ? window.__cnBoardStocksCache[c.board] : null;
+                  let chg = 0, count = 0, hasLive = false;
+                  if (meta && meta.hasChg && typeof meta.chg === 'number') {
+                    chg = meta.chg;
+                    hasLive = true;
+                    count = meta.count || 0;
+                  }
+                  if (cache && cache.list && cache.list.length) {
+                    count = cache.list.length;
+                    if (!hasLive) {
+                      let sum = 0, n = 0;
+                      cache.list.forEach(function (s) {
+                        if (typeof s.chg === 'number' && !isNaN(s.chg)) { sum += s.chg; n++; }
+                      });
+                      if (n) { chg = sum / n; hasLive = true; }
+                    }
+                  }
+                  return {
+                    id: c.id,
+                    name: c.name,
+                    tips: c.tips || '',
+                    chg: chg,
+                    count: count,
+                    board: c.board || '',
+                    boards: [],
+                    hasLive: hasLive
+                  };
+                });
+                window.__cnL2RowsByL1[l1.id] = rows;
+              });
+              await Promise.all(tasks);
+            })();
 
-          // —— 阶段3（一级）：大类页面 ——
-          showSectorProgress('cn', lockedTotal + 1, lockedTotal + 2, 'A股汇总大类（一级）…');
+            await Promise.all([
+              (async function () {
+                try {
+                  if (typeof loadCNBoardUniverse === 'function') await loadCNBoardUniverse(true);
+                } catch (e) {}
+              })(),
+              buildAllL2Caches
+            ]);
+          } catch (e) {
+            console.warn('cn summary parallel', e);
+          }
           if (myTok !== window.__sectorRefreshTok.cn) return;
+          showCnUnified(96, (isNewDayCn ? '最新数据更新中' : 'A股刷新') + ' · 刷新当前页面…');
+
+          // 2) 只重画用户当前停在的那一页（L1 / L2 互斥，不能同时改同一块 DOM）
           if (currentSectorMkt() === 'cn') {
-            // 无论当前在几级，都刷新一级缓存；若在一级则直接重画
-            if (typeof cnSectorView !== 'undefined' && cnSectorView === 'l1') {
-              if (typeof loadCNSectors === 'function') await loadCNSectors();
-              else if (typeof renderCNSectorL1 === 'function') await renderCNSectorL1(true);
-            } else if (typeof renderCNSectorL1 === 'function') {
-              // 后台刷新一级 HTML 缓存，返回大类时能看到新数字
-              try {
-                const bakView = cnSectorView;
-                const bakL1 = cnSectorL1;
-                // 不改当前 UI：只预热 universe（已拉过）；openCNSectorL1 已更新二级
-              } catch (e) {}
+            try {
+              if (typeof cnSectorView !== 'undefined' && cnSectorView === 'l2' &&
+                  cnSectorL1 && typeof openCNSectorL1 === 'function') {
+                await openCNSectorL1(cnSectorL1, true);
+              } else if (typeof loadCNSectors === 'function') {
+                await loadCNSectors();
+              } else if (typeof renderCNSectorL1 === 'function') {
+                await renderCNSectorL1(true);
+              }
+            } catch (e) {
+              console.warn('cn paint after summary', e);
             }
           }
-          showSectorProgress('cn', lockedTotal + 2, lockedTotal + 2, 'A股完成');
+          showCnUnified(100, isNewDayCn ? '最新数据已更新' : 'A股完整刷新完成');
           if (myTok === window.__sectorRefreshTok.cn) {
-            hideSectorProgress('cn', 'A股板块已完整刷新');
+            hideSectorProgress('cn', isNewDayCn ? '最新数据已更新' : 'A股板块已完整刷新');
+
+          try { window.__sectorNewDayRefresh = false; } catch (eNd2) {}
           }
         }
       } catch (e) {
@@ -10180,6 +10521,7 @@ const FALLBACK_SECTORS = {
       sectorMarket = m;
       sectorMarketToken += 1;
       const switchTok = sectorMarketToken;
+      try { if (typeof setSectorToast === 'function') setSectorToast(false); } catch (eT) {}
       try { if (typeof syncSectorProgressVisibility === 'function') syncSectorProgressVisibility(); } catch (e) {}
       usSectorView = 'l1';
       usSectorL1 = null;
@@ -10338,10 +10680,15 @@ const FALLBACK_SECTORS = {
       try {
         if (typeof sectorMarket === 'undefined' || !sectorMarket) sectorMarket = 'us';
         if (sectorMarket === 'cn') {
-          // 若已在二级页，只软刷新二级，不退回一级
+          try {
+            if (window.__sectorRefreshBusy && window.__sectorRefreshBusy.cn) return;
+          } catch (eBusyCn) {}
           if (typeof cnSectorView !== 'undefined' && cnSectorView === 'l2' && cnSectorL1) {
             await openCNSectorL1(cnSectorL1, true);
           } else {
+            // 自动软刷新也强制拉新行业榜并重画一级
+            try { await loadCNBoardUniverse(true); } catch (eU) {}
+            try { window.__cnL1ForcePaint = true; } catch (eF) {}
             await loadCNSectors();
           }
         } else {
@@ -10381,9 +10728,29 @@ const FALLBACK_SECTORS = {
       await renderUSSectorL1(force);
     }
 
-    function paintUSSectorL1Cards(cards) {
+    function sectorL1CardsSig(cards) {
+      try {
+        return (cards || []).map(function (c) {
+          return String(c.id) + ':' + Number(c.chg || 0).toFixed(2) + ':' + String(c.count || 0) + ':' + (c._pending ? '1' : '0');
+        }).join('|');
+      } catch (e) { return String(Date.now()); }
+    }
+
+    function paintUSSectorL1Cards(cards, forcePaint) {
       const container = document.getElementById('sectorContent');
       if (!container) return;
+      var force = !!forcePaint || !!window.__sectorNewDayForcePaint;
+      var sig = sectorL1CardsSig(cards);
+      var hasDom = !!container.querySelector('.l1-card[data-mkt="us"]');
+      if (!force && hasDom && window.__usL1PaintSig && window.__usL1PaintSig === sig) {
+        try {
+          if (window.__sectorAnimPending === 'back') {
+            playSectorViewAnim('back');
+            window.__sectorAnimPending = null;
+          }
+        } catch (eA) {}
+        return;
+      }
       const up = cards.filter(function (x) { return x.chg > 0; }).sort(function (a, b) { return b.chg - a.chg; });
       const down = cards.filter(function (x) { return x.chg < 0; }).sort(function (a, b) { return a.chg - b.chg; });
       const flat = cards.filter(function (x) { return x.chg === 0; });
@@ -10408,23 +10775,34 @@ const FALLBACK_SECTORS = {
       }
       if (!html) html = '<div style="color:var(--muted);text-align:center;padding:20px;">暂无数据</div>';
       container.innerHTML = html;
+      window.__usL1PaintSig = sig;
+      if (window.__sectorNewDayForcePaint) window.__sectorNewDayForcePaint = false;
+      try {
+        if (window.__sectorAnimPending === 'back') {
+          playSectorViewAnim('back');
+          window.__sectorAnimPending = null;
+        }
+      } catch (eA) {}
       paintSectorLiveStatus('ok');
       const note = document.getElementById('sectorNote');
       if (note) note.textContent = '一级角标=大类成分股总数 · 二级角标=该产业成分股数 · 系统返回逐层回退';
     }
 
-    async function renderUSSectorL1(force) {
+async function renderUSSectorL1(force) {
       const container = document.getElementById('sectorContent');
       if (!container) return;
       if (sectorMarket !== 'us') return;
       const myMktTok = sectorMarketToken;
+      if (usSectorView === 'l2') {
+        try { window.__sectorAnimPending = 'back'; } catch (e) {}
+      }
       usSectorView = 'l1';
       usSectorLoadToken += 1;
       const myToken = usSectorLoadToken;
       try {
         const _d = document.getElementById('detailDrawer');
         if (!(_d && _d.classList.contains('show'))) {
-          setSectorToast(true, force ? '刷新美股大类…' : '加载美股大类…', 8000);
+          setSectorToast(true, force ? '刷新美股大类…' : '加载美股大类…', 8000, 'us');
         }
       } catch (e) {}
       // 先立刻画出结构（不阻塞），再补涨跌
@@ -10507,7 +10885,7 @@ const FALLBACK_SECTORS = {
       if (myToken !== usSectorLoadToken || usSectorView !== 'l1') return;
       paintUSSectorL1Cards(cards);
       try {
-        setSectorToast(true, '大类已更新', 800);
+        if (typeof sectorMarket === 'undefined' || sectorMarket === 'us') setSectorToast(true, '大类已更新', 800, 'us');
       } catch (e) {}
     }
 
@@ -10522,7 +10900,7 @@ const FALLBACK_SECTORS = {
         const _d = document.getElementById('detailDrawer');
         // 后台软刷新（isRestore）不弹「加载细分」，避免和实时数字抢戏、来回闪提示
         if (!isRestore && !(_d && _d.classList.contains('show'))) {
-          setSectorToast(true, '加载「' + (l1.name || '') + '」细分…', 10000);
+          setSectorToast(true, '加载「' + (l1.name || '') + '」细分…', 10000, 'us');
         }
       } catch (e) {}
       if (!isRestore) {
@@ -10534,7 +10912,13 @@ const FALLBACK_SECTORS = {
       // 不要先清空成「加载细分行业...」再画一遍，原地更新数字就好
       const alreadyShown = container.querySelector('.sector-cards') && container.dataset.l1Id === id;
       if (!alreadyShown) {
-        container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载细分行业...</div>';
+        var loadSpin = (typeof detailLoadingHtml === 'function')
+          ? detailLoadingHtml('加载细分行业…')
+          : '<div class="detail-loading" style="padding:36px 12px;"><div class="dl-spin"></div><div>加载细分行业…</div></div>';
+        container.innerHTML = '<div class="l2-head">' +
+          '<button type="button" class="back-mini" onclick="renderUSSectorL1()">← 大类</button>' +
+          '<span class="l2-title">' + (l1.name || '') + '</span></div>' +
+          '<div style="padding:12px 0;">' + loadSpin + '</div>';
       }
 
       const rows = [];
@@ -10592,6 +10976,7 @@ const FALLBACK_SECTORS = {
       if (myToken !== usSectorLoadToken || usSectorView !== 'l2' || usSectorL1 !== id) return;
       container.innerHTML = html;
       container.dataset.l1Id = id;
+      try { if (!alreadyShown) playSectorViewAnim('in'); } catch (eA) {}
     }
 
     async function openUSSectorL2(l1id, l2id, isRestore) {
@@ -10609,6 +10994,7 @@ const FALLBACK_SECTORS = {
       const drawer = document.getElementById('detailDrawer');
       // 板块成分股模式：后续异步 paint 不得覆盖个股详情
       const sectorTok = (typeof beginDetailUI === 'function') ? beginDetailUI('sector-us') : 0;
+      try { if (drawer) drawer.classList.add('sector-sheet'); } catch (e) {}
       document.getElementById('detailSymbol').textContent = l2.name;
       if (typeof stopLiveDetail === 'function') stopLiveDetail();
       if (typeof stopMiniChartLive === 'function') stopMiniChartLive();
@@ -10628,7 +11014,7 @@ const FALLBACK_SECTORS = {
       const quoteMap = Object.assign({}, prevState.quoteMap || {});
       const loadingSet = {};
       // 不恢复旧的 loadingList，避免失败票一直卡在「加载中」
-      const CONC = 4; // 有缓存时主要是补洞，可稍提高并发
+      const CONC = 5; // 有缓存时主要是补洞，可稍提高并发
       symbols.forEach(function (sym) {
         const cq = getQuoteCacheFresh(sym);
         // 全量刷新写入的缓存优先；即使软过期也先展示，避免刷新完仍一片「加载中」
@@ -10636,7 +11022,7 @@ const FALLBACK_SECTORS = {
         if (anyQ) quoteMap[sym] = anyQ;
         else if (quoteMap[sym] && quoteMap[sym].c > 0) { /* keep */ }
         else if (quoteMap[sym] && quoteMap[sym]._failed) {
-          // 已知拉失败，先显示 --，仍会再试一次
+          // 已知拉失败：不进加载态，列表里直接不显示
         } else {
           loadingSet[sym] = 1;
         }
@@ -10668,6 +11054,11 @@ const FALLBACK_SECTORS = {
         }
       };
       async function fetchOneUS(sym, forceNet) {
+        // 已失败过：不再进入加载态
+        if (quoteMap[sym] && quoteMap[sym]._failed && !forceNet) {
+          delete loadingSet[sym];
+          return null;
+        }
         loadingSet[sym] = 1;
         persistSectorState();
         try {
@@ -10682,15 +11073,21 @@ const FALLBACK_SECTORS = {
               }
             }
           }
-          // Finnhub 一次 → 立刻 Yahoo 兜底，避免长时间卡在「加载中」
-          let q = await fetchQuote(sym, { finnhubOnly: true });
+          async function withTimeout(p, ms) {
+            return Promise.race([
+              p,
+              new Promise(function (resolve) { setTimeout(function () { resolve(null); }, ms); })
+            ]);
+          }
+          // Finnhub 一次 → Yahoo 兜底；单次请求限时，避免永久「加载中」
+          let q = await withTimeout(fetchQuote(sym, { finnhubOnly: true }), 4500);
           if (!q || !(q.c > 0)) {
-            await new Promise(function (r) { setTimeout(r, 120); });
-            q = await fetchQuote(sym, { finnhubOnly: false });
+            await new Promise(function (r) { setTimeout(r, 80); });
+            q = await withTimeout(fetchQuote(sym, { finnhubOnly: false }), 5000);
           }
           if (!q || !(q.c > 0)) {
-            await new Promise(function (r) { setTimeout(r, 200); });
-            q = await fetchQuote(sym, { finnhubOnly: false });
+            await new Promise(function (r) { setTimeout(r, 100); });
+            q = await withTimeout(fetchQuote(sym, { finnhubOnly: false }), 5000);
           }
           if (q && q.c > 0) {
             putQuoteCache(sym, q);
@@ -10982,7 +11379,8 @@ async function fetchCNConceptList(po) {
 
     async function loadCNBoardUniverse(force) {
       if (force) {
-        window.__cnBoardMeta = {};
+        // 只清行业榜列表缓存，强制重新请求；
+        // 不要清空 __cnBoardMeta：全量刷新写入的准确成分只数要保留，否则角标会退回概览粗数
         cnBoardCache = null;
         window.__cnBoardCacheAt = 0;
       }
@@ -11085,6 +11483,7 @@ async function fetchCNConceptList(po) {
       const container = document.getElementById('sectorContent');
       if (window.__cnL1HtmlCache && container) {
         container.innerHTML = window.__cnL1HtmlCache;
+        try { playSectorViewAnim('back'); } catch (eA) {}
         setTimeout(function () {
           if (cnSectorView === 'l1' && sectorMarket === 'cn') {
             renderCNSectorL1(true);
@@ -11184,8 +11583,17 @@ async function fetchCNConceptList(po) {
       }
       if (!html) html = '<div style="color:var(--muted);text-align:center;padding:20px;">暂无数据，请刷新</div>';
       if (sectorMarket !== 'cn' || myMktTok !== sectorMarketToken) return;
+      try {
+        var forceCn = !!window.__sectorNewDayForcePaint || !!window.__cnL1ForcePaint;
+        try { window.__cnL1ForcePaint = false; } catch (eFp) {}
+        if (!forceCn && window.__cnL1HtmlCache && window.__cnL1HtmlCache === html && container.querySelector('.l1-card, .sector-card')) {
+          paintSectorLiveStatus('ok');
+          return;
+        }
+      } catch (eCn) {}
       container.innerHTML = html;
       window.__cnL1HtmlCache = html;
+      if (window.__sectorNewDayForcePaint) window.__sectorNewDayForcePaint = false;
       paintSectorLiveStatus('ok');
 
       const note = document.getElementById('sectorNote');
@@ -11209,40 +11617,120 @@ async function fetchCNConceptList(po) {
       const prevRows = window.__cnL2RowsByL1[id] || [];
       const prevMap = {};
       prevRows.forEach(function (r) { prevMap[r.id] = r; });
-      // 已经显示着这个大类的细分行业时（自动/手动刷新触发的重入），
-      // 不要先清空成「加载细分行业...」再画一遍，原地等新数据算完一次性更新，
-      // 免得看着好好的内容突然被清空又画出来，跟当前页面没有关系地跳一下
-      const alreadyShown = container.dataset.cnL1Id === id && container.querySelector('.sector-cards, .l2-title');
-      if (!alreadyShown) {
-        // 加载中也提供「← 大类」，可立刻返回，不必等请求结束
+
+      function paintCNL2Rows(rows) {
+        if (myToken !== window.__cnL2LoadToken || cnSectorView !== 'l2' || cnSectorL1 !== id) return;
+        window.__cnL2Cache = window.__cnL2Cache || {};
+        rows.forEach(function (r) {
+          window.__cnL2Cache[l1.id + ':' + r.id] = r;
+        });
+        window.__cnL2RowsByL1[id] = rows;
+        const up = rows.filter(function (x) { return x.chg > 0; }).sort(function (a, b) { return b.chg - a.chg; });
+        const down = rows.filter(function (x) { return x.chg < 0; }).sort(function (a, b) { return a.chg - b.chg; });
+        const flat = rows.filter(function (x) { return x.chg === 0; });
+        function cardHtml(s) {
+          const cls = s.chg > 0 ? 'up' : (s.chg < 0 ? 'down' : 'flat');
+          const chgText = (s.chg > 0 ? '+' : '') + Number(s.chg).toFixed(2) + '%';
+          const badge = s.count > 0 ? s.count : '-';
+          const tips = s.tips ? '<div style="font-size:0.65rem;color:var(--muted);margin-top:4px;line-height:1.3;">' + s.tips + '</div>' : '';
+          return '<div class="sector-card ' + cls + '" style="cursor:pointer;position:relative;text-align:left;" onclick="openCNSectorL2(\'' + l1.id + '\',\'' + s.id + '\')">' +
+            '<span class="s-badge">' + badge + '</span>' +
+            '<div class="s-name">' + s.name + '</div>' + tips +
+            '<div class="s-chg">' + chgText + '</div></div>';
+        }
+        let html = '<div class="l2-head">' +
+          '<button type="button" class="back-mini" onclick="backCNSectorL1()">← 大类</button>' +
+          '<span class="l2-title">' + l1.name + '</span></div>';
+        if (up.length) {
+          html += '<div class="sector-group"><h3><span style="color:var(--green)">●</span> 上涨细分</h3><div class="sector-cards">';
+          html += up.map(cardHtml).join('') + '</div></div>';
+        }
+        if (flat.length) {
+          html += '<div class="sector-group"><h3><span style="color:var(--muted)">●</span> 平盘/待更新</h3><div class="sector-cards">';
+          html += flat.map(cardHtml).join('') + '</div></div>';
+        }
+        if (down.length) {
+          html += '<div class="sector-group"><h3><span style="color:var(--red)">●</span> 下跌细分</h3><div class="sector-cards">';
+          html += down.map(cardHtml).join('') + '</div></div>';
+        }
+        var wasLoading = !container.querySelector('.sector-cards');
+        container.innerHTML = html;
+        container.dataset.cnL1Id = id;
+        // 仅首次进入二级动画，后台软刷新不闪
+        try { if (wasLoading) playSectorViewAnim('in'); } catch (eA) {}
+      }
+
+      // —— 秒开：有缓存立刻画，再后台刷新 ——
+      var cacheRows = prevRows && prevRows.length ? prevRows : null;
+      if (!cacheRows || !cacheRows.length) {
+        // 用全量刷新写入的 meta / 成分缓存拼一版
+        try {
+          cacheRows = (l1.children || []).map(function (c) {
+            var meta = (c.board && window.__cnBoardMeta && window.__cnBoardMeta[c.board]) ? window.__cnBoardMeta[c.board] : null;
+            var pack = (c.board && window.__cnBoardStocksCache && window.__cnBoardStocksCache[c.board]) ? window.__cnBoardStocksCache[c.board] : null;
+            var chg = 0, count = 0, hasLive = false;
+            if (meta && meta.hasChg && typeof meta.chg === 'number') {
+              chg = meta.chg; hasLive = true; count = meta.count || 0;
+            }
+            if (pack && pack.list && pack.list.length) {
+              count = pack.list.length;
+              if (!hasLive) {
+                var sum = 0, n = 0;
+                pack.list.forEach(function (s) {
+                  if (typeof s.chg === 'number' && !isNaN(s.chg)) { sum += s.chg; n++; }
+                });
+                if (n) { chg = sum / n; hasLive = true; }
+              }
+            }
+            return {
+              id: c.id, name: c.name, tips: c.tips || '',
+              chg: chg, count: count, board: c.board || '',
+              boards: [], hasLive: hasLive
+            };
+          });
+          if (!cacheRows.some(function (r) { return r.hasLive || r.count > 0; })) cacheRows = null;
+        } catch (eC) { cacheRows = null; }
+      }
+      if (cacheRows && cacheRows.length) {
+        paintCNL2Rows(cacheRows);
+      } else {
         container.innerHTML = '<div class="l2-head">' +
           '<button type="button" class="back-mini" onclick="backCNSectorL1()">← 大类</button>' +
           '<span class="l2-title">' + (l1.name || '') + '</span></div>' +
-          '<div style="text-align:center;color:var(--muted);padding:24px 0;">加载细分行业...</div>';
+          '<div class="detail-loading" style="padding:36px 12px;"><div class="dl-spin"></div><div>加载细分行业…</div></div>';
       }
-      const universe = await loadCNBoardUniverse();
+
+      // 后台拉新：优先用 universe 缓存；meta 有 30s 有效则少打请求
+      const universe = await loadCNBoardUniverse(false);
       if (myToken !== window.__cnL2LoadToken || cnSectorView !== 'l2' || cnSectorL1 !== id) return;
 
       const rows = await Promise.all(l1.children.map(async function (c) {
-          if (myToken !== window.__cnL2LoadToken) return { id: c.id, name: c.name, tips: c.tips || '', chg: 0, count: 0, board: c.board || '', boards: [], hasLive: false };
+        if (myToken !== window.__cnL2LoadToken) {
+          return { id: c.id, name: c.name, tips: c.tips || '', chg: 0, count: 0, board: c.board || '', boards: [], hasLive: false };
+        }
         const prev = prevMap[c.id] || null;
         let lead = null;
-        if (c.board) {
-          lead = universe.find(function (h) { return h.board === c.board; }) || null;
-        }
+        if (c.board) lead = universe.find(function (h) { return h.board === c.board; }) || null;
+        if (!lead) lead = universe.find(function (h) { return h.name === c.name; }) || null;
         if (!lead) {
-          lead = universe.find(function (h) { return h.name === c.name; }) || null;
-        }
-        if (!lead) {
-          const hits = matchCNBoards(c.match || [c.name], universe, [c.name]);
-          lead = hits[0] || null;
+          try {
+            const hits = matchCNBoards(c.match || [c.name], universe, [c.name]);
+            lead = hits[0] || null;
+          } catch (e) {}
         }
         let count = (lead && lead.count) ? lead.count : ((prev && prev.count) || 0);
-        // 只有接口明确给了 f3 才算有行情；null 不要当成 0
         let chg = (lead && lead.hasChg && typeof lead.chg === 'number') ? lead.chg : null;
         let hasLive = chg !== null;
         const board = c.board || (lead && lead.board) || (prev && prev.board) || '';
-        if (board) {
+        // 已有新鲜 meta 不再请求
+        if (board && window.__cnBoardMeta && window.__cnBoardMeta[board] &&
+            window.__cnBoardMeta[board]._at && (Date.now() - window.__cnBoardMeta[board]._at) < 30000 &&
+            window.__cnBoardMeta[board].hasChg) {
+          const m = window.__cnBoardMeta[board];
+          if (m.count > 0) count = m.count;
+          chg = m.chg;
+          hasLive = true;
+        } else if (board) {
           try {
             const meta = await fetchCNBoardMeta(board);
             if (meta && meta.count > 0) count = meta.count;
@@ -11252,33 +11740,25 @@ async function fetchCNConceptList(po) {
             }
           } catch (e) {}
         }
-        // 仍无新行情：保留上一帧（且上一帧曾经有过有效涨跌）
-        if (!hasLive && prev && prev.hasLive && typeof prev.chg === 'number') {
-          chg = prev.chg;
-          // 标记为沿用缓存，后面仍尝试成分股接口
-        }
+        if (!hasLive && prev && prev.hasLive && typeof prev.chg === 'number') chg = prev.chg;
         if (chg === null) chg = 0;
         return {
-          id: c.id,
-          name: c.name,
-          tips: c.tips || '',
-          chg: chg,
-          count: count,
-          board: board,
+          id: c.id, name: c.name, tips: c.tips || '',
+          chg: chg, count: count, board: board,
           boards: lead ? [lead] : (prev && prev.boards) || [],
           hasLive: hasLive
         };
       }));
 
-      // 用成分股列表 total 校正角标只数；无有效涨跌时再用均值补
-      // 注意：有行情时也不能跳过 total，否则外面 140、里面 144 会对不上
+      // 仅对「仍无行情或只数」的板块补一次轻量 clist，已有数据的跳过
       await Promise.all(rows.map(async function (r) {
         if (!r.board) return;
+        if (r.hasLive && r.count > 0) return;
         try {
           const url = 'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=3&po=1&np=1&fltt=2&invt=2&fid=f3&fs=b:' + r.board + '&fields=f12,f14,f2,f3&_=' + Date.now();
           const u = (typeof WORKER_BASE !== 'undefined' && WORKER_BASE)
             ? WORKER_BASE + '?url=' + encodeURIComponent(url) : url;
-          const res = await (typeof fetchWithTimeoutSimple === 'function' ? fetchWithTimeoutSimple(u, 3000) : fetch(u));
+          const res = await (typeof fetchWithTimeoutSimple === 'function' ? fetchWithTimeoutSimple(u, 2500) : fetch(u));
           if (!res || !res.ok) return;
           let data = await res.json();
           if (data && data.contents) { try { data = JSON.parse(data.contents); } catch (e) {} }
@@ -11291,7 +11771,6 @@ async function fetchCNConceptList(po) {
                 window.__cnBoardMeta[r.board] = Object.assign({}, prevM, { count: r.count, _at: Date.now() });
               } catch (e) {}
             }
-            // 仅在没有板块指数涨跌时，用抽样成分股均值补涨跌；只数已用 total 校正
             if (!r.hasLive) {
               const diff = data.data.diff || [];
               if (diff.length) {
@@ -11301,63 +11780,21 @@ async function fetchCNConceptList(po) {
                     sum += Number(it.f3); n++;
                   }
                 });
-                if (n) {
-                  r.chg = sum / n;
-                  r.hasLive = true;
-                }
+                if (n) { r.chg = sum / n; r.hasLive = true; }
               }
             }
           }
         } catch (e) {}
       }));
 
-      // 缓存二级命中，供三级打开与软刷新
-      window.__cnL2Cache = window.__cnL2Cache || {};
-      rows.forEach(function (r) {
-        window.__cnL2Cache[l1.id + ':' + r.id] = r;
-      });
-      window.__cnL2RowsByL1[id] = rows;
-
-      const up = rows.filter(function (x) { return x.chg > 0; }).sort(function (a, b) { return b.chg - a.chg; });
-      const down = rows.filter(function (x) { return x.chg < 0; }).sort(function (a, b) { return a.chg - b.chg; });
-      // 真正 0 或尚无数据：不塞进上涨区显示 +0.00，单独弱化
-      const flat = rows.filter(function (x) { return x.chg === 0; });
-
-      function cardHtml(s) {
-        const cls = s.chg > 0 ? 'up' : (s.chg < 0 ? 'down' : 'flat');
-        const chgText = (s.chg > 0 ? '+' : '') + Number(s.chg).toFixed(2) + '%';
-        const badge = s.count > 0 ? s.count : '-';
-        const tips = s.tips ? '<div style="font-size:0.65rem;color:var(--muted);margin-top:4px;line-height:1.3;">' + s.tips + '</div>' : '';
-        return '<div class="sector-card ' + cls + '" style="cursor:pointer;position:relative;text-align:left;" onclick="openCNSectorL2(\'' + l1.id + '\',\'' + s.id + '\')">' +
-          '<span class="s-badge">' + badge + '</span>' +
-          '<div class="s-name">' + s.name + '</div>' + tips +
-          '<div class="s-chg">' + chgText + '</div></div>';
-      }
-
-      let html = '<div class="l2-head">' +
-        '<button type="button" class="back-mini" onclick="backCNSectorL1()">← 大类</button>' +
-        '<span class="l2-title">' + l1.name + '</span></div>';
-      if (up.length) {
-        html += '<div class="sector-group"><h3><span style="color:var(--green)">●</span> 上涨细分</h3><div class="sector-cards">';
-        html += up.map(cardHtml).join('') + '</div></div>';
-      }
-      if (flat.length) {
-        html += '<div class="sector-group"><h3><span style="color:var(--muted)">●</span> 平盘/待更新</h3><div class="sector-cards">';
-        html += flat.map(cardHtml).join('') + '</div></div>';
-      }
-      if (down.length) {
-        html += '<div class="sector-group"><h3><span style="color:var(--red)">●</span> 下跌细分</h3><div class="sector-cards">';
-        html += down.map(cardHtml).join('') + '</div></div>';
-      }
-            if (myToken !== window.__cnL2LoadToken || cnSectorView !== 'l2' || cnSectorL1 !== id) return;
-      container.innerHTML = html;
-      container.dataset.cnL1Id = id;
-      paintSectorLiveStatus('ok');
-      
-
+      // 最新数据重画（有缓存时已秒开，这里刷新数字）
+      if (myToken !== window.__cnL2LoadToken || cnSectorView !== 'l2' || cnSectorL1 !== id) return;
+      paintCNL2Rows(rows);
+      try { paintSectorLiveStatus('ok'); } catch (e) {}
     }
 
-        async function openCNSectorL2(l1id, l2id) {
+
+    async function openCNSectorL2(l1id, l2id) {
       const key = l1id + ':' + l2id;
       const cached = window.__cnL2Cache && window.__cnL2Cache[key];
       const l1 = CN_SECTOR_TREE.find(function (x) { return x.id === l1id; });
@@ -11406,6 +11843,10 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       if (typeof stopLiveDetail === 'function') stopLiveDetail();
       if (typeof stopMiniChartLive === 'function') stopMiniChartLive();
       const uiTok = beginDetailUI('sector-cn');
+      try {
+        var drawerEl = document.getElementById('detailDrawer');
+        if (drawerEl) drawerEl.classList.add('sector-sheet');
+      } catch (eD) {}
       function pinSectorHeader() {
         if (!isDetailUI('sector-cn', uiTok)) return;
         const pe = document.getElementById('detailPrice');
@@ -11414,18 +11855,25 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         if (pe && pe.textContent !== '成分股') pe.textContent = '成分股';
       }
       pinSectorHeader();
-      // 快速返回时个股 await 可能晚到：短时看守把标题钉回「成分股」
       let pinN = 0;
       const pinTimer = setInterval(function () {
         pinN++;
         pinSectorHeader();
         if (pinN >= 40 || !isDetailUI('sector-cn', uiTok)) clearInterval(pinTimer);
       }, 120);
-      document.getElementById('detailChg').textContent = '加载中...';
+      document.getElementById('detailChg').textContent = '加载中…';
       document.getElementById('detailChg').className = 'detail-chg flat';
-      document.getElementById('detailGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:20px 12px;">加载行情...</div>';
+      var loadHtml = (typeof detailLoadingHtml === 'function')
+        ? detailLoadingHtml('加载行情…', 'chart')
+        : '<div class="detail-loading chart"><div class="dl-spin"></div><div>加载行情…</div></div>';
+      document.getElementById('detailGrid').innerHTML =
+        '<div style="grid-column:1/-1;min-height:55vh;display:flex;align-items:center;justify-content:center;">' + loadHtml + '</div>';
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = 'none';
+      try {
+        var tabs = document.getElementById('detailMainTabs');
+        if (tabs) tabs.style.display = 'none';
+      } catch (eT) {}
       document.getElementById('detailOverlay').classList.add('show');
       document.getElementById('detailDrawer').classList.add('show');
       if (!isRestore) pushDetailHistory({ type: 'sector-cn', symbol: boardCode, name: sectorName });
@@ -11546,7 +11994,84 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       if (/^(SSE|SZSE|BSE):\d{6}$/.test(s)) return true;
       return false;
     }
-    function normalizeAShareCode(sym) {
+    
+    /** 指数 / 宽基（无公司财报，不显示「图表·财务」Tab） */
+    function isIndexLikeSymbol(sym) {
+      const s = String(sym || '').toUpperCase().replace(/\s/g, '');
+      if (!s) return false;
+      if (/^\^/.test(s)) return true;
+      if (/^(SPX|DJI|DJIA|IXIC|NDX|COMP|RUT|VIX|SOX|NYA|GSPC)$/.test(s)) return true;
+      let code = s.replace(/\.(SS|SZ|SH|BJ)$/i, '').replace(/^(SSE|SZSE|BSE):/i, '');
+      code = code.replace(/^(SH|SZ|SS)/, '');
+      const cnIdx = {
+        '000001': 1, '000016': 1, '000300': 1, '000688': 1, '000852': 1, '000905': 1,
+        '000903': 1, '000906': 1, '399001': 1, '399006': 1, '399300': 1,
+        '399005': 1, '399673': 1, '399550': 1, '899050': 1, '000680': 1, '000015': 1
+      };
+      if (cnIdx[code]) {
+        // 000001：上证指数 vs 平安银行 — 仅带 SH/指数前缀时当指数；纯六位交给调用方 name 判断
+        if (code === '000001' && !/^(SH|SSE)/.test(s) && s === '000001') return false;
+        return true;
+      }
+      if (/^SH000001$/.test(s) || /^SSE:000001$/.test(s)) return true;
+      return false;
+    }
+    /** A股 ETF / 基金（无上市公司财报，不显示图表·财务 Tab） */
+    function isCnFundOrEtfSymbol(sym) {
+      var c = String(sym || '').replace(/\D/g, '').slice(0, 6);
+      if (!/^\d{6}$/.test(c)) return false;
+      // 上海 ETF/基金 5xxxxx；深圳 ETF/LOF 15/16/17/18
+      if (c.charAt(0) === '5') return true;
+      if (/^1[5-8]/.test(c)) return true;
+      return false;
+    }
+    /** 美股/全球 ETF、商品/债/汇代理、REIT 等：无公司财报栏目 */
+    function isUsEtfOrMacroAssetSymbol(sym) {
+      var s = String(sym || '').toUpperCase().replace(/\s/g, '');
+      if (!s) return false;
+      // 资产页大类 + 常见宽基/行业/商品/债 ETF（无个股财务报表）
+      var etf = {
+        GLD:1, SLV:1, USO:1, UUP:1, TLT:1, EEM:1, VNQ:1, HYG:1,
+        SPY:1, QQQ:1, IWM:1, DIA:1, VOO:1, VTI:1, IVV:1,
+        XLE:1, XLF:1, XLK:1, XLV:1, XLI:1, XLY:1, XLP:1, XLU:1, XLB:1, XLRE:1, XLC:1,
+        TQQQ:1, SQQQ:1, SOXL:1, SOXS:1, UVXY:1, VXX:1,
+        LQD:1, AGG:1, BND:1, IEF:1, SHY:1, TIP:1, JNK:1,
+        GDX:1, GDXJ:1, DBA:1, DBC:1, UNG:1, USL:1, BNO:1,
+        EFA:1, VWO:1, FXI:1, KWEB:1, ASHR:1, MCHI:1,
+        ARKK:1, ARKG:1, ARKQ:1, IBIT:1, FBTC:1
+      };
+      if (etf[s]) return true;
+      // 部分带后缀
+      if (/\.(ETF|FUND)$/.test(s)) return true;
+      return false;
+    }
+    /** 无公司「财务」数据的品种：指数 / A股基金ETF / 美股ETF与大类资产 */
+    function isNoCompanyFinanceSymbol(sym) {
+      return isIndexLikeSymbol(sym) || isCnFundOrEtfSymbol(sym) || isUsEtfOrMacroAssetSymbol(sym);
+    }
+    function setDetailMainTabsForSymbol(sym) {
+      try {
+        var tabs = document.getElementById('detailMainTabs');
+        var finP = document.getElementById('detailPanelFinance');
+        var chartP = document.getElementById('detailPanelChart');
+        // 无财报品种：整条「图表 | 财务」栏目不显示
+        var show = (typeof detailUIMode === 'undefined' || !detailUIMode || detailUIMode === 'stock')
+          && !isNoCompanyFinanceSymbol(sym);
+        if (tabs) tabs.style.display = show ? 'flex' : 'none';
+        if (chartP) chartP.style.display = '';
+        if (finP) finP.style.display = 'none';
+        if (show) {
+          try {
+            var btnC = document.getElementById('detailTabBtnChart');
+            var btnF = document.getElementById('detailTabBtnFinance');
+            if (btnC) btnC.classList.add('active');
+            if (btnF) btnF.classList.remove('active');
+          } catch (e2) {}
+        }
+      } catch (e) {}
+    }
+
+function normalizeAShareCode(sym) {
       let s = String(sym || '').toUpperCase().replace(/\s/g, '');
       s = s.replace(/^(SSE|SZSE|BSE):/, '');
       s = s.replace(/\.(SS|SZ|SH|BJ)$/, '');
@@ -11584,8 +12109,19 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       try { if (typeof stopMiniChartLive === 'function') stopMiniChartLive(); } catch (e1) {}
       try { clearChartToLoading('走势图加载中…'); } catch (e2) {}
       const uiTok = beginDetailUI('stock');
+      try { setDetailMainTabsForSymbol(code); } catch (eTabs2) {}
       const cnIndexCodes = { '000001':1,'000300':1,'000688':1,'000905':1,'000852':1,'399001':1,'399006':1,'399005':1 };
       const isCnIdx = !!cnIndexCodes[String(code).replace(/\D/g,'').slice(0,6)];
+      try {
+        if (isCnIdx) {
+          var tabs = document.getElementById('detailMainTabs');
+          var finP = document.getElementById('detailPanelFinance');
+          if (tabs) tabs.style.display = 'none';
+          if (finP) finP.style.display = 'none';
+        } else {
+          setDetailMainTabsForSymbol(code);
+        }
+      } catch (eIdxTab) {}
       const title = (name ? name + ' ' : '') + code;
       document.getElementById('detailSymbol').innerHTML = title +
         (isCnIdx ? ' <span class="market-badge" style="background:rgba(77,159,255,0.2);color:var(--blue);">指数</span>' :
@@ -11593,7 +12129,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       document.getElementById('detailPrice').textContent = '加载中...';
       document.getElementById('detailChg').textContent = '';
       document.getElementById('detailGrid').innerHTML =
-        '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:16px;">加载个股详情...</div>';
+        '<div style="grid-column:1/-1;"><div class="detail-loading"><div class="dl-spin"></div><div>加载个股详情…</div></div></div>';
       document.getElementById('detailOverlay').classList.add('show');
       document.getElementById('detailDrawer').classList.add('show');
       if (!isRestore) pushDetailHistory({ type: 'stock-cn', symbol: code, name: name || '' });
@@ -11620,7 +12156,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
               '<div class="detail-stat"><div class="label">最低</div><div class="val" style="color:var(--red);">' + lo + '</div></div>' +
               '<div class="detail-stat"><div class="label">今开</div><div class="val">' + op + '</div></div>' +
               '<div class="detail-stat"><div class="label">昨收</div><div class="val">' + pc + '</div></div>' +
-              '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:8px;font-size:0.75rem;">近几日对比加载中…</div>';
+              '<div style="grid-column:1/-1;"><div class="detail-loading inline"><div class="dl-spin"></div><div>近几日对比加载中…</div></div></div>';
           }
         }
       } catch (e) {}
@@ -11696,7 +12232,7 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
         '<div class="detail-stat"><div class="label">最低</div><div class="val" style="color:var(--red);">' + fmt(low) + '</div></div>' +
         '<div class="detail-stat"><div class="label">今开</div><div class="val">' + fmt(open) + '</div></div>' +
         '<div class="detail-stat"><div class="label">昨收</div><div class="val">' + fmt(prev) + '</div></div>' +
-        '<div id="cnDayRows" style="grid-column:1/-1;text-align:center;color:var(--muted);padding:12px;font-size:0.78rem;">近几日对比加载中…</div>';
+        '<div id="cnDayRows" style="grid-column:1/-1;"><div class="detail-loading inline"><div class="dl-spin"></div><div>近几日对比加载中…</div></div></div>';
 
       // 近几日：优先东方财富日K（基金/指数更全），Yahoo 仅作备用
       let dayRows = '';
@@ -11811,58 +12347,12 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
           } catch (e) {}
         }
 
-        // 未收盘：去掉今日未完成K线；已收盘才出现「今日」
-        const nearCN = (typeof pickNear3TradingDays === 'function')
-          ? pickNear3TradingDays(rows, 'cn')
-          : null;
-        let last3, labels, baseBefore;
-        if (nearCN && nearCN.last3 && nearCN.last3.length) {
-          last3 = nearCN.last3;
-          labels = nearCN.labels;
-          baseBefore = nearCN.baseBefore;
-          // 保证每条有 md 展示
-          last3 = last3.map(function (p) {
-            if (p.md) return p;
-            const ds = p.date || barYmd(p, 'Asia/Shanghai');
-            const md = ds ? ds.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/') : '';
-            return Object.assign({}, p, { md: md, date: ds });
-          });
-        } else {
-          // 兜底：按 date 去重后取末 3
-          const byD = {};
-          rows.forEach(function (r) { if (r.date) byD[r.date] = r; });
-          const uniq = Object.keys(byD).sort().map(function (k) { return byD[k]; });
-          last3 = uniq.slice(-3);
-          // 兜底标签与 pickNear3 一致：无「今日」K 时用 前前日/前日/昨日
-          labels = last3.length === 3 ? ['前前日', '前日', '昨日'] : (last3.length === 2 ? ['前日', '昨日'] : (last3.length === 1 ? ['昨日'] : []));
-          baseBefore = uniq.length > last3.length ? uniq[uniq.length - last3.length - 1] : null;
-        }
-        last3.forEach(function (row, idx) {
-          let diffVal = null, pctVal = null;
-          let prevC = null;
-          if (idx > 0) prevC = last3[idx - 1].c;
-          else if (baseBefore && baseBefore.c != null) prevC = baseBefore.c;
-          if (prevC != null && prevC > 0) {
-            diffVal = row.c - prevC;
-            pctVal = (diffVal / prevC * 100);
-          }
-          const hi = row.h != null ? Number(row.h).toFixed(2) : '--';
-          const lo = row.l != null ? Number(row.l).toFixed(2) : '--';
-          const op = (row.o != null && !isNaN(row.o)) ? Number(row.o).toFixed(2) : '--';
-          dayRows += compactDayRowHtml(labels[idx], row.md, op, Number(row.c).toFixed(2), hi, lo, diffVal, pctVal, idx === 0);
-        });
-        if (last3.length >= 1) {
-          const first = (baseBefore && baseBefore.c != null) ? baseBefore.c : null;
-          const last = last3[last3.length - 1].c;
-          if (first != null && first > 0 && last != null) {
-            const tot = last - first;
-            const totPct = (tot / first * 100);
-            dayRows += compactCumRowHtml('近' + last3.length + '日累计', tot, totPct);
-          }
-        }
-        if (last3.length < 3 && last3.length > 0) {
-          dayRows += '<div style="grid-column:1/-1;font-size:0.72rem;color:var(--muted);padding:4px 4px 0;">历史不足 3 个交易日时只显示已有日期（新上市/数据源限制）</div>';
-        }
+        // 近3日默认，可展开近5日
+        try {
+          window.__detailHistCtx = { pairs: rows, market: 'cn' };
+          window.__detailDayHistExpanded = false;
+          dayRows = buildDayHistSectionHtml(rows, 'cn', false);
+        } catch (eHist2) { console.warn('cn day hist', eHist2); }
       } catch (e) { console.warn('cn dayRows', e); }
 
         if (dayRows) {
@@ -15109,7 +15599,7 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
         if (forceAll) return true;
         return (Date.now() - (q._cachedAt || 0)) > QUOTE_CACHE_TTL;
       });
-      const CONC = 3;
+      const CONC = 5;
       for (let i = 0; i < need.length; i += CONC) {
         try {
           if (typeof detailUIMode !== 'undefined' && detailUIMode === 'stock') {
@@ -15173,28 +15663,42 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
     setInterval(function () {
       const page = document.getElementById('page-sector');
       if (page && page.classList.contains('active')) {
-        // 软刷新：优先用缓存重画；全量刷新忙时跳过，避免图1/图2两套数来回跳
         try {
           if (window.__sectorRefreshBusy && (window.__sectorRefreshBusy.us || window.__sectorRefreshBusy.cn)) return;
         } catch (eB) {}
+        // A股：约每 90 秒自动全量一次，一级角标/涨跌不用点刷新也会更新
+        try {
+          if (typeof sectorMarket !== 'undefined' && sectorMarket === 'cn') {
+            window.__cnAutoFullTicks = (window.__cnAutoFullTicks || 0) + 1;
+            if (window.__cnAutoFullTicks >= 6) {
+              window.__cnAutoFullTicks = 0;
+              if (typeof fullRefreshSectors === 'function') {
+                fullRefreshSectors();
+                return;
+              }
+            }
+          }
+        } catch (eFull) {}
         loadSectors(false);
       }
     }, 15000);
 
-    // 应用一直开着跨过 0 点：定期检查日切，清旧缓存并刷新板块
+    // 应用一直开着跨过 0 点：检测到新一天 → 全量刷新（进度条文案为「最新数据更新中」）
     setInterval(function () {
       try {
         if (!invalidateCachesIfNewDay(false)) return;
-        if (typeof startUSSectorQuoteBackground === 'function') {
-          window.__usQuoteBgStarted = false;
-          startUSSectorQuoteBackground();
-        } else if (typeof warmUSSectorQuoteCache === 'function') {
-          warmUSSectorQuoteCache(true);
-        }
-        const page = document.getElementById('page-sector');
-        if (page && page.classList.contains('active') && typeof loadSectors === 'function') {
-          loadSectors(true);
-        }
+        try { window.__sectorNewDayForcePaint = true; } catch (e0) {}
+        try { window.__sectorNewDayRefresh = true; } catch (e0b) {}
+        try { window.__usQuoteBgStarted = false; } catch (e1) {}
+        try { sectorQuoteWarmed = false; } catch (e2) {}
+        try {
+          if (typeof loadCNBoardUniverse === 'function') loadCNBoardUniverse(true).catch(function () {});
+        } catch (e4) {}
+        // 走完整刷新：有进度条；文案与手动「刷新」区分
+        try {
+          if (typeof fullRefreshSectors === 'function') fullRefreshSectors();
+          else if (typeof loadSectors === 'function') loadSectors(true);
+        } catch (e5) {}
       } catch (e) {}
     }, 10 * 60 * 1000);
 
