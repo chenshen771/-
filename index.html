@@ -415,38 +415,106 @@
       border-radius: 14px; padding: 14px 12px 8px; margin-bottom: 4px;
     }
     .fin-snap-hd {
-      display: flex; justify-content: space-between; align-items: baseline;
-      margin-bottom: 12px; padding: 0 2px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 12px; padding: 0 2px; gap: 8px;
     }
     .fin-snap-hd .t { font-size: 0.95rem; font-weight: 700; }
     .fin-snap-hd .u { font-size: 0.72rem; color: var(--muted); }
+    .fin-unit-wrap {
+      position: relative;
+      flex-shrink: 0;
+      z-index: 5;
+    }
+    .fin-unit-trigger {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 0.72rem; color: var(--muted);
+      background: transparent; border: none; padding: 2px 0;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      white-space: nowrap; font-family: inherit;
+    }
+    .fin-unit-trigger:active { opacity: 0.8; }
+    .fin-unit-trigger .fu-name { color: var(--blue); font-weight: 700; }
+    .fin-unit-trigger .fu-caret { font-size: 0.6rem; color: var(--muted); }
+    .fin-unit-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      z-index: 90;
+      min-width: 148px;
+      background: rgba(15, 22, 32, 0.98);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+      backdrop-filter: blur(12px);
+      padding: 6px;
+      pointer-events: auto;
+    }
+    .fin-unit-menu.show { display: block; }
+    .fin-unit-item {
+      display: block; width: 100%; text-align: left;
+      font-size: 0.78rem; font-weight: 600;
+      padding: 10px 12px; border-radius: 9px;
+      border: none; background: transparent;
+      color: var(--text); cursor: pointer;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .fin-unit-item .fu-sub {
+      display: block; font-size: 0.62rem; font-weight: 500;
+      color: var(--muted); margin-top: 2px;
+    }
+    .fin-unit-item.active {
+      background: rgba(77, 159, 255, 0.16);
+      color: var(--blue);
+    }
+    .fin-unit-item:active { background: rgba(42, 53, 68, 0.8); }
     .fin-snap-cols {
-      display: grid; grid-template-columns: 1.1fr 1fr 1fr 1fr;
-      gap: 4px; padding: 8px 4px; margin-bottom: 4px;
+      display: grid; grid-template-columns: minmax(4.2em, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.05fr);
+      gap: 3px; padding: 8px 3px; margin-bottom: 4px;
       background: rgba(42,53,68,0.35); border-radius: 10px;
       font-size: 0.68rem; color: var(--muted); text-align: center; line-height: 1.25;
     }
     .fin-snap-cols span:first-child { text-align: left; padding-left: 4px; }
     .fin-snap-row {
-      display: grid; grid-template-columns: 1.1fr 1fr 1fr 1fr;
-      gap: 4px; padding: 14px 4px; align-items: start;
+      display: grid; grid-template-columns: minmax(4.2em, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.05fr);
+      gap: 3px; padding: 14px 3px; align-items: start;
       border-bottom: 1px solid rgba(42,53,68,0.55);
     }
     .fin-snap-row:last-child { border-bottom: none; }
-    .fin-snap-label { font-size: 0.88rem; font-weight: 600; padding-left: 4px; }
+    /* 防止「净利润」「低于上期」被挤成竖排一字一行 */
+    .fin-snap-label {
+      font-size: 0.82rem; font-weight: 600; padding-left: 2px;
+      word-break: keep-all; overflow-wrap: normal; line-height: 1.35;
+      min-width: 0;
+    }
     .fin-snap-badge {
-      display: inline-block; margin-top: 4px; padding: 2px 6px; border-radius: 6px;
-      font-size: 0.65rem; font-weight: 600;
+      display: inline-block; margin-top: 4px; padding: 2px 5px; border-radius: 6px;
+      font-size: 0.6rem; font-weight: 600;
+      white-space: nowrap; max-width: 100%;
+      box-sizing: border-box;
     }
     .fin-snap-badge.beat { background: rgba(0,216,104,0.12); color: var(--green); }
     .fin-snap-badge.miss { background: rgba(255,92,92,0.12); color: var(--red); }
     .fin-snap-badge.flat { background: rgba(154,172,194,0.12); color: var(--muted); }
-    .fin-snap-cell { text-align: center; font-family: var(--font-num); }
-    .fin-snap-cell .main {
-      font-size: 0.88rem; font-weight: 700;
-      white-space: nowrap; word-break: keep-all;
+    .fin-snap-cell {
+      text-align: center; font-family: var(--font-num);
+      min-width: 0; overflow: hidden;
     }
-    .fin-snap-cell .sub { font-size: 0.7rem; margin-top: 3px; white-space: nowrap; }
+    /* 数字过长时自动缩小字号，避免挤出单元格边界 */
+    .fin-snap-cell .main {
+      font-size: 0.84rem; font-weight: 700;
+      white-space: nowrap; word-break: keep-all;
+      max-width: 100%; overflow: hidden;
+      line-height: 1.25;
+    }
+    .fin-snap-cell .main.main-sm { font-size: 0.70rem; letter-spacing: -0.03em; }
+    .fin-snap-cell .main.main-xs { font-size: 0.62rem; letter-spacing: -0.04em; }
+    .fin-snap-cell .sub {
+      font-size: 0.68rem; margin-top: 3px; white-space: nowrap;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+    }
+    .fin-snap-cell .sub.sub-empty { display: none; }
     .fin-snap-period { font-size: 0.72rem; color: var(--muted); margin: 0 0 8px 2px; }
     .detail-loading {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -800,6 +868,22 @@
       height: 92vh;
       max-height: 92vh;
       min-height: 92vh;
+    }
+    /* 个股详情：与原版一致，不强制全高（仅 max-height:92vh），顶部可露出实时/WS */
+    /* stock-sheet 仅作标记，不锁死高度；图表/财务面板用相同 min-height 防切换塌陷 */
+    .detail-drawer.stock-sheet {
+      /* 保持内容自适应，与原版行为一致 */
+    }
+    #detailPanelChart,
+    #detailPanelFinance {
+      min-height: 48vh;
+    }
+    #detailPanelFinance .detail-loading {
+      min-height: 42vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
     .detail-handle {
       width: 36px; height: 4px;
@@ -1464,9 +1548,13 @@
       border: 1px solid var(--border);
       border-radius: 20px;
       padding: 4px 10px;
-      pointer-events: none;
+      pointer-events: auto;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
       backdrop-filter: blur(6px);
+      user-select: none;
     }
+    .net-status:active { opacity: 0.85; }
     .net-status .dot {
       width: 7px;
       height: 7px;
@@ -1478,6 +1566,59 @@
     .net-status.mid .dot { background: #fbbf24; box-shadow: 0 0 6px #fbbf2488; }
     .net-status.bad .dot { background: #ef5350; box-shadow: 0 0 6px #ef535088; }
     .net-status .net-text { white-space: nowrap; }
+    .net-panel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      z-index: 80;
+      width: min(300px, 86vw);
+      background: rgba(15, 22, 32, 0.98);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 10px 32px rgba(0,0,0,0.45);
+      backdrop-filter: blur(12px);
+      padding: 12px 12px 10px;
+      pointer-events: auto;
+    }
+    .net-panel.show { display: block; }
+    .net-panel .np-hd {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px; padding: 0 2px;
+    }
+    .net-panel .np-title { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+    .net-panel .np-refresh {
+      font-size: 0.72rem; color: var(--blue); font-weight: 600;
+      padding: 4px 8px; border-radius: 8px;
+      border: 1px solid rgba(77,159,255,0.35);
+      background: rgba(77,159,255,0.12); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .net-panel .np-refresh:active { opacity: 0.8; }
+    .net-panel .np-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; padding: 9px 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(42,53,68,0.7);
+      background: rgba(21,27,36,0.9);
+      margin-bottom: 7px;
+    }
+    .net-panel .np-row:last-child { margin-bottom: 0; }
+    .net-panel .np-name { font-size: 0.78rem; font-weight: 600; color: var(--text); }
+    .net-panel .np-desc { font-size: 0.65rem; color: var(--muted); margin-top: 2px; line-height: 1.3; }
+    .net-panel .np-ms {
+      font-family: var(--font-num); font-size: 0.85rem; font-weight: 700;
+      flex-shrink: 0; min-width: 4.2em; text-align: right;
+    }
+    .net-panel .np-ms.ok { color: var(--green); }
+    .net-panel .np-ms.mid { color: var(--orange); }
+    .net-panel .np-ms.bad { color: var(--red); }
+    .net-panel .np-ms.pending { color: var(--muted); font-weight: 500; font-size: 0.75rem; }
+    .net-panel .np-foot {
+      margin-top: 8px; font-size: 0.65rem; color: var(--muted);
+      line-height: 1.4; padding: 0 2px;
+    }
+    /* header-actions 保持原 absolute 右上角；自身已是定位上下文，面板可向下展开 */
     .app-header { position: relative; padding-right: 224px; }
 
     
@@ -1599,9 +1740,17 @@
       <button type="button" class="weight-model-btn" id="weightModelBtn" onclick="openWeightModelModal()">
         模型：<span id="weightModelBtnName">自制</span><span class="wm-caret">▾</span>
       </button>
-      <div class="net-status" id="netStatus" title="网络延迟">
+      <div class="net-status" id="netStatus" title="点击查看各接口延迟" role="button">
         <span class="dot"></span>
         <span class="net-text" id="netStatusText">检测中...</span>
+      </div>
+      <div class="net-panel" id="netPanel" aria-hidden="true">
+        <div class="np-hd">
+          <span class="np-title">接口延迟</span>
+          <button type="button" class="np-refresh" id="netPanelRefresh">刷新</button>
+        </div>
+        <div id="netPanelBody"></div>
+        <div class="np-foot">取各接口最近一次探测；摘要取可用中的最低延迟。点空白处关闭。</div>
       </div>
     </div>
   </header>
@@ -7604,18 +7753,11 @@ async function refreshAssets(force, opts) {
       if (n == null || n === '' || isNaN(Number(n))) return '--';
       n = Number(n);
       var abs = Math.abs(n);
-      if (isCN) {
-        // 东财主要指标多为「元」
-        if (abs >= 1e12) return (n / 1e12).toFixed(2) + ' 万亿';
-        if (abs >= 1e8) return (n / 1e8).toFixed(2) + ' 亿';
-        if (abs >= 1e4) return (n / 1e4).toFixed(2) + ' 万';
-        return n.toFixed(2);
-      }
-      if (abs >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
-      if (abs >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
-      if (abs >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
-      if (abs >= 1e3) return '$' + (n / 1e3).toFixed(2) + 'K';
-      return '$' + n.toFixed(2);
+      // 中美统一中文数量级（货币单位见页面标题）
+      if (abs >= 1e12) return (n / 1e12).toFixed(2) + '万亿';
+      if (abs >= 1e8) return (n / 1e8).toFixed(2) + '亿';
+      if (abs >= 1e4) return (n / 1e4).toFixed(2) + '万';
+      return n.toFixed(2);
     }
     function finFmtPct(n) {
       if (n == null || n === '' || isNaN(Number(n))) return '--';
@@ -7668,6 +7810,103 @@ async function refreshAssets(force, opts) {
 
 
 
+    /** 东方财富美股利润表：外资股（TSM/PDD 等）Finnhub SEC 常为空，用此补营收/净利 */
+    async function resolveEastmoneyUSSecu(symbol) {
+      var sym = String(symbol || '').toUpperCase().replace(/^(NASDAQ|NYSE|AMEX|OTC):/i, '');
+      if (!sym) return null;
+      var candidates = [sym + '.O', sym + '.N', sym + '.A'];
+      try {
+        var searchUrl = 'https://searchapi.eastmoney.com/api/suggest/get?input=' +
+          encodeURIComponent(sym) + '&type=14&token=D43BF2853C76C5590A97861DADC5FAFD&count=8';
+        var sug = await finFetchJson(searchUrl);
+        var list = (sug && sug.QuotationCodeTable && sug.QuotationCodeTable.Data) || [];
+        for (var i = 0; i < list.length; i++) {
+          var it = list[i] || {};
+          if (String(it.Code || '').toUpperCase() !== sym) continue;
+          if (String(it.Classify || '') !== 'UsStock' && String(it.SecurityTypeName || '') !== '美股') continue;
+          var jys = String(it.JYS || '').toUpperCase();
+          if (jys === 'NASDAQ') return sym + '.O';
+          if (jys === 'NYSE') return sym + '.N';
+          if (jys === 'AMEX' || jys === 'NYSE AMERICAN') return sym + '.A';
+        }
+      } catch (e) {}
+      return candidates;
+    }
+    async function fetchEastmoneyUSIncome(symbol) {
+      var secu = await resolveEastmoneyUSSecu(symbol);
+      var tryList = Array.isArray(secu) ? secu : (secu ? [secu] : []);
+      if (!tryList.length) {
+        var s = String(symbol || '').toUpperCase().replace(/^(NASDAQ|NYSE|AMEX|OTC):/i, '');
+        tryList = [s + '.O', s + '.N', s + '.A'];
+      }
+      for (var t = 0; t < tryList.length; t++) {
+        var code = tryList[t];
+        var url = 'https://datacenter.eastmoney.com/securities/api/data/v1/get?reportName=RPT_USF10_FN_INCOME' +
+          '&columns=ALL&filter=(SECUCODE%3D%22' + encodeURIComponent(code) + '%22)' +
+          '&pageNumber=1&pageSize=500&sortTypes=-1&sortColumns=REPORT_DATE';
+        try {
+          var data = await finFetchJson(url);
+          var rows = data && data.result && data.result.data;
+          if (!rows || !rows.length) continue;
+          var byPeriod = {};
+          var currency = '';
+          for (var i = 0; i < rows.length; i++) {
+            var row = rows[i] || {};
+            var rd = String(row.REPORT_DATE || '').slice(0, 10);
+            if (!rd) continue;
+            if (!byPeriod[rd]) byPeriod[rd] = { period: rd, items: {}, currency: row.CURRENCY || '', report: row.REPORT || '' };
+            var name = String(row.ITEM_NAME || '');
+            if (name && row.AMOUNT != null && !isNaN(Number(row.AMOUNT))) {
+              // 同时保留同比（东方财富自带 YOY_RATIO，单位为 %）
+              var yoyRaw = row.YOY_RATIO;
+              byPeriod[rd].items[name] = {
+                amount: Number(row.AMOUNT),
+                yoy: (yoyRaw != null && !isNaN(Number(yoyRaw))) ? Number(yoyRaw) : null
+              };
+            }
+            if (row.CURRENCY) currency = row.CURRENCY;
+          }
+          function pickAmt(items, keys) {
+            for (var k = 0; k < keys.length; k++) {
+              var it = items[keys[k]];
+              if (it && it.amount != null) return it.amount;
+              if (it != null && typeof it === 'number') return it;
+            }
+            return null;
+          }
+          function pickYoy(items, keys) {
+            for (var k = 0; k < keys.length; k++) {
+              var it = items[keys[k]];
+              if (it && it.yoy != null && !isNaN(Number(it.yoy))) return Number(it.yoy);
+            }
+            return null;
+          }
+          var REV_KEYS = ['营业收入', '主营收入'];
+          var NI_KEYS = ['归属于普通股股东净利润', '归属于母公司股东净利润', '持续经营净利润', '净利润'];
+          var EPS_KEYS = ['基本每股收益-ADS', '摊薄每股收益-ADS', '基本每股收益-普通股', '摊薄每股收益-普通股'];
+          var quarters = Object.keys(byPeriod).map(function (p) {
+            var o = byPeriod[p];
+            return {
+              period: o.period,
+              revenue: pickAmt(o.items, REV_KEYS),
+              netIncome: pickAmt(o.items, NI_KEYS),
+              eps: pickAmt(o.items, EPS_KEYS),
+              revenueYoy: pickYoy(o.items, REV_KEYS),
+              netIncomeYoy: pickYoy(o.items, NI_KEYS),
+              currency: o.currency || currency
+            };
+          }).filter(function (q) {
+            return q.revenue != null || q.netIncome != null;
+          });
+          quarters.sort(function (a, b) { return String(b.period).localeCompare(String(a.period)); });
+          if (quarters.length) {
+            return { secu: code, currency: currency || (quarters[0] && quarters[0].currency) || '', quarters: quarters };
+          }
+        } catch (e) {}
+      }
+      return null;
+    }
+
     async function fetchUSStockFinance(symbol) {
       var token = typeof FINNHUB_KEY !== 'undefined' ? FINNHUB_KEY : '';
       var base = 'https://finnhub.io/api/v1';
@@ -7680,18 +7919,21 @@ async function refreshAssets(force, opts) {
       var to = new Date(today.getTime() + 60 * 864e5);
 
       // 注意：/stock/financials 免费 key 常 403；改用 SEC 申报 financials-reported
+      // 外资股（TSM/PDD 等）SEC 申报常为空 → 并行拉东方财富美股利润表补营收/净利
       var metricP = finFetchJson(base + '/stock/metric?symbol=' + sym + '&metric=all&token=' + token);
       var reportedQP = finFetchJson(base + '/stock/financials-reported?symbol=' + sym + '&freq=quarterly&token=' + token);
       var reportedAP = finFetchJson(base + '/stock/financials-reported?symbol=' + sym + '&freq=annual&token=' + token);
       var earnP = finFetchJson(base + '/stock/earnings?symbol=' + sym + '&token=' + token);
       var calP = finFetchJson(base + '/calendar/earnings?from=' + ymd(from) + '&to=' + ymd(to) + '&symbol=' + sym + '&token=' + token);
+      var emP = fetchEastmoneyUSIncome(symbol);
 
       return {
         metric: await metricP,
         reportedQ: await reportedQP,
         reportedA: await reportedAP,
         earnings: await earnP,
-        calendar: await calP
+        calendar: await calP,
+        emIncome: await emP
       };
     }
 
@@ -7791,13 +8033,22 @@ async function refreshAssets(force, opts) {
       }
       return String(p).slice(0, 10);
     }
+    // 同比/环比：纯算法比对，不做百分比阈值截断；仅在分母为 0 时无法计算
     function finYoy(cur, prev) {
-      if (!finHasNum(cur) || !finHasNum(prev) || !Number(prev)) return null;
-      return ((Number(cur) - Number(prev)) / Math.abs(Number(prev))) * 100;
+      if (!finHasNum(cur) || !finHasNum(prev)) return null;
+      var p = Number(prev);
+      var c = Number(cur);
+      if (!isFinite(p) || !isFinite(c) || p === 0) return null;
+      var yoy = ((c - p) / Math.abs(p)) * 100;
+      return isFinite(yoy) ? yoy : null;
     }
     function finSurprise(actual, estimate) {
-      if (!finHasNum(actual) || !finHasNum(estimate) || !Number(estimate)) return null;
-      return ((Number(actual) - Number(estimate)) / Math.abs(Number(estimate))) * 100;
+      if (!finHasNum(actual) || !finHasNum(estimate)) return null;
+      var e = Number(estimate);
+      var a = Number(actual);
+      if (!isFinite(e) || !isFinite(a) || e === 0) return null;
+      var s = ((a - e) / Math.abs(e)) * 100;
+      return isFinite(s) ? s : null;
     }
     function finBeatBadge(surp) {
       if (surp == null || isNaN(surp)) return '<span class="fin-snap-badge flat">暂无预期</span>';
@@ -7809,37 +8060,219 @@ async function refreshAssets(force, opts) {
       var cls = '';
       if (up === true) cls = ' style="color:var(--green)"';
       if (up === false) cls = ' style="color:var(--red)"';
-      return '<div class="fin-snap-cell"' + cls + '><div class="main">' + (main || '--') +
-        '</div><div class="sub">' + (sub || '') + '</div></div>';
+      var m = (main == null || main === '') ? '--' : String(main);
+      // 数字过长时自动缩小字号，避免超出单元格边界（阈值略提前，字更小）
+      var mainCls = 'main';
+      var len = m.replace(/\s/g, '').length;
+      if (len >= 9) mainCls += ' main-xs';
+      else if (len >= 7) mainCls += ' main-sm';
+      var subStr = (sub == null) ? '' : String(sub);
+      var subCls = 'sub' + (subStr === '' ? ' sub-empty' : '');
+      return '<div class="fin-snap-cell"' + cls + '><div class="' + mainCls + '">' + m +
+        '</div><div class="' + subCls + '">' + subStr + '</div></div>';
     }
+    // ---------- 财报币种：默认=报表原币；可切换 美元/人民币/马币 ----------
+    // 用户偏好：'native' | 'USD' | 'CNY' | 'MYR'（持久化）
+    var __finUnitPref = 'native';
+    try {
+      var _fp = localStorage.getItem('finUnitPref');
+      if (_fp === 'native' || _fp === 'USD' || _fp === 'CNY' || _fp === 'MYR') __finUnitPref = _fp;
+    } catch (e) {}
+    // 汇率缓存：1 USD = rate[code] 单位目标货币（USD=1）
+    var __finFx = { USD: 1, at: 0 };
+    var __finFxPromise = null;
+    // 最近一次财务渲染上下文，用于切换单位时重绘
+    var __finLastCtx = null;
+
+    function finNormCurrency(raw) {
+      var s = String(raw || '').trim();
+      if (!s) return '';
+      var u = s.toUpperCase();
+      if (u === 'USD' || s.indexOf('美元') >= 0 || u === 'US$') return 'USD';
+      if (u === 'CNY' || u === 'CNH' || s.indexOf('人民币') >= 0 || s.indexOf('中国元') >= 0 || u === 'RMB') return 'CNY';
+      if (u === 'MYR' || s.indexOf('马币') >= 0 || s.indexOf('林吉特') >= 0 || s.indexOf('马来') >= 0) return 'MYR';
+      if (u === 'TWD' || s.indexOf('新台币') >= 0 || s.indexOf('台币') >= 0) return 'TWD';
+      if (u === 'HKD' || s.indexOf('港') >= 0) return 'HKD';
+      if (u === 'EUR' || s.indexOf('欧元') >= 0) return 'EUR';
+      if (u === 'JPY' || s.indexOf('日元') >= 0) return 'JPY';
+      if (/^[A-Z]{3}$/.test(u)) return u;
+      return s;
+    }
+    function finCurrencyLabel(code) {
+      var map = { USD: '美元', CNY: '人民币', MYR: '马币', TWD: '新台币', HKD: '港元', EUR: '欧元', JPY: '日元' };
+      return map[code] || code || '—';
+    }
+    async function ensureFinFxRates(force) {
+      if (!force && __finFx.at && (Date.now() - __finFx.at < 30 * 60 * 1000) && __finFx.CNY && __finFx.MYR) {
+        return __finFx;
+      }
+      if (__finFxPromise) return __finFxPromise;
+      __finFxPromise = (async function () {
+        var pairs = [
+          { code: 'CNY', sym: 'CNY=X' },
+          { code: 'MYR', sym: 'MYR=X' },
+          { code: 'TWD', sym: 'TWD=X' },
+          { code: 'HKD', sym: 'HKD=X' },
+          { code: 'EUR', sym: 'EURUSD=X', invert: true },
+          { code: 'JPY', sym: 'JPY=X' }
+        ];
+        var next = { USD: 1, at: Date.now() };
+        await Promise.all(pairs.map(async function (p) {
+          try {
+            var px = null;
+            if (typeof fetchYahooQuote === 'function') {
+              var y = await fetchYahooQuote(p.sym);
+              if (y && y.price != null) px = Number(y.price);
+              else if (y && y.c != null) px = Number(y.c);
+            }
+            if (px == null || !(px > 0)) {
+              var yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(p.sym) + '?interval=1d&range=5d';
+              var data = await finFetchJson(
+                (typeof WORKER_BASE !== 'undefined' && WORKER_BASE)
+                  ? (WORKER_BASE + '?url=' + encodeURIComponent(yUrl))
+                  : yUrl
+              );
+              var meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+              if (meta && meta.regularMarketPrice) px = Number(meta.regularMarketPrice);
+            }
+            if (px > 0) {
+              // EURUSD=X 是 1 EUR = x USD → 1 USD = 1/x EUR
+              next[p.code] = p.invert ? (1 / px) : px;
+            }
+          } catch (e) {}
+        }));
+        // 兜底近似（仅当拉取失败）
+        if (!next.CNY) next.CNY = 7.2;
+        if (!next.MYR) next.MYR = 4.7;
+        if (!next.TWD) next.TWD = 32;
+        if (!next.HKD) next.HKD = 7.8;
+        if (!next.EUR) next.EUR = 0.92;
+        if (!next.JPY) next.JPY = 150;
+        __finFx = next;
+        return __finFx;
+      })();
+      try {
+        return await __finFxPromise;
+      } finally {
+        __finFxPromise = null;
+      }
+    }
+    /** 将原币金额换算到展示币种 */
+    function finConvertAmount(amount, fromCode, toCode) {
+      if (!finHasNum(amount)) return null;
+      fromCode = finNormCurrency(fromCode) || 'USD';
+      toCode = finNormCurrency(toCode) || fromCode;
+      if (fromCode === toCode) return Number(amount);
+      var fx = __finFx || { USD: 1 };
+      var fromPerUsd = fromCode === 'USD' ? 1 : fx[fromCode];
+      var toPerUsd = toCode === 'USD' ? 1 : fx[toCode];
+      if (!(fromPerUsd > 0) || !(toPerUsd > 0)) return Number(amount);
+      // amount_from / fromPerUsd = USD；* toPerUsd = target
+      return Number(amount) / fromPerUsd * toPerUsd;
+    }
+    function finResolveDisplayCode(nativeCode) {
+      var n = finNormCurrency(nativeCode) || 'USD';
+      if (__finUnitPref === 'native' || !__finUnitPref) return n;
+      return __finUnitPref;
+    }
+    function finUnitSwitchHtml(nativeCode) {
+      var n = finNormCurrency(nativeCode) || 'USD';
+      var disp = finResolveDisplayCode(n);
+      var dispLabel = finCurrencyLabel(disp);
+      // 触发器只显示当前单位名（跟现显币种走，不叫死「原币」）
+      var html = '<div class="fin-unit-wrap">';
+      html += '<button type="button" class="fin-unit-trigger" id="finUnitTrigger" aria-haspopup="listbox">';
+      html += '单位：<span class="fu-name">' + dispLabel + '</span><span class="fu-caret">▾</span>';
+      html += '</button>';
+      html += '<div class="fin-unit-menu" id="finUnitMenu" role="listbox">';
+      var opts = [
+        { code: 'native', label: finCurrencyLabel(n), sub: '报表原币' },
+        { code: 'USD', label: '美元', sub: 'USD' },
+        { code: 'CNY', label: '人民币', sub: 'CNY' },
+        { code: 'MYR', label: '马币', sub: 'MYR' }
+      ];
+      // 原币若已是美元/人民币/马币，菜单里仍保留「原币」项，文案用真实币名
+      opts.forEach(function (o) {
+        var active = (__finUnitPref === o.code);
+        html += '<button type="button" class="fin-unit-item' + (active ? ' active' : '') +
+          '" data-fin-unit="' + o.code + '" role="option">' + o.label +
+          '<span class="fu-sub">' + o.sub + '</span></button>';
+      });
+      html += '</div></div>';
+      return html;
+    }
+    function closeFinUnitMenu() {
+      var m = document.getElementById('finUnitMenu');
+      if (m) m.classList.remove('show');
+    }
+    function toggleFinUnitMenu(e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      var m = document.getElementById('finUnitMenu');
+      if (!m) return;
+      m.classList.toggle('show');
+    }
+    function setFinUnitPref(code) {
+      if (code !== 'native' && code !== 'USD' && code !== 'CNY' && code !== 'MYR') return;
+      __finUnitPref = code;
+      try { localStorage.setItem('finUnitPref', code); } catch (e) {}
+      closeFinUnitMenu();
+      if (typeof __finLastCtx === 'object' && __finLastCtx && typeof __finLastCtx.rebuild === 'function') {
+        Promise.resolve(__finLastCtx.rebuild()).catch(function () {});
+      }
+    }
+    // 事件委托：展开菜单 / 选币种
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      var trigger = t.closest('#finUnitTrigger');
+      if (trigger) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleFinUnitMenu(e);
+        return;
+      }
+      var item = t.closest('[data-fin-unit]');
+      if (item) {
+        e.preventDefault();
+        e.stopPropagation();
+        setFinUnitPref(item.getAttribute('data-fin-unit'));
+        return;
+      }
+      // 点别处关闭
+      if (!t.closest('#finUnitMenu') && !t.closest('.fin-unit-wrap')) {
+        closeFinUnitMenu();
+      }
+    });
+
     function finSnapMoney(n, isCN) {
       if (!finHasNum(n)) return '--';
       n = Number(n);
       var abs = Math.abs(n);
-      if (isCN) {
-        if (abs >= 1e8) return (n / 1e8).toFixed(2) + '亿';
-        if (abs >= 1e4) return (n / 1e4).toFixed(2) + '万';
-        return n.toFixed(2);
-      }
-      // 统一「亿」美元（1亿=1e8）
+      // 中美统一中文数量级，不再用 M/B/T
+      if (abs >= 1e12) return (n / 1e12).toFixed(2) + '万亿';
       if (abs >= 1e8) return (n / 1e8).toFixed(2) + '亿';
-      if (abs >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+      if (abs >= 1e4) return (n / 1e4).toFixed(2) + '万';
       return n.toFixed(2);
     }
+    /** 金额按展示币种换算后再格式化；EPS 等不要走这里 */
+    function finSnapMoneyFx(n, nativeCode) {
+      if (!finHasNum(n)) return '--';
+      var from = finNormCurrency(nativeCode) || 'USD';
+      var to = finResolveDisplayCode(from);
+      var v = finConvertAmount(n, from, to);
+      return finSnapMoney(v, to === 'CNY');
+    }
     function finSnapDiff(actual, estimate, isCN) {
-      if (!finHasNum(actual) || !finHasNum(estimate)) return { main: '--', sub: '', up: null };
+      if (!finHasNum(actual) || !finHasNum(estimate)) return { main: '--', sub: '--', up: null };
       var d = Number(actual) - Number(estimate);
       var pct = finSurprise(actual, estimate);
       var up = d > 0 ? true : (d < 0 ? false : null);
       var sign = d > 0 ? '+' : '';
+      // 单位紧贴数字，不再插入空格，减少被裁切
       var money = finSnapMoney(d, isCN);
-      // 防止「亿」被挤到下一行
-      if (money && /亿$/.test(money)) {
-        money = money.replace(/亿$/, String.fromCharCode(160) + '亿');
-      }
       return {
         main: sign + money,
-        sub: pct == null ? '' : ((pct > 0 ? '+' : '') + pct.toFixed(2) + '%'),
+        sub: pct == null ? '--' : ((pct > 0 ? '+' : '') + pct.toFixed(2) + '%'),
         up: up
       };
     }
@@ -7951,7 +8384,7 @@ async function refreshAssets(force, opts) {
         });
       }
 
-      // Yahoo
+      // Yahoo（若上层有注入）
       var y = parseYahooFinance(data.yahoo);
       y.quarters.forEach(function (q) {
         fill(q.period, { revAct: q.revenue, niAct: q.netIncome });
@@ -7970,6 +8403,24 @@ async function refreshAssets(force, opts) {
           // 没有明确 calendar period，跳过硬塞
         }
       });
+
+      // 东方财富美股利润表（外资股 SEC 空时的主力补全；自带同比 YOY）
+      var em = data.emIncome;
+      if (em && Array.isArray(em.quarters)) {
+        em.quarters.forEach(function (q) {
+          fill(q.period, {
+            revAct: q.revenue,
+            niAct: q.netIncome,
+            epsAct: q.eps
+          });
+          // 同比单独写入（fill 只处理数值字段，避免被挡住）
+          var o = byPeriod[finPeriodKey(q.period)];
+          if (o) {
+            if (q.revenueYoy != null && !isNaN(Number(q.revenueYoy)) && o.revYoy == null) o.revYoy = Number(q.revenueYoy);
+            if (q.netIncomeYoy != null && !isNaN(Number(q.netIncomeYoy)) && o.niYoy == null) o.niYoy = Number(q.netIncomeYoy);
+          }
+        });
+      }
 
       var list = Object.keys(byPeriod).map(function (k) { return byPeriod[k]; });
       list.forEach(function (o) {
@@ -8017,10 +8468,14 @@ async function refreshAssets(force, opts) {
 
     function buildEarningsSnapHtml(opts) {
       opts = opts || {};
-      var unit = opts.unit || (opts.isCN ? '人民币' : '美元');
+      var nativeCode = finNormCurrency(opts.nativeCurrency || opts.unit) || (opts.isCN ? 'CNY' : 'USD');
+      var displayCode = finResolveDisplayCode(nativeCode);
+      var unit = finCurrencyLabel(displayCode);
       var period = opts.period || '';
       var html = '<div class="fin-snap">';
-      html += '<div class="fin-snap-hd"><span class="t">财报速览</span><span class="u">单位：' + unit + '</span></div>';
+      html += '<div class="fin-snap-hd"><span class="t">财报速览</span>' + finUnitSwitchHtml(nativeCode) + '</div>';
+      // 金额字段按展示币种换算（同比/百分比不变；EPS 不换算）
+      function fxM(v) { return finConvertAmount(v, nativeCode, displayCode); }
       if (opts.fallbackPrev) {
         html += '<div class="fin-snap-period" style="color:#f0c14a;">本期数据暂缺 · 已显示上一季历史</div>';
       }
@@ -8047,18 +8502,43 @@ async function refreshAssets(force, opts) {
         return '<span class="fin-snap-badge flat">持平上期</span>';
       }
       function yoySub(yoy) {
-        if (yoy == null || isNaN(yoy)) return '';
+        // 算法未匹配到对比期时显示 --；有数则原样展示（不设阈值）
+        if (yoy == null || isNaN(yoy)) return '--';
         return (yoy > 0 ? '+' : '') + Number(yoy).toFixed(2) + '%';
       }
+      function fmtSnapMain(label, val, isCN) {
+        // EPS 是每股数字，不换汇、不用亿/万
+        if (label === 'EPS') {
+          if (!finHasNum(val)) return '--';
+          return Number(val).toFixed(2);
+        }
+        // 营收/净利：已在 oneRow 入口换汇，这里只做数量级格式化
+        return finSnapMoney(val, isCN);
+      }
       function oneRow(label, prevVal, currVal, prevYoy, currYoy, isCN) {
-        var chg = finSurprise(currVal, prevVal);
-        var diff = finSnapDiff(currVal, prevVal, isCN);
-        var prevUp = prevYoy == null ? null : prevYoy >= 0;
-        var currUp = currYoy == null ? null : currYoy >= 0;
+        var isEps = (label === 'EPS');
+        // 金额换汇；EPS / 同比% 不换
+        var pV = isEps ? prevVal : fxM(prevVal);
+        var cV = isEps ? currVal : fxM(currVal);
+        var chg = finSurprise(cV, pV);
+        var diff = finSnapDiff(cV, pV, isCN);
+        if (isEps && finHasNum(currVal) && finHasNum(prevVal)) {
+          var ed = Number(currVal) - Number(prevVal);
+          var ep = finSurprise(currVal, prevVal);
+          diff = {
+            main: (ed > 0 ? '+' : '') + ed.toFixed(2),
+            sub: ep == null ? '--' : ((ep > 0 ? '+' : '') + ep.toFixed(2) + '%'),
+            up: ed > 0 ? true : (ed < 0 ? false : null)
+          };
+        }
+        var prevSub = isEps ? '' : yoySub(prevYoy);
+        var currSub = isEps ? '' : yoySub(currYoy);
+        var prevUp = isEps ? null : ((prevYoy == null || isNaN(prevYoy)) ? null : prevYoy >= 0);
+        var currUp = isEps ? null : ((currYoy == null || isNaN(currYoy)) ? null : currYoy >= 0);
         return '<div class="fin-snap-row">' +
           '<div class="fin-snap-label">' + label + '<br/>' + periodBadge(chg) + '</div>' +
-          finSnapCell(finSnapMoney(prevVal, isCN), yoySub(prevYoy), prevUp) +
-          finSnapCell(finSnapMoney(currVal, isCN), yoySub(currYoy), currUp) +
+          finSnapCell(fmtSnapMain(label, pV, isCN), prevSub, prevUp) +
+          finSnapCell(fmtSnapMain(label, cV, isCN), currSub, currUp) +
           finSnapCell(diff.main, diff.sub, diff.up) +
           '</div>';
       }
@@ -8144,6 +8624,31 @@ async function refreshAssets(force, opts) {
       var epsActYoy = yoyAt(epsS, 0, 'epsAct');
       var epsPrevYoy = yoyAt(epsS, 1, 'epsAct');
 
+      // 东方财富自带同比（%）兜底：序列凑不齐「约一年前同季」时用
+      function emYoyFallback(period, field) {
+        try {
+          var qs = data && data.emIncome && data.emIncome.quarters;
+          if (!qs || !period) return null;
+          for (var i = 0; i < qs.length; i++) {
+            if (String(qs[i].period) === String(period)) {
+              var v = field === 'rev' ? qs[i].revenueYoy : (field === 'ni' ? qs[i].netIncomeYoy : null);
+              return (v != null && !isNaN(Number(v))) ? Number(v) : null;
+            }
+          }
+        } catch (e) {}
+        return null;
+      }
+      // 也尝试从 model 行上的 revYoy/niYoy 取
+      function rowYoy(series, idx, key) {
+        if (!series || !series[idx]) return null;
+        var v = series[idx][key];
+        return (v != null && !isNaN(Number(v))) ? Number(v) : null;
+      }
+      if (revActYoy == null) revActYoy = rowYoy(revS, 0, 'revYoy') != null ? rowYoy(revS, 0, 'revYoy') : emYoyFallback(revS[0] && revS[0].period, 'rev');
+      if (revPrevYoy == null) revPrevYoy = rowYoy(revS, 1, 'revYoy') != null ? rowYoy(revS, 1, 'revYoy') : emYoyFallback(revS[1] && revS[1].period, 'rev');
+      if (niActYoy == null) niActYoy = rowYoy(niS, 0, 'niYoy') != null ? rowYoy(niS, 0, 'niYoy') : emYoyFallback(niS[0] && niS[0].period, 'ni');
+      if (niPrevYoy == null) niPrevYoy = rowYoy(niS, 1, 'niYoy') != null ? rowYoy(niS, 1, 'niYoy') : emYoyFallback(niS[1] && niS[1].period, 'ni');
+
       // 报告期：优先有营收/净利的最近一期
       var head = revS[0] || niS[0] || epsS[0] || latest;
       var period = head ? head.period : (latest ? latest.period : '');
@@ -8161,10 +8666,19 @@ async function refreshAssets(force, opts) {
       var revQoq = finYoy(revAct, revPrev);
       var niQoq = finYoy(niAct, niPrev);
 
+      // 原币：优先东方财富币种，否则美股默认美元
+      var nativeCode = 'USD';
+      try {
+        var emCur = (data && data.emIncome && data.emIncome.currency) ? String(data.emIncome.currency) : '';
+        var nc = finNormCurrency(emCur);
+        if (nc) nativeCode = nc;
+      } catch (eU) {}
+
       var html = '<div class="fin-wrap">';
       html += buildEarningsSnapHtml({
         isCN: false,
-        unit: '美元',
+        nativeCurrency: nativeCode,
+        unit: finCurrencyLabel(nativeCode),
         period: period,
         releaseDate: releaseDate,
         fallbackPrev: fallbackPrev,
@@ -8186,14 +8700,14 @@ async function refreshAssets(force, opts) {
         epsActYoy: epsActYoy
       });
 
-      // 上一季完整对比条
+      // 上一年同季完整对比条（model.prev：优先约一年前同季）
       if (prev && (finHasNum(prev.revAct) || finHasNum(prev.niAct) || finHasNum(prev.epsAct))) {
-        html += '<div class="fin-section-title">上一期对比 · ' + prev.period + '</div>';
+        html += '<div class="fin-section-title">上一年同季 · ' + prev.period + '</div>';
         html += '<div class="fin-grid">';
-        html += finCard('上期营收', finSnapMoney(prev.revAct, false));
-        html += finCard('上期净利润', finSnapMoney(prev.niAct, false));
-        html += finCard('上期 EPS', finFmtNum(prev.epsAct, 2));
-        html += finCard('上期营收预期', finSnapMoney(prev.revEst, false));
+        html += finCard('上一年营收', finSnapMoneyFx(prev.revAct, nativeCode));
+        html += finCard('上一年净利润', finSnapMoneyFx(prev.niAct, nativeCode));
+        html += finCard('上一年 EPS', finFmtNum(prev.epsAct, 2));
+        html += finCard('上一年营收预期', finSnapMoneyFx(prev.revEst, nativeCode));
         html += '</div>';
       }
 
@@ -8225,7 +8739,7 @@ async function refreshAssets(force, opts) {
         }
         html += '</tbody></table>';
       }
-      html += '<div class="fin-note">数据：Finnhub（含 SEC 申报 financials-reported）· 优先有公布值的最近报告期 · 仅供参考</div></div>';
+      html += '<div class="fin-note">数据：Finnhub earnings/SEC · 外资股营收净利补全自东方财富美股利润表 · 优先有公布值的最近报告期 · 仅供参考</div></div>';
       return html;
     }
 
@@ -8234,7 +8748,7 @@ async function refreshAssets(force, opts) {
       if (c.length !== 6) return null;
       var mkt = (c.charAt(0) === '6' || c.charAt(0) === '5' || c.charAt(0) === '9') ? 'SH' : 'SZ';
       var secu = c + '.' + mkt;
-      var url = 'https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=REPORT_DATE&sortTypes=-1&pageSize=8&pageNumber=1' +
+      var url = 'https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=REPORT_DATE&sortTypes=-1&pageSize=12&pageNumber=1' +
         '&reportName=RPT_F10_FINANCE_MAINFINADATA&columns=ALL&filter=(SECUCODE%3D%22' +
         encodeURIComponent(secu) + '%22)';
       var data = await finFetchJson(url);
@@ -8258,24 +8772,48 @@ async function refreshAssets(force, opts) {
         var r0 = rows[0] || {};
         var r1 = rows[1] || {};
         var cnFallback = false;
+        function cnPick(r, keys) {
+          for (var i = 0; i < keys.length; i++) {
+            var v = r[keys[i]];
+            if (v != null && v !== '' && !isNaN(Number(v))) return Number(v);
+          }
+          return null;
+        }
         function cnVal(r) {
+          // 东方财富 MAINFINADATA 实际字段多为无下划线写法（TOTALOPERATEREVE 等）
           return {
-            rev: r.TOTAL_OPERATE_INCOME != null ? r.TOTAL_OPERATE_INCOME : r.OPERATE_INCOME,
-            ni: r.PARENT_NETPROFIT != null ? r.PARENT_NETPROFIT : r.NETPROFIT,
-            revY: r.TOTAL_OPERATE_INCOME_YOY != null ? r.TOTAL_OPERATE_INCOME_YOY : r.OPERATE_INCOME_YOY,
-            niY: r.PARENT_NETPROFIT_YOY != null ? r.PARENT_NETPROFIT_YOY : r.NETPROFIT_YOY,
-            eps: r.BASIC_EPS != null ? r.BASIC_EPS : r.EPSJB,
+            rev: cnPick(r, ['TOTAL_OPERATE_INCOME', 'TOTALOPERATEREVE', 'OPERATE_INCOME', 'OPERATE_INCOME_PK', 'TOTALOPERATEINCOME']),
+            ni: cnPick(r, ['PARENT_NETPROFIT', 'PARENTNETPROFIT', 'NETPROFIT', 'KCFJCXSYJLR']),
+            revY: cnPick(r, ['TOTAL_OPERATE_INCOME_YOY', 'TOTALOPERATEREVETZ', 'OPERATE_INCOME_YOY', 'DJD_TOI_YOY', 'OI_YOYRATIO_PK']),
+            niY: cnPick(r, ['PARENT_NETPROFIT_YOY', 'PARENTNETPROFITTZ', 'NETPROFIT_YOY', 'DJD_DPNP_YOY', 'KCFJCXSYJLRTZ']),
+            eps: cnPick(r, ['BASIC_EPS', 'EPSJB', 'EPSXS', 'EPSKCJB']),
             period: r.REPORT_DATE ? String(r.REPORT_DATE).slice(0, 10) : (r.REPORT_DATE_NAME || '')
           };
         }
-        var cur = cnVal(r0);
-        if ((cur.rev == null || cur.rev === '') && (cur.ni == null || cur.ni === '') && rows.length > 1) {
-          cur = cnVal(r1);
+        // 找最近「营收或净利有数」的报告期作为本期，再往前一期作上期
+        var parsed = rows.map(function (r) { return cnVal(r); });
+        var headIdx = 0;
+        for (var hi = 0; hi < parsed.length; hi++) {
+          if (finHasNum(parsed[hi].rev) || finHasNum(parsed[hi].ni) || finHasNum(parsed[hi].eps)) {
+            headIdx = hi;
+            // 若最新一期营收净利都空但 EPS 有，继续找有营收/净利的
+            if (finHasNum(parsed[hi].rev) || finHasNum(parsed[hi].ni)) break;
+          }
+        }
+        // 若 head 只有 EPS 没有营收净利，尽量再往下找有营收的
+        var revHeadIdx = -1;
+        for (var rj = 0; rj < parsed.length; rj++) {
+          if (finHasNum(parsed[rj].rev) || finHasNum(parsed[rj].ni)) { revHeadIdx = rj; break; }
+        }
+        if (revHeadIdx >= 0 && revHeadIdx !== headIdx) {
+          headIdx = revHeadIdx;
+          cnFallback = revHeadIdx > 0;
+        } else if (headIdx > 0) {
           cnFallback = true;
         }
-        var cur2 = rows[1] ? cnVal(rows[1]) : {};
-        var cur3 = rows[2] ? cnVal(rows[2]) : {};
-        // 本期=最近有数；上期=再上一期；若最近空则顺延
+        var cur = parsed[headIdx] || {};
+        var cur2 = parsed[headIdx + 1] || {};
+        var cur3 = parsed[headIdx + 2] || {};
         var cnRevAct = cur.rev, cnRevPrev = cur2.rev;
         var cnNiAct = cur.ni, cnNiPrev = cur2.ni;
         var cnEpsAct = cur.eps, cnEpsPrev = cur2.eps;
@@ -8285,13 +8823,17 @@ async function refreshAssets(force, opts) {
         if (!finHasNum(cnNiAct) && finHasNum(cur2.ni)) {
           cnNiAct = cur2.ni; cnNiPrev = cur3.ni; cnFallback = true;
         }
-        // A股接口常自带同比字段
-        var cnRevActYoy = cur.revY;
-        var cnNiActYoy = cur.niY;
+        // A股接口常自带同比字段（单位已是 %）
+        var cnRevActYoy = cur.revY != null ? cur.revY : (finHasNum(cnRevAct) && finHasNum(cur2.rev) ? null : null);
+        var cnNiActYoy = cur.niY != null ? cur.niY : null;
+        // 若本期同比空，尝试用上期的同比或自行算环比不充当同比
+        if (cnRevActYoy == null && cur.revY != null) cnRevActYoy = cur.revY;
+        if (cnNiActYoy == null && cur.niY != null) cnNiActYoy = cur.niY;
         var cnRevPrevYoy = cur2.revY;
         var cnNiPrevYoy = cur2.niY;
         html += buildEarningsSnapHtml({
           isCN: true,
+          nativeCurrency: 'CNY',
           unit: '人民币',
           period: cur.period,
           fallbackPrev: cnFallback,
@@ -8310,13 +8852,13 @@ async function refreshAssets(force, opts) {
         });
         var revYoy = cur.revY;
         var niYoy = cur.niY;
-        r0 = cnFallback ? r1 : r0;
+        r0 = rows[headIdx] || r0;
 
         html += '<div class="fin-section-title">其它指标</div><div class="fin-grid">';
-        html += finCard('毛利率', finFmtPct(r0.GROSS_PROFIT_RATIO || r0.XSMLL));
-        html += finCard('净利率', finFmtPct(r0.NET_PROFIT_RATIO || r0.XSJLL));
-        html += finCard('ROE', finFmtPct(r0.ROE_WEIGHT || r0.ROE));
-        html += finCard('EPS', finFmtNum(r0.BASIC_EPS || r0.EPSJB, 3));
+        html += finCard('毛利率', finFmtPct(r0.GROSS_PROFIT_RATIO != null ? r0.GROSS_PROFIT_RATIO : r0.XSMLL));
+        html += finCard('净利率', finFmtPct(r0.NET_PROFIT_RATIO != null ? r0.NET_PROFIT_RATIO : r0.XSJLL));
+        html += finCard('ROE', finFmtPct(r0.ROE_WEIGHT != null ? r0.ROE_WEIGHT : (r0.ROEJQ != null ? r0.ROEJQ : r0.ROE)));
+        html += finCard('EPS', finFmtNum(r0.BASIC_EPS != null ? r0.BASIC_EPS : r0.EPSJB, 3));
         html += finCard('营收同比', finFmtPct(revYoy));
         html += finCard('净利润同比', finFmtPct(niYoy));
         html += '</div>';
@@ -8325,10 +8867,11 @@ async function refreshAssets(force, opts) {
         html += '<table class="fin-table"><thead><tr><th>报告期</th><th>营收</th><th>净利润</th><th>ROE</th></tr></thead><tbody>';
         for (var i = 0; i < Math.min(rows.length, 6); i++) {
           var r = rows[i];
+          var rv = cnVal(r);
           html += '<tr><td>' + String(r.REPORT_DATE || r.REPORT_DATE_NAME || '--').slice(0, 10) + '</td><td>' +
-            finFmtMoney(r.TOTAL_OPERATE_INCOME || r.OPERATE_INCOME, true) + '</td><td>' +
-            finFmtMoney(r.PARENT_NETPROFIT || r.NETPROFIT, true) + '</td><td>' +
-            finFmtPct(r.ROE_WEIGHT || r.ROE) + '</td></tr>';
+            finSnapMoneyFx(rv.rev, 'CNY') + '</td><td>' +
+            finSnapMoneyFx(rv.ni, 'CNY') + '</td><td>' +
+            finFmtPct(r.ROE_WEIGHT != null ? r.ROE_WEIGHT : (r.ROEJQ != null ? r.ROEJQ : r.ROE)) + '</td></tr>';
         }
         html += '</tbody></table>';
       } else if (pack.source === 'zyzb') {
@@ -8347,6 +8890,7 @@ async function refreshAssets(force, opts) {
         var np = a1.jlr != null ? a1.jlr : a1.PARENTNETPROFIT;
         html += buildEarningsSnapHtml({
           isCN: true,
+          nativeCurrency: 'CNY',
           unit: '人民币',
           period: a0.date || a0.reportdate || '',
           revEst: null,
@@ -8407,15 +8951,38 @@ async function refreshAssets(force, opts) {
       renderFinancePanel('<div class="detail-loading"><div class="dl-spin"></div><div>加载财务数据…</div></div>');
 
       try {
+        // 预拉汇率（切换美元/人民币/马币用）；失败也有兜底汇率
+        try { await ensureFinFxRates(false); } catch (eFx) {}
         if (isCN || /^\d{6}$/.test(String(sym))) {
           var code = String(sym).replace(/\D/g, '').slice(0, 6);
           var cnData = await fetchCNStockFinance(code);
           if (tok !== __financeLoadTok) return;
+          __finLastCtx = {
+            kind: 'cn',
+            code: code,
+            data: cnData,
+            rebuild: function () {
+              return ensureFinFxRates(false).then(function () {
+                renderFinancePanel(buildCNFinanceHtml(code, cnData));
+              });
+            }
+          };
           renderFinancePanel(buildCNFinanceHtml(code, cnData));
         } else {
-          var usData = await fetchUSStockFinance(String(sym).toUpperCase());
+          var usSym = String(sym).toUpperCase();
+          var usData = await fetchUSStockFinance(usSym);
           if (tok !== __financeLoadTok) return;
-          renderFinancePanel(buildUSFinanceHtml(String(sym).toUpperCase(), usData));
+          __finLastCtx = {
+            kind: 'us',
+            symbol: usSym,
+            data: usData,
+            rebuild: function () {
+              return ensureFinFxRates(false).then(function () {
+                renderFinancePanel(buildUSFinanceHtml(usSym, usData));
+              });
+            }
+          };
+          renderFinancePanel(buildUSFinanceHtml(usSym, usData));
         }
       } catch (err) {
         if (tok !== __financeLoadTok) return;
@@ -8439,6 +9006,18 @@ async function refreshAssets(force, opts) {
       var finP = document.getElementById('detailPanelFinance');
       var btnC = document.getElementById('detailTabBtnChart');
       var btnF = document.getElementById('detailTabBtnFinance');
+      // 切到财务前先记下图表面板高度，加载中/内容较少时用同一高度，避免抽屉突然变矮
+      if (tab === 'finance' && chartP && finP && chartP.style.display !== 'none') {
+        try {
+          var h = chartP.offsetHeight || 0;
+          if (h > 120) {
+            finP.style.minHeight = h + 'px';
+            window.__detailPanelLockH = h;
+          } else if (window.__detailPanelLockH > 120) {
+            finP.style.minHeight = window.__detailPanelLockH + 'px';
+          }
+        } catch (eH) {}
+      }
       if (chartP) chartP.style.display = tab === 'chart' ? '' : 'none';
       if (finP) finP.style.display = tab === 'finance' ? '' : 'none';
       if (btnC) btnC.classList.toggle('active', tab === 'chart');
@@ -8499,7 +9078,21 @@ async function openDetail(symbol, isRestore) {
       document.getElementById('detailGrid').innerHTML =
         '<div style="grid-column:1/-1;"><div class="detail-loading"><div class="dl-spin"></div><div>加载个股详情…</div></div></div>';
       document.getElementById('detailOverlay').classList.add('show');
-      document.getElementById('detailDrawer').classList.add('show');
+      try {
+        var dUS = document.getElementById('detailDrawer');
+        if (dUS) {
+          dUS.classList.add('show');
+          dUS.classList.remove('sector-sheet');
+          dUS.classList.add('stock-sheet');
+        }
+      } catch (eSh) {
+        document.getElementById('detailDrawer').classList.add('show');
+      }
+      try {
+        window.__detailPanelLockH = 0;
+        var finReset = document.getElementById('detailPanelFinance');
+        if (finReset) finReset.style.minHeight = '';
+      } catch (eRH) {}
       if (!isRestore) pushDetailHistory({ type: 'stock-us', symbol: symbol });
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = '';
@@ -8799,6 +9392,7 @@ async function openDetail(symbol, isRestore) {
       if (drawer) {
         drawer.classList.remove('show');
         drawer.classList.remove('sector-sheet');
+        drawer.classList.remove('stock-sheet');
       }
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = '';
@@ -12362,7 +12956,12 @@ async function renderUSSectorL1(force) {
       const drawer = document.getElementById('detailDrawer');
       // 板块成分股模式：后续异步 paint 不得覆盖个股详情
       const sectorTok = (typeof beginDetailUI === 'function') ? beginDetailUI('sector-us') : 0;
-      try { if (drawer) drawer.classList.add('sector-sheet'); } catch (e) {}
+      try {
+        if (drawer) {
+          drawer.classList.remove('stock-sheet');
+          drawer.classList.add('sector-sheet');
+        }
+      } catch (e) {}
       document.getElementById('detailSymbol').textContent = l2.name;
       if (typeof stopLiveDetail === 'function') stopLiveDetail();
       if (typeof stopMiniChartLive === 'function') stopMiniChartLive();
@@ -13213,7 +13812,10 @@ async function openCNSectorStocks(boardCode, sectorName, isRestore) {
       const uiTok = beginDetailUI('sector-cn');
       try {
         var drawerEl = document.getElementById('detailDrawer');
-        if (drawerEl) drawerEl.classList.add('sector-sheet');
+        if (drawerEl) {
+          drawerEl.classList.remove('stock-sheet');
+          drawerEl.classList.add('sector-sheet');
+        }
       } catch (eD) {}
       function pinSectorHeader() {
         if (!isDetailUI('sector-cn', uiTok)) return;
@@ -13499,7 +14101,21 @@ function normalizeAShareCode(sym) {
       document.getElementById('detailGrid').innerHTML =
         '<div style="grid-column:1/-1;"><div class="detail-loading"><div class="dl-spin"></div><div>加载个股详情…</div></div></div>';
       document.getElementById('detailOverlay').classList.add('show');
-      document.getElementById('detailDrawer').classList.add('show');
+      try {
+        var dCN = document.getElementById('detailDrawer');
+        if (dCN) {
+          dCN.classList.add('show');
+          dCN.classList.remove('sector-sheet');
+          dCN.classList.add('stock-sheet');
+        }
+      } catch (eSh2) {
+        document.getElementById('detailDrawer').classList.add('show');
+      }
+      try {
+        window.__detailPanelLockH = 0;
+        var finResetCn = document.getElementById('detailPanelFinance');
+        if (finResetCn) finResetCn.style.minHeight = '';
+      } catch (eRH2) {}
       if (!isRestore) pushDetailHistory({ type: 'stock-cn', symbol: code, name: name || '' });
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = '';
@@ -17091,50 +17707,225 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
       }
     }, 2000);
   
-    // ---------- 网络延迟 / 流畅度（全局右上角） ----------
+    // ---------- 网络延迟 / 流畅度（全局右上角，可点开看各接口） ----------
     let lastNetMs = null;
-    async function probeNetworkLatency() {
+    let lastNetProbeAt = 0;
+    let netProbeBusy = false;
+    /** @type {{id:string,name:string,desc:string,ms:number|null,ok:boolean,error?:string}[]} */
+    let lastNetDetails = [];
+
+    function netTargets() {
+      const list = [];
+      if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
+        list.push({
+          id: 'worker',
+          name: '代理 Worker',
+          desc: '跨域转发 / 备用行情',
+          url: WORKER_BASE + (WORKER_BASE.indexOf('?') >= 0 ? '&' : '?') + '_ping=' + Date.now()
+        });
+      }
+      list.push({
+        id: 'eastmoney',
+        name: '东方财富',
+        desc: 'A股行情 · 财务 F10',
+        url: 'https://push2delay.eastmoney.com/api/qt/ulist.np/get?fltt=2&secids=1.000001&fields=f12&_=' + Date.now()
+      });
+      list.push({
+        id: 'em_dc',
+        name: '东财数据中心',
+        desc: 'A股/美股财报接口',
+        url: 'https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_F10_FINANCE_MAINFINADATA&columns=SECUCODE&pageNumber=1&pageSize=1&filter=(SECUCODE%3D%22000001.SZ%22)&_=' + Date.now()
+      });
+      var fhToken = (typeof FINNHUB_KEY !== 'undefined' && FINNHUB_KEY) ? FINNHUB_KEY : 'demo';
+      list.push({
+        id: 'finnhub',
+        name: 'Finnhub',
+        desc: '美股行情 · EPS',
+        url: 'https://finnhub.io/api/v1/quote?symbol=AAPL&token=' + encodeURIComponent(fhToken) + '&_=' + Date.now()
+      });
+      // Yahoo：真实拉数经 Worker 转发，探测也走代理，避免直连 CORS/Crumb 误报失败
+      var yRaw = 'https://query1.finance.yahoo.com/v8/finance/chart/AAPL?interval=1d&range=1d&_=' + Date.now();
+      if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
+        list.push({
+          id: 'yahoo',
+          name: 'Yahoo Finance',
+          desc: '美股/指数备用 · 经代理',
+          url: WORKER_BASE + (WORKER_BASE.indexOf('?') >= 0 ? '&' : '?') + 'url=' + encodeURIComponent(yRaw)
+        });
+      } else {
+        list.push({
+          id: 'yahoo',
+          name: 'Yahoo Finance',
+          desc: '美股/指数备用 · 直连',
+          url: yRaw
+        });
+      }
+      return list;
+    }
+
+    function netClsForMs(ms) {
+      if (ms == null || isNaN(ms)) return 'bad';
+      if (ms > 1200) return 'bad';
+      if (ms > 500) return 'mid';
+      return 'ok';
+    }
+    function netLabelForMs(ms) {
+      if (ms == null || isNaN(ms)) return '异常';
+      if (ms > 1200) return '较慢';
+      if (ms > 500) return '一般';
+      return '流畅';
+    }
+
+    async function probeOneTarget(t) {
+      const out = { id: t.id, name: t.name, desc: t.desc, ms: null, ok: false };
+      try {
+        const t0 = performance.now();
+        const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 6000) : null;
+        const res = await fetch(t.url, {
+          method: 'GET',
+          cache: 'no-store',
+          mode: 'cors',
+          signal: ctrl ? ctrl.signal : undefined
+        });
+        if (timer) clearTimeout(timer);
+        out.ms = Math.round(performance.now() - t0);
+        // 部分接口 CORS 可能 opaque；能完成往返即记延迟
+        out.ok = true;
+        if (res && typeof res.status === 'number' && res.type !== 'opaque' && res.status >= 500) {
+          out.ok = false;
+          out.error = 'HTTP ' + res.status;
+        }
+      } catch (e) {
+        out.ok = false;
+        out.ms = null;
+        out.error = (e && e.name === 'AbortError') ? '超时' : '失败';
+      }
+      return out;
+    }
+
+    function renderNetPanelBody() {
+      const body = document.getElementById('netPanelBody');
+      if (!body) return;
+      if (netProbeBusy && !lastNetDetails.length) {
+        body.innerHTML = '<div class="np-row"><div><div class="np-name">探测中…</div></div><div class="np-ms pending">--</div></div>';
+        return;
+      }
+      if (!lastNetDetails.length) {
+        body.innerHTML = '<div class="np-row"><div><div class="np-name">暂无数据</div><div class="np-desc">点刷新开始探测</div></div><div class="np-ms pending">--</div></div>';
+        return;
+      }
+      let html = '';
+      lastNetDetails.forEach(function (d) {
+        var msText, cls;
+        if (d.ms != null && d.ok) {
+          msText = d.ms + 'ms';
+          cls = netClsForMs(d.ms);
+        } else if (d.ms != null && !d.ok) {
+          msText = d.ms + 'ms';
+          cls = 'bad';
+        } else {
+          msText = d.error || '失败';
+          cls = 'bad';
+        }
+        html += '<div class="np-row"><div><div class="np-name">' + d.name +
+          '</div><div class="np-desc">' + (d.desc || '') +
+          (d.error && d.ms != null ? ' · ' + d.error : '') +
+          '</div></div><div class="np-ms ' + cls + '">' + msText + '</div></div>';
+      });
+      if (lastNetProbeAt) {
+        try {
+          var dt = new Date(lastNetProbeAt);
+          html += '<div class="np-foot" style="margin-top:4px;padding:0;">更新于 ' +
+            String(dt.getHours()).padStart(2, '0') + ':' +
+            String(dt.getMinutes()).padStart(2, '0') + ':' +
+            String(dt.getSeconds()).padStart(2, '0') +
+            (netProbeBusy ? ' · 刷新中…' : '') + '</div>';
+        } catch (e) {}
+      }
+      body.innerHTML = html;
+    }
+
+    function applyNetSummary() {
       const el = document.getElementById('netStatus');
       const tx = document.getElementById('netStatusText');
       if (!el || !tx) return;
-      const targets = [];
-      if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
-        targets.push(WORKER_BASE + (WORKER_BASE.indexOf('?') >= 0 ? '&' : '?') + '_ping=' + Date.now());
-      }
-      targets.push('https://push2delay.eastmoney.com/api/qt/ulist.np/get?fltt=2&secids=1.000001&fields=f12&_=' + Date.now());
-      targets.push('https://finnhub.io/api/v1/quote?symbol=AAPL&token=demo');
-
-      let ms = null;
-      for (const url of targets) {
-        try {
-          const t0 = performance.now();
-          const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-          const timer = ctrl ? setTimeout(() => ctrl.abort(), 5000) : null;
-          await fetch(url, { method: 'GET', cache: 'no-store', mode: 'cors', signal: ctrl ? ctrl.signal : undefined });
-          if (timer) clearTimeout(timer);
-          ms = Math.round(performance.now() - t0);
-          break;
-        } catch (e) {
-          continue;
-        }
-      }
-      if (ms == null) {
+      var okMs = lastNetDetails.filter(function (d) { return d.ok && d.ms != null; }).map(function (d) { return d.ms; });
+      if (!okMs.length) {
+        lastNetMs = null;
         el.className = 'net-status bad';
         tx.textContent = '网络异常';
         return;
       }
+      // 摘要：可用接口中的最低延迟（代表「当前能走的最快通路」）
+      var ms = Math.min.apply(null, okMs);
       lastNetMs = ms;
-      let label = '流畅';
-      let cls = 'ok';
-      if (ms > 1200) { label = '较慢'; cls = 'bad'; }
-      else if (ms > 500) { label = '一般'; cls = 'mid'; }
+      var cls = netClsForMs(ms);
       el.className = 'net-status ' + cls;
-      tx.textContent = label + ' ' + ms + 'ms';
+      tx.textContent = netLabelForMs(ms) + ' ' + ms + 'ms';
+    }
+
+    async function probeNetworkLatency(forcePanel) {
+      if (netProbeBusy) return;
+      netProbeBusy = true;
+      const targets = netTargets();
+      // 面板打开时先显示 pending
+      if (forcePanel || (document.getElementById('netPanel') || {}).classList.contains('show')) {
+        lastNetDetails = targets.map(function (t) {
+          return { id: t.id, name: t.name, desc: t.desc, ms: null, ok: false, error: '…' };
+        });
+        renderNetPanelBody();
+      }
+      try {
+        const results = await Promise.all(targets.map(probeOneTarget));
+        lastNetDetails = results;
+        lastNetProbeAt = Date.now();
+        applyNetSummary();
+        renderNetPanelBody();
+      } finally {
+        netProbeBusy = false;
+        renderNetPanelBody();
+      }
+    }
+
+    function toggleNetPanel(show) {
+      const panel = document.getElementById('netPanel');
+      if (!panel) return;
+      var on = (show === true) || (show !== false && !panel.classList.contains('show'));
+      if (show === false) on = false;
+      panel.classList.toggle('show', on);
+      panel.setAttribute('aria-hidden', on ? 'false' : 'true');
+      if (on) {
+        renderNetPanelBody();
+        // 打开时若超过 8s 未测过，立刻再测一轮
+        if (!lastNetProbeAt || Date.now() - lastNetProbeAt > 8000) {
+          probeNetworkLatency(true);
+        }
+      }
     }
 
     function startNetMonitor() {
+      const el = document.getElementById('netStatus');
+      const panel = document.getElementById('netPanel');
+      const btn = document.getElementById('netPanelRefresh');
+      if (el) {
+        el.addEventListener('click', function (e) {
+          e.stopPropagation();
+          toggleNetPanel();
+        });
+      }
+      if (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          probeNetworkLatency(true);
+        });
+      }
+      if (panel) {
+        panel.addEventListener('click', function (e) { e.stopPropagation(); });
+      }
+      document.addEventListener('click', function () { toggleNetPanel(false); });
       probeNetworkLatency();
-      setInterval(probeNetworkLatency, 15000);
+      setInterval(function () { probeNetworkLatency(false); }, 15000);
     }
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', startNetMonitor);
