@@ -147,7 +147,7 @@
     .down { color: var(--red); }
     .flat { color: var(--muted); }
 
-    /* ===== 估值快照 ===== */
+    /* ===== 数析 ===== */
     .val-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -384,6 +384,70 @@
       text-align: center; color: var(--muted); font-size: 0.85rem;
       padding: 36px 16px; line-height: 1.5;
     }
+    .fin-wrap { padding: 4px 0 12px; }
+    .fin-section-title {
+      font-size: 0.75rem; color: var(--muted); font-weight: 600;
+      margin: 12px 0 8px; letter-spacing: 0.02em;
+    }
+    .fin-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    .fin-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px 12px 10px;
+    }
+    .fin-card .k { font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; }
+    .fin-card .v { font-family: var(--font-num); font-size: 1.05rem; font-weight: 700; }
+    .fin-card .s { font-size: 0.72rem; margin-top: 2px; color: var(--muted); }
+    .fin-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .fin-table th {
+      text-align: left; color: var(--muted); font-weight: 600; font-size: 0.7rem;
+      padding: 6px 4px; border-bottom: 1px solid var(--border);
+    }
+    .fin-table td {
+      padding: 8px 4px; border-bottom: 1px solid rgba(42,53,68,0.6);
+      font-family: var(--font-num); font-size: 0.78rem;
+    }
+    .fin-table tr:last-child td { border-bottom: none; }
+    .fin-note { font-size: 0.68rem; color: var(--muted); margin-top: 10px; line-height: 1.4; }
+    .fin-snap {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 14px 12px 8px; margin-bottom: 4px;
+    }
+    .fin-snap-hd {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 12px; padding: 0 2px;
+    }
+    .fin-snap-hd .t { font-size: 0.95rem; font-weight: 700; }
+    .fin-snap-hd .u { font-size: 0.72rem; color: var(--muted); }
+    .fin-snap-cols {
+      display: grid; grid-template-columns: 1.1fr 1fr 1fr 1fr;
+      gap: 4px; padding: 8px 4px; margin-bottom: 4px;
+      background: rgba(42,53,68,0.35); border-radius: 10px;
+      font-size: 0.68rem; color: var(--muted); text-align: center; line-height: 1.25;
+    }
+    .fin-snap-cols span:first-child { text-align: left; padding-left: 4px; }
+    .fin-snap-row {
+      display: grid; grid-template-columns: 1.1fr 1fr 1fr 1fr;
+      gap: 4px; padding: 14px 4px; align-items: start;
+      border-bottom: 1px solid rgba(42,53,68,0.55);
+    }
+    .fin-snap-row:last-child { border-bottom: none; }
+    .fin-snap-label { font-size: 0.88rem; font-weight: 600; padding-left: 4px; }
+    .fin-snap-badge {
+      display: inline-block; margin-top: 4px; padding: 2px 6px; border-radius: 6px;
+      font-size: 0.65rem; font-weight: 600;
+    }
+    .fin-snap-badge.beat { background: rgba(0,216,104,0.12); color: var(--green); }
+    .fin-snap-badge.miss { background: rgba(255,92,92,0.12); color: var(--red); }
+    .fin-snap-badge.flat { background: rgba(154,172,194,0.12); color: var(--muted); }
+    .fin-snap-cell { text-align: center; font-family: var(--font-num); }
+    .fin-snap-cell .main {
+      font-size: 0.88rem; font-weight: 700;
+      white-space: nowrap; word-break: keep-all;
+    }
+    .fin-snap-cell .sub { font-size: 0.7rem; margin-top: 3px; white-space: nowrap; }
+    .fin-snap-period { font-size: 0.72rem; color: var(--muted); margin: 0 0 8px 2px; }
     .detail-loading {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 10px; padding: 20px 12px; color: var(--muted); font-size: 0.78rem;
@@ -1464,7 +1528,7 @@
     }
     .sub-tag.muted { background: rgba(148,163,184,0.14); color: var(--muted); }
     .sub-tag.ready { background: rgba(0,216,104,0.14); color: var(--green); }
-    /* 估值页的模块卡片——单独一套样式，不复用 .l1-card，
+    /* 数析页的模块卡片——单独一套样式，不复用 .l1-card，
        避免影响板块页原有的一级大类卡片布局 */
     .val-module-grid {
       display: flex;
@@ -1570,9 +1634,9 @@
     </div>
   </div>
 
-  <!-- ========== 估值 ========== -->
+  <!-- ========== 数析 ========== -->
   <div class="page" id="page-val">
-    <div class="section-title">估值</div>
+    <div class="section-title">数析</div>
     <div id="valContent"></div>
   </div>
 
@@ -1830,7 +1894,7 @@
     </div>
     </div>
     <div id="detailPanelFinance" style="display:none;">
-      <div class="detail-finance-placeholder">财务数据即将接入<br/><span style="font-size:0.75rem;">营收 / 净利润等后续开放</span></div>
+      <div id="detailFinanceBody" class="detail-finance-placeholder">点击「财务」加载营收 / 净利润等数据</div>
     </div>
   </div>
 
@@ -1842,7 +1906,7 @@
     </button>
     <button class="tab-item" data-page="val">
       <span class="icon">📊</span>
-      <span>估值</span>
+      <span>数析</span>
     </button>
     <button class="tab-item" data-page="asset">
       <span class="icon">🌍</span>
@@ -5464,7 +5528,7 @@
       else hideSearchSuggest();
     });
 
-    // ==================== 估值 · 模块1：股票回测模拟器（内嵌页面） ====================
+    // ==================== 数析 · 模块1：股票回测模拟器（内嵌页面） ====================
     // 这是把独立的 backtest_v2.html 整个原封不动嵌进来，用 base64 存成字符串，
     // 运行时解码成完整 HTML，塞进一个 iframe 的 srcdoc 里独立运行——
     // 这样它自己的 CSS/JS（包括里面同名的变量、id）完全跟主程序隔离，
@@ -6593,7 +6657,7 @@ const BACKTEST_V2_B64 = [
     }
 
     const VAL_MODULES = [
-      { id: 'm1', name: '回测模拟', render: function () {
+      { id: 'm1', name: '股票回测', render: function () {
           setTimeout(function () {
             var frame = document.getElementById('backtestV2Frame');
             if (!frame) return;
@@ -7534,6 +7598,833 @@ async function refreshAssets(force, opts) {
       html += '</div>';
       return html;
     }
+
+    // ==================== 股票详情 · 财务数据 ====================
+    function finFmtMoney(n, isCN) {
+      if (n == null || n === '' || isNaN(Number(n))) return '--';
+      n = Number(n);
+      var abs = Math.abs(n);
+      if (isCN) {
+        // 东财主要指标多为「元」
+        if (abs >= 1e12) return (n / 1e12).toFixed(2) + ' 万亿';
+        if (abs >= 1e8) return (n / 1e8).toFixed(2) + ' 亿';
+        if (abs >= 1e4) return (n / 1e4).toFixed(2) + ' 万';
+        return n.toFixed(2);
+      }
+      if (abs >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
+      if (abs >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
+      if (abs >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+      if (abs >= 1e3) return '$' + (n / 1e3).toFixed(2) + 'K';
+      return '$' + n.toFixed(2);
+    }
+    function finFmtPct(n) {
+      if (n == null || n === '' || isNaN(Number(n))) return '--';
+      n = Number(n);
+      var s = (n > 0 ? '+' : '') + n.toFixed(2) + '%';
+      return s;
+    }
+    function finFmtNum(n, d) {
+      if (n == null || n === '' || isNaN(Number(n))) return '--';
+      return Number(n).toFixed(d == null ? 2 : d);
+    }
+    async function finFetchJson(url) {
+      var proxies = [];
+      if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
+        proxies.push(WORKER_BASE + '?url=' + encodeURIComponent(url));
+      }
+      proxies.push(url);
+      for (var i = 0; i < proxies.length; i++) {
+        try {
+          var res = await (typeof fetchWithTimeoutSimple === 'function'
+            ? fetchWithTimeoutSimple(proxies[i], 10000)
+            : fetch(proxies[i]));
+          if (!res || !res.ok) continue;
+          var data = await res.json();
+          if (data && data.contents) {
+            try { data = JSON.parse(data.contents); } catch (e) {}
+          }
+          return data;
+        } catch (e) {}
+      }
+      return null;
+    }
+    function finCard(k, v, s) {
+      return '<div class="fin-card"><div class="k">' + k + '</div><div class="v">' +
+        (v == null || v === '' ? '--' : v) + '</div>' +
+        (s ? '<div class="s">' + s + '</div>' : '') + '</div>';
+    }
+    function renderFinancePanel(html) {
+      var el = document.getElementById('detailFinanceBody') || document.getElementById('detailPanelFinance');
+      if (!el) return;
+      if (el.id === 'detailPanelFinance') {
+        el.innerHTML = '<div id="detailFinanceBody">' + html + '</div>';
+      } else {
+        el.innerHTML = html;
+        el.className = '';
+        el.style.textAlign = '';
+        el.style.padding = '';
+      }
+    }
+
+
+
+    async function fetchUSStockFinance(symbol) {
+      var token = typeof FINNHUB_KEY !== 'undefined' ? FINNHUB_KEY : '';
+      var base = 'https://finnhub.io/api/v1';
+      var sym = encodeURIComponent(symbol);
+      var today = new Date();
+      function ymd(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      }
+      var from = new Date(today.getTime() - 400 * 864e5);
+      var to = new Date(today.getTime() + 60 * 864e5);
+
+      // 注意：/stock/financials 免费 key 常 403；改用 SEC 申报 financials-reported
+      var metricP = finFetchJson(base + '/stock/metric?symbol=' + sym + '&metric=all&token=' + token);
+      var reportedQP = finFetchJson(base + '/stock/financials-reported?symbol=' + sym + '&freq=quarterly&token=' + token);
+      var reportedAP = finFetchJson(base + '/stock/financials-reported?symbol=' + sym + '&freq=annual&token=' + token);
+      var earnP = finFetchJson(base + '/stock/earnings?symbol=' + sym + '&token=' + token);
+      var calP = finFetchJson(base + '/calendar/earnings?from=' + ymd(from) + '&to=' + ymd(to) + '&symbol=' + sym + '&token=' + token);
+
+      return {
+        metric: await metricP,
+        reportedQ: await reportedQP,
+        reportedA: await reportedAP,
+        earnings: await earnP,
+        calendar: await calP
+      };
+    }
+
+    /** 从 financials-reported 的 ic 列表提取营收、净利润 */
+    function parseReportedIc(ic) {
+      var rev = null, ni = null;
+      if (!Array.isArray(ic)) return { revenue: null, netIncome: null };
+      for (var i = 0; i < ic.length; i++) {
+        var row = ic[i] || {};
+        var c = String(row.concept || '');
+        var lab = String(row.label || '').toLowerCase();
+        var val = row.value;
+        if (val == null || isNaN(Number(val))) continue;
+        // 营收：优先 Revenues / RevenueFromContract...
+        if (rev == null) {
+          if (c === 'us-gaap_Revenues' || c.indexOf('RevenueFromContractWithCustomer') >= 0) {
+            rev = Number(val);
+          } else if ((lab === 'revenue' || lab === 'total revenue' || lab === 'net sales') && c.indexOf('CostOf') < 0) {
+            rev = Number(val);
+          }
+        }
+        // 净利润
+        if (ni == null) {
+          if (c.indexOf('NetIncomeLoss') >= 0 || c === 'us-gaap_ProfitLoss') {
+            ni = Number(val);
+          } else if (lab === 'net income' || lab === 'net income (loss)') {
+            ni = Number(val);
+          }
+        }
+      }
+      return { revenue: rev, netIncome: ni };
+    }
+    function reportedToRows(payload) {
+      var data = (payload && payload.data) || [];
+      if (!Array.isArray(data)) return [];
+      var rows = [];
+      for (var i = 0; i < data.length; i++) {
+        var it = data[i] || {};
+        var ic = (it.report && it.report.ic) || [];
+        var parsed = parseReportedIc(ic);
+        var end = finPeriodKey(it.endDate);
+        if (!end && !parsed.revenue && !parsed.netIncome) continue;
+        rows.push({
+          period: end,
+          year: it.year,
+          quarter: it.quarter,
+          form: it.form,
+          filedDate: finPeriodKey(it.filedDate),
+          revenue: parsed.revenue,
+          netIncome: parsed.netIncome
+        });
+      }
+      rows.sort(function (a, b) { return String(b.period).localeCompare(String(a.period)); });
+      // 同一 endDate 可能有修订，去重保留第一条
+      var seen = {};
+      var uniq = [];
+      for (var j = 0; j < rows.length; j++) {
+        if (seen[rows[j].period]) continue;
+        seen[rows[j].period] = 1;
+        uniq.push(rows[j]);
+      }
+      return uniq;
+    }
+
+    function finHasNum(v) {
+      return v != null && v !== '' && !isNaN(Number(v));
+    }
+    function pickFinRows(payload) {
+      if (!payload) return [];
+      var rows = payload.financials || payload.data || payload;
+      if (!Array.isArray(rows)) return [];
+      return rows.slice().sort(function (a, b) {
+        var ya = a.year || a.period || a.date || '';
+        var yb = b.year || b.period || b.date || '';
+        return String(yb).localeCompare(String(ya));
+      });
+    }
+    function rowRevenue(r) {
+      if (!r) return null;
+      return r.revenue != null ? r.revenue
+        : (r.totalRevenue != null ? r.totalRevenue
+        : (r.sale != null ? r.sale : null));
+    }
+    function rowNetIncome(r) {
+      if (!r) return null;
+      return r.netIncome != null ? r.netIncome
+        : (r.netIncomeApplicableToCommonShares != null ? r.netIncomeApplicableToCommonShares
+        : (r.bottomLine != null ? r.bottomLine : null));
+    }
+    function finPeriodKey(p) {
+      if (!p) return '';
+      if (typeof p === 'number' && p > 1e11) {
+        var d = new Date(p * (p < 1e12 ? 1000 : 1));
+        if (!isNaN(d.getTime())) {
+          return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+      }
+      return String(p).slice(0, 10);
+    }
+    function finYoy(cur, prev) {
+      if (!finHasNum(cur) || !finHasNum(prev) || !Number(prev)) return null;
+      return ((Number(cur) - Number(prev)) / Math.abs(Number(prev))) * 100;
+    }
+    function finSurprise(actual, estimate) {
+      if (!finHasNum(actual) || !finHasNum(estimate) || !Number(estimate)) return null;
+      return ((Number(actual) - Number(estimate)) / Math.abs(Number(estimate))) * 100;
+    }
+    function finBeatBadge(surp) {
+      if (surp == null || isNaN(surp)) return '<span class="fin-snap-badge flat">暂无预期</span>';
+      if (surp > 0.5) return '<span class="fin-snap-badge beat">超出预期</span>';
+      if (surp < -0.5) return '<span class="fin-snap-badge miss">低于预期</span>';
+      return '<span class="fin-snap-badge flat">符合预期</span>';
+    }
+    function finSnapCell(main, sub, up) {
+      var cls = '';
+      if (up === true) cls = ' style="color:var(--green)"';
+      if (up === false) cls = ' style="color:var(--red)"';
+      return '<div class="fin-snap-cell"' + cls + '><div class="main">' + (main || '--') +
+        '</div><div class="sub">' + (sub || '') + '</div></div>';
+    }
+    function finSnapMoney(n, isCN) {
+      if (!finHasNum(n)) return '--';
+      n = Number(n);
+      var abs = Math.abs(n);
+      if (isCN) {
+        if (abs >= 1e8) return (n / 1e8).toFixed(2) + '亿';
+        if (abs >= 1e4) return (n / 1e4).toFixed(2) + '万';
+        return n.toFixed(2);
+      }
+      // 统一「亿」美元（1亿=1e8）
+      if (abs >= 1e8) return (n / 1e8).toFixed(2) + '亿';
+      if (abs >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+      return n.toFixed(2);
+    }
+    function finSnapDiff(actual, estimate, isCN) {
+      if (!finHasNum(actual) || !finHasNum(estimate)) return { main: '--', sub: '', up: null };
+      var d = Number(actual) - Number(estimate);
+      var pct = finSurprise(actual, estimate);
+      var up = d > 0 ? true : (d < 0 ? false : null);
+      var sign = d > 0 ? '+' : '';
+      var money = finSnapMoney(d, isCN);
+      // 防止「亿」被挤到下一行
+      if (money && /亿$/.test(money)) {
+        money = money.replace(/亿$/, String.fromCharCode(160) + '亿');
+      }
+      return {
+        main: sign + money,
+        sub: pct == null ? '' : ((pct > 0 ? '+' : '') + pct.toFixed(2) + '%'),
+        up: up
+      };
+    }
+
+    function parseYahooFinance(yahoo) {
+      var out = { quarters: [], earnings: [], trends: [] };
+      try {
+        var res = yahoo && yahoo.quoteSummary && yahoo.quoteSummary.result && yahoo.quoteSummary.result[0];
+        if (!res) return out;
+        var inc = res.incomeStatementHistoryQuarterly && res.incomeStatementHistoryQuarterly.incomeStatementHistory;
+        if (Array.isArray(inc)) {
+          out.quarters = inc.map(function (row) {
+            var end = row.endDate && (row.endDate.fmt || row.endDate.raw);
+            return {
+              period: finPeriodKey(end),
+              revenue: row.totalRevenue && row.totalRevenue.raw != null ? row.totalRevenue.raw : null,
+              netIncome: row.netIncome && row.netIncome.raw != null ? row.netIncome.raw : null
+            };
+          }).filter(function (x) { return x.period; });
+          out.quarters.sort(function (a, b) { return b.period.localeCompare(a.period); });
+        }
+        var eh = res.earningsHistory && res.earningsHistory.history;
+        if (Array.isArray(eh)) {
+          out.earnings = eh.map(function (row) {
+            var q = row.quarter && (row.quarter.fmt || row.quarter.raw);
+            return {
+              period: finPeriodKey(q),
+              epsActual: row.epsActual != null ? (row.epsActual.raw != null ? row.epsActual.raw : row.epsActual) : null,
+              epsEstimate: row.epsEstimate != null ? (row.epsEstimate.raw != null ? row.epsEstimate.raw : row.epsEstimate) : null,
+              revenueActual: row.revenueActual != null ? (row.revenueActual.raw != null ? row.revenueActual.raw : row.revenueActual) : null,
+              revenueEstimate: row.revenueEstimate != null ? (row.revenueEstimate.raw != null ? row.revenueEstimate.raw : row.revenueEstimate) : null
+            };
+          });
+          out.earnings.sort(function (a, b) { return String(b.period).localeCompare(String(a.period)); });
+        }
+        var et = res.earningsTrend && res.earningsTrend.trend;
+        if (Array.isArray(et)) out.trends = et;
+      } catch (e) {}
+      return out;
+    }
+
+    /** 汇总各源，挑「信息最全的一期」作为最新；并带上上一季做对比 */
+    function buildUSEarningsModel(data) {
+      var byPeriod = {};
+      function ensure(p) {
+        p = finPeriodKey(p);
+        if (!p) return null;
+        if (!byPeriod[p]) {
+          byPeriod[p] = {
+            period: p, releaseDate: '',
+            revAct: null, revEst: null, niAct: null, niEst: null,
+            epsAct: null, epsEst: null, score: 0
+          };
+        }
+        return byPeriod[p];
+      }
+      function fill(p, fields) {
+        var o = ensure(p);
+        if (!o) return;
+        Object.keys(fields).forEach(function (k) {
+          if (finHasNum(fields[k]) && !finHasNum(o[k])) o[k] = Number(fields[k]);
+          else if (k === 'releaseDate' && fields[k] && !o.releaseDate) o.releaseDate = fields[k];
+        });
+      }
+
+      // Finnhub earnings (EPS)
+      var earns = Array.isArray(data.earnings) ? data.earnings : [];
+      earns.forEach(function (e) {
+        fill(e.period, {
+          epsAct: e.actual, epsEst: e.estimate
+        });
+      });
+
+      // SEC 申报季度利润表（financials-reported）
+      var repQ = reportedToRows(data.reportedQ);
+      repQ.forEach(function (r) {
+        fill(r.period, {
+          revAct: r.revenue,
+          niAct: r.netIncome,
+          releaseDate: r.filedDate
+        });
+      });
+      // 兼容旧字段（若仍有）
+      pickFinRows(data.quarterly).forEach(function (r) {
+        fill(r.period || r.year || r.date, {
+          revAct: rowRevenue(r), niAct: rowNetIncome(r)
+        });
+      });
+      var revEstList = [];
+      if (data.revEst) revEstList = data.revEst.data || data.revEst || [];
+      if (Array.isArray(revEstList)) {
+        revEstList.forEach(function (r) {
+          fill(r.period, {
+            revEst: r.revenueAvg != null ? r.revenueAvg : (r.revenueEstimate || r.estimate)
+          });
+        });
+      }
+
+      // Calendar
+      var calRows = [];
+      if (data.calendar) calRows = data.calendar.earningsCalendar || data.calendar.data || data.calendar || [];
+      if (Array.isArray(calRows)) {
+        calRows.forEach(function (c) {
+          fill(c.period || c.quarter, {
+            releaseDate: finPeriodKey(c.date || c.reportDate),
+            epsAct: c.epsActual, epsEst: c.epsEstimate,
+            revAct: c.revenueActual, revEst: c.revenueEstimate
+          });
+        });
+      }
+
+      // Yahoo
+      var y = parseYahooFinance(data.yahoo);
+      y.quarters.forEach(function (q) {
+        fill(q.period, { revAct: q.revenue, niAct: q.netIncome });
+      });
+      y.earnings.forEach(function (e) {
+        fill(e.period, {
+          epsAct: e.epsActual, epsEst: e.epsEstimate,
+          revAct: e.revenueActual, revEst: e.revenueEstimate
+        });
+      });
+      // earningsTrend: 0q / +1q estimates
+      y.trends.forEach(function (t) {
+        if (!t || !t.period) return;
+        // 仅用 0q（本季）若还没有公布
+        if (String(t.period) === '0q' || String(t.period) === '+1q') {
+          // 没有明确 calendar period，跳过硬塞
+        }
+      });
+
+      var list = Object.keys(byPeriod).map(function (k) { return byPeriod[k]; });
+      list.forEach(function (o) {
+        var s = 0;
+        if (finHasNum(o.revAct)) s += 4;
+        if (finHasNum(o.niAct)) s += 4;
+        if (finHasNum(o.epsAct)) s += 2;
+        if (finHasNum(o.revEst)) s += 1;
+        if (finHasNum(o.epsEst)) s += 1;
+        o.score = s;
+      });
+      list.sort(function (a, b) {
+        if (b.score !== a.score) return b.score - a.score;
+        return String(b.period).localeCompare(String(a.period));
+      });
+
+      // 优先：有公布值（营收或净利润或EPS actual）的最新报告期
+      var withActual = list.filter(function (o) {
+        return finHasNum(o.revAct) || finHasNum(o.niAct) || finHasNum(o.epsAct);
+      });
+      withActual.sort(function (a, b) { return String(b.period).localeCompare(String(a.period)); });
+
+      var latest = withActual[0] || list[0] || null;
+      var prev = null;
+      if (latest) {
+        var older = list.filter(function (o) {
+          return o.period < latest.period && (finHasNum(o.revAct) || finHasNum(o.niAct) || finHasNum(o.epsAct));
+        });
+        older.sort(function (a, b) { return String(b.period).localeCompare(String(a.period)); });
+        prev = older[0] || null;
+        // 同比优先用约一年前同季
+        var yoyCand = older.filter(function (o) {
+          try {
+            var d0 = new Date(latest.period);
+            var d1 = new Date(o.period);
+            var days = Math.abs(d0 - d1) / 864e5;
+            return days > 300 && days < 430;
+          } catch (e) { return false; }
+        });
+        if (yoyCand.length) prev = yoyCand[0];
+      }
+
+      return { latest: latest, prev: prev, all: list };
+    }
+
+    function buildEarningsSnapHtml(opts) {
+      opts = opts || {};
+      var unit = opts.unit || (opts.isCN ? '人民币' : '美元');
+      var period = opts.period || '';
+      var html = '<div class="fin-snap">';
+      html += '<div class="fin-snap-hd"><span class="t">财报速览</span><span class="u">单位：' + unit + '</span></div>';
+      if (opts.fallbackPrev) {
+        html += '<div class="fin-snap-period" style="color:#f0c14a;">本期数据暂缺 · 已显示上一季历史</div>';
+      }
+      if (period || opts.releaseDate) {
+        var bits = [];
+        if (period) bits.push((opts.fallbackPrev ? '上一季报告期 ' : '报告期 ') + period);
+        if (opts.releaseDate) bits.push('发布日 ' + opts.releaseDate);
+        html += '<div class="fin-snap-period">' + bits.join(' · ') + '</div>';
+      }
+      if (opts.prevPeriod && !opts.fallbackPrev) {
+        html += '<div class="fin-snap-period">对比参考：上一期 ' + opts.prevPeriod +
+          (opts.revQoq != null ? (' · 营收环比 ' + (opts.revQoq > 0 ? '+' : '') + opts.revQoq.toFixed(1) + '%') : '') +
+          (opts.niQoq != null ? (' · 净利环比 ' + (opts.niQoq > 0 ? '+' : '') + opts.niQoq.toFixed(1) + '%') : '') +
+          '</div>';
+      }
+      // 列：上期值 | 公布值 | 较上期；数字下方为同比（相对约一年前）
+      var midName = opts.hasPublished ? '公布值' : '本期值';
+      html += '<div class="fin-snap-cols"><span></span><span>上期值<br/>(同比)</span><span>' + midName + '<br/>(同比)</span><span>较上期<br/>(涨跌幅)</span></div>';
+
+      function periodBadge(chg) {
+        if (chg == null || isNaN(chg)) return '<span class="fin-snap-badge flat">暂无对比</span>';
+        if (chg > 0.5) return '<span class="fin-snap-badge beat">高于上期</span>';
+        if (chg < -0.5) return '<span class="fin-snap-badge miss">低于上期</span>';
+        return '<span class="fin-snap-badge flat">持平上期</span>';
+      }
+      function yoySub(yoy) {
+        if (yoy == null || isNaN(yoy)) return '';
+        return (yoy > 0 ? '+' : '') + Number(yoy).toFixed(2) + '%';
+      }
+      function oneRow(label, prevVal, currVal, prevYoy, currYoy, isCN) {
+        var chg = finSurprise(currVal, prevVal);
+        var diff = finSnapDiff(currVal, prevVal, isCN);
+        var prevUp = prevYoy == null ? null : prevYoy >= 0;
+        var currUp = currYoy == null ? null : currYoy >= 0;
+        return '<div class="fin-snap-row">' +
+          '<div class="fin-snap-label">' + label + '<br/>' + periodBadge(chg) + '</div>' +
+          finSnapCell(finSnapMoney(prevVal, isCN), yoySub(prevYoy), prevUp) +
+          finSnapCell(finSnapMoney(currVal, isCN), yoySub(currYoy), currUp) +
+          finSnapCell(diff.main, diff.sub, diff.up) +
+          '</div>';
+      }
+      html += oneRow('营收', opts.revPrev, opts.revAct, opts.revPrevYoy, opts.revActYoy, opts.isCN);
+      html += oneRow('净利润', opts.niPrev, opts.niAct, opts.niPrevYoy, opts.niActYoy, opts.isCN);
+      if (finHasNum(opts.epsAct) || finHasNum(opts.epsPrev)) {
+        html += oneRow('EPS', opts.epsPrev, opts.epsAct, opts.epsPrevYoy, opts.epsActYoy, opts.isCN);
+      }
+      html += '</div>';
+      return html;
+    }
+
+    function buildUSFinanceHtml(symbol, data) {
+      var m = (data && data.metric && data.metric.metric) ? data.metric.metric : ((data && data.metric) || {});
+      var annual = reportedToRows(data && data.reportedA).slice(0, 5);
+      if (!annual.length) annual = pickFinRows(data && data.annual).slice(0, 5);
+      var model = buildUSEarningsModel(data || {});
+      var latest = model.latest;
+      var prev = model.prev;
+      var fallbackPrev = false;
+
+      // 若「最新」几乎没有公布值，再向更旧找
+      if (latest && !finHasNum(latest.revAct) && !finHasNum(latest.niAct) && !finHasNum(latest.epsAct)) {
+        fallbackPrev = true;
+      }
+      if (!latest || (fallbackPrev && model.all.length > 1)) {
+        var older = model.all.filter(function (o) {
+          return finHasNum(o.revAct) || finHasNum(o.niAct) || finHasNum(o.epsAct);
+        });
+        older.sort(function (a, b) { return String(b.period).localeCompare(String(a.period)); });
+        if (older.length) {
+          if (latest && older[0].period !== latest.period) fallbackPrev = true;
+          latest = older[0];
+          prev = older[1] || null;
+        }
+      }
+
+      // —— 列规则 ——
+      // 本期公布 = 有数据的最近一期；上期值 = 再往前一期
+      // 若「最近一期」某指标空：该指标公布值用上一期，上期值用上上期
+      function seriesBy(field) {
+        return (model.all || []).filter(function (o) {
+          return finHasNum(o[field]);
+        }).sort(function (a, b) {
+          return String(b.period).localeCompare(String(a.period));
+        });
+      }
+      /** 同比：在序列里找约 1 年前同季 */
+      function yoyAt(series, idx, field) {
+        if (!series || !series[idx]) return null;
+        var cur = series[idx];
+        var curV = cur[field];
+        if (!finHasNum(curV)) return null;
+        var hit = null;
+        for (var i = idx + 1; i < series.length; i++) {
+          try {
+            var days = Math.abs(new Date(cur.period) - new Date(series[i].period)) / 864e5;
+            if (days >= 300 && days <= 430 && finHasNum(series[i][field])) {
+              hit = series[i];
+              break;
+            }
+          } catch (e) {}
+        }
+        if (!hit && series[idx + 4] && finHasNum(series[idx + 4][field])) hit = series[idx + 4];
+        if (!hit) return null;
+        return finYoy(curV, hit[field]);
+      }
+      var revS = seriesBy('revAct');
+      var niS = seriesBy('niAct');
+      var epsS = seriesBy('epsAct');
+
+      var revAct = revS[0] ? revS[0].revAct : null;
+      var revPrev = revS[1] ? revS[1].revAct : null;
+      var niAct = niS[0] ? niS[0].niAct : null;
+      var niPrev = niS[1] ? niS[1].niAct : null;
+      var epsAct = epsS[0] ? epsS[0].epsAct : null;
+      var epsPrev = epsS[1] ? epsS[1].epsAct : null;
+
+      var revActYoy = yoyAt(revS, 0, 'revAct');
+      var revPrevYoy = yoyAt(revS, 1, 'revAct');
+      var niActYoy = yoyAt(niS, 0, 'niAct');
+      var niPrevYoy = yoyAt(niS, 1, 'niAct');
+      var epsActYoy = yoyAt(epsS, 0, 'epsAct');
+      var epsPrevYoy = yoyAt(epsS, 1, 'epsAct');
+
+      // 报告期：优先有营收/净利的最近一期
+      var head = revS[0] || niS[0] || epsS[0] || latest;
+      var period = head ? head.period : (latest ? latest.period : '');
+      var releaseDate = head && head.releaseDate ? head.releaseDate : (latest ? latest.releaseDate : '');
+      var prevHead = (revS[1] || niS[1] || epsS[1] || prev);
+      var prevPeriod = prevHead ? prevHead.period : '';
+
+      // 是否「有正式公布的最新一期」：报告期数据来自序列第 0 项
+      var hasPublished = !!(revS[0] || niS[0] || (epsS[0] && finHasNum(epsS[0].epsAct)));
+      if (latest && head && latest.period && head.period && head.period < latest.period) {
+        fallbackPrev = true;
+        hasPublished = false;
+      }
+
+      var revQoq = finYoy(revAct, revPrev);
+      var niQoq = finYoy(niAct, niPrev);
+
+      var html = '<div class="fin-wrap">';
+      html += buildEarningsSnapHtml({
+        isCN: false,
+        unit: '美元',
+        period: period,
+        releaseDate: releaseDate,
+        fallbackPrev: fallbackPrev,
+        hasPublished: hasPublished,
+        prevPeriod: prevPeriod,
+        revQoq: revQoq,
+        niQoq: niQoq,
+        revPrev: revPrev,
+        revAct: revAct,
+        revPrevYoy: revPrevYoy,
+        revActYoy: revActYoy,
+        niPrev: niPrev,
+        niAct: niAct,
+        niPrevYoy: niPrevYoy,
+        niActYoy: niActYoy,
+        epsPrev: epsPrev,
+        epsAct: epsAct,
+        epsPrevYoy: epsPrevYoy,
+        epsActYoy: epsActYoy
+      });
+
+      // 上一季完整对比条
+      if (prev && (finHasNum(prev.revAct) || finHasNum(prev.niAct) || finHasNum(prev.epsAct))) {
+        html += '<div class="fin-section-title">上一期对比 · ' + prev.period + '</div>';
+        html += '<div class="fin-grid">';
+        html += finCard('上期营收', finSnapMoney(prev.revAct, false));
+        html += finCard('上期净利润', finSnapMoney(prev.niAct, false));
+        html += finCard('上期 EPS', finFmtNum(prev.epsAct, 2));
+        html += finCard('上期营收预期', finSnapMoney(prev.revEst, false));
+        html += '</div>';
+      }
+
+      html += '<div class="fin-section-title">其它指标</div><div class="fin-grid">';
+      var lastRev = annual.length ? (annual[0].revenue != null ? annual[0].revenue : rowRevenue(annual[0])) : null;
+      var lastNi = annual.length ? (annual[0].netIncome != null ? annual[0].netIncome : rowNetIncome(annual[0])) : null;
+      var lastY = annual.length ? (annual[0].period || annual[0].year || '') : '';
+      html += finCard('市盈率 TTM', finFmtNum(m.peNormalizedAnnual || m.peBasicExclExtraTTM || m.peTTM, 2));
+      html += finCard('市净率', finFmtNum(m.pbAnnual || m.pb, 2));
+      html += finCard('最新年营收', finFmtMoney(lastRev, false), lastY ? String(lastY).slice(0, 10) : '');
+      html += finCard('最新年净利润', finFmtMoney(lastNi, false), lastY ? String(lastY).slice(0, 10) : '');
+      html += finCard('毛利率', finFmtPct(m.grossMarginTTM || m.grossMarginAnnual));
+      html += finCard('净利率', finFmtPct(m.netProfitMarginTTM || m.netMarginAnnual));
+      html += finCard('ROE', finFmtPct(m.roeTTM || m.roeRfy || m.roe));
+      html += finCard('每股营收 TTM', finFmtNum(m.revenuePerShareTTM, 2));
+      html += '</div>';
+
+      if (annual.length) {
+        html += '<div class="fin-section-title">年度利润表（节选）</div>';
+        html += '<table class="fin-table"><thead><tr><th>期间</th><th>营收</th><th>净利润</th></tr></thead><tbody>';
+        for (var ai = 0; ai < annual.length; ai++) {
+          var r = annual[ai];
+          var per = r.period || r.year || r.date || '--';
+          var rv = r.revenue != null ? r.revenue : rowRevenue(r);
+          var nv = r.netIncome != null ? r.netIncome : rowNetIncome(r);
+          html += '<tr><td>' + String(per).slice(0, 10) + '</td><td>' +
+            finFmtMoney(rv, false) + '</td><td>' +
+            finFmtMoney(nv, false) + '</td></tr>';
+        }
+        html += '</tbody></table>';
+      }
+      html += '<div class="fin-note">数据：Finnhub（含 SEC 申报 financials-reported）· 优先有公布值的最近报告期 · 仅供参考</div></div>';
+      return html;
+    }
+
+    async function fetchCNStockFinance(code) {
+      var c = String(code || '').replace(/\D/g, '').slice(0, 6);
+      if (c.length !== 6) return null;
+      var mkt = (c.charAt(0) === '6' || c.charAt(0) === '5' || c.charAt(0) === '9') ? 'SH' : 'SZ';
+      var secu = c + '.' + mkt;
+      var url = 'https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=REPORT_DATE&sortTypes=-1&pageSize=8&pageNumber=1' +
+        '&reportName=RPT_F10_FINANCE_MAINFINADATA&columns=ALL&filter=(SECUCODE%3D%22' +
+        encodeURIComponent(secu) + '%22)';
+      var data = await finFetchJson(url);
+      if (!data || !data.result || !data.result.data || !data.result.data.length) {
+        var url2 = 'https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/ZYZBAjaxNew?type=0&code=' + mkt + c;
+        var data2 = await finFetchJson(url2);
+        return { source: 'zyzb', raw: data2, code: c };
+      }
+      return { source: 'main', raw: data, code: c };
+    }
+
+    function buildCNFinanceHtml(code, pack) {
+      var html = '<div class="fin-wrap">';
+      if (!pack || !pack.raw) {
+        html += '<div class="detail-finance-placeholder">暂无财务数据</div></div>';
+        return html;
+      }
+      var rows = [];
+      if (pack.source === 'main' && pack.raw.result && pack.raw.result.data) {
+        rows = pack.raw.result.data;
+        var r0 = rows[0] || {};
+        var r1 = rows[1] || {};
+        var cnFallback = false;
+        function cnVal(r) {
+          return {
+            rev: r.TOTAL_OPERATE_INCOME != null ? r.TOTAL_OPERATE_INCOME : r.OPERATE_INCOME,
+            ni: r.PARENT_NETPROFIT != null ? r.PARENT_NETPROFIT : r.NETPROFIT,
+            revY: r.TOTAL_OPERATE_INCOME_YOY != null ? r.TOTAL_OPERATE_INCOME_YOY : r.OPERATE_INCOME_YOY,
+            niY: r.PARENT_NETPROFIT_YOY != null ? r.PARENT_NETPROFIT_YOY : r.NETPROFIT_YOY,
+            eps: r.BASIC_EPS != null ? r.BASIC_EPS : r.EPSJB,
+            period: r.REPORT_DATE ? String(r.REPORT_DATE).slice(0, 10) : (r.REPORT_DATE_NAME || '')
+          };
+        }
+        var cur = cnVal(r0);
+        if ((cur.rev == null || cur.rev === '') && (cur.ni == null || cur.ni === '') && rows.length > 1) {
+          cur = cnVal(r1);
+          cnFallback = true;
+        }
+        var cur2 = rows[1] ? cnVal(rows[1]) : {};
+        var cur3 = rows[2] ? cnVal(rows[2]) : {};
+        // 本期=最近有数；上期=再上一期；若最近空则顺延
+        var cnRevAct = cur.rev, cnRevPrev = cur2.rev;
+        var cnNiAct = cur.ni, cnNiPrev = cur2.ni;
+        var cnEpsAct = cur.eps, cnEpsPrev = cur2.eps;
+        if (!finHasNum(cnRevAct) && finHasNum(cur2.rev)) {
+          cnRevAct = cur2.rev; cnRevPrev = cur3.rev; cnFallback = true;
+        }
+        if (!finHasNum(cnNiAct) && finHasNum(cur2.ni)) {
+          cnNiAct = cur2.ni; cnNiPrev = cur3.ni; cnFallback = true;
+        }
+        // A股接口常自带同比字段
+        var cnRevActYoy = cur.revY;
+        var cnNiActYoy = cur.niY;
+        var cnRevPrevYoy = cur2.revY;
+        var cnNiPrevYoy = cur2.niY;
+        html += buildEarningsSnapHtml({
+          isCN: true,
+          unit: '人民币',
+          period: cur.period,
+          fallbackPrev: cnFallback,
+          hasPublished: !cnFallback && (finHasNum(cnRevAct) || finHasNum(cnNiAct)),
+          prevPeriod: cur2.period || '',
+          revPrev: cnRevPrev,
+          revAct: cnRevAct,
+          revPrevYoy: cnRevPrevYoy,
+          revActYoy: cnRevActYoy,
+          niPrev: cnNiPrev,
+          niAct: cnNiAct,
+          niPrevYoy: cnNiPrevYoy,
+          niActYoy: cnNiActYoy,
+          epsPrev: cnEpsPrev,
+          epsAct: cnEpsAct
+        });
+        var revYoy = cur.revY;
+        var niYoy = cur.niY;
+        r0 = cnFallback ? r1 : r0;
+
+        html += '<div class="fin-section-title">其它指标</div><div class="fin-grid">';
+        html += finCard('毛利率', finFmtPct(r0.GROSS_PROFIT_RATIO || r0.XSMLL));
+        html += finCard('净利率', finFmtPct(r0.NET_PROFIT_RATIO || r0.XSJLL));
+        html += finCard('ROE', finFmtPct(r0.ROE_WEIGHT || r0.ROE));
+        html += finCard('EPS', finFmtNum(r0.BASIC_EPS || r0.EPSJB, 3));
+        html += finCard('营收同比', finFmtPct(revYoy));
+        html += finCard('净利润同比', finFmtPct(niYoy));
+        html += '</div>';
+
+        html += '<div class="fin-section-title">报告期对比</div>';
+        html += '<table class="fin-table"><thead><tr><th>报告期</th><th>营收</th><th>净利润</th><th>ROE</th></tr></thead><tbody>';
+        for (var i = 0; i < Math.min(rows.length, 6); i++) {
+          var r = rows[i];
+          html += '<tr><td>' + String(r.REPORT_DATE || r.REPORT_DATE_NAME || '--').slice(0, 10) + '</td><td>' +
+            finFmtMoney(r.TOTAL_OPERATE_INCOME || r.OPERATE_INCOME, true) + '</td><td>' +
+            finFmtMoney(r.PARENT_NETPROFIT || r.NETPROFIT, true) + '</td><td>' +
+            finFmtPct(r.ROE_WEIGHT || r.ROE) + '</td></tr>';
+        }
+        html += '</tbody></table>';
+      } else if (pack.source === 'zyzb') {
+        var z = pack.raw;
+        var list = (z && (z.data || z.jData || z)) || [];
+        if (!Array.isArray(list) && z) list = [z];
+        if (!Array.isArray(list) || !list.length) {
+          html += '<div class="detail-finance-placeholder">暂无财务数据</div></div>';
+          return html;
+        }
+        var a0 = list[0] || {};
+        var a1 = list[1] || {};
+        var ra = a0.yyzsr != null ? a0.yyzsr : a0.TOTALOPERATEREVE;
+        var na = a0.jlr != null ? a0.jlr : a0.PARENTNETPROFIT;
+        var rp = a1.yyzsr != null ? a1.yyzsr : a1.TOTALOPERATEREVE;
+        var np = a1.jlr != null ? a1.jlr : a1.PARENTNETPROFIT;
+        html += buildEarningsSnapHtml({
+          isCN: true,
+          unit: '人民币',
+          period: a0.date || a0.reportdate || '',
+          revEst: null,
+          revAct: ra,
+          revActYoy: finYoy(ra, rp),
+          niEst: null,
+          niAct: na,
+          niActYoy: finYoy(na, np),
+          epsAct: a0.jbmgsy || a0.EPSJB
+        });
+        html += '<div class="fin-section-title">其它指标</div><div class="fin-grid">';
+        html += finCard('毛利率', finFmtPct(a0.mlrl || a0.XSMLL));
+        html += finCard('净利率', finFmtPct(a0.jlrl || a0.XSJLL));
+        html += finCard('ROE', finFmtPct(a0.jqjzcsyl || a0.ROE));
+        html += finCard('EPS', finFmtNum(a0.jbmgsy || a0.EPSJB, 3));
+        html += '</div>';
+      } else {
+        html += '<div class="detail-finance-placeholder">暂无财务数据</div>';
+      }
+      html += '<div class="fin-note">数据来源：东方财富 · A股公开预测字段有限，预测列可能为空 · 仅供参考</div></div>';
+      return html;
+    }
+
+    var __financeLoadTok = 0;
+    async function loadDetailFinance() {
+      var finP = document.getElementById('detailPanelFinance');
+      if (!finP || finP.style.display === 'none') return;
+      if (typeof detailUIMode !== 'undefined' && detailUIMode && detailUIMode !== 'stock') return;
+
+      var sym = (typeof liveDetailSymbol === 'string' && liveDetailSymbol) ? liveDetailSymbol : '';
+      var isCN = !!liveDetailIsCN;
+      if (!sym) {
+        // 从标题兜底解析
+        try {
+          var t = document.getElementById('detailSymbol');
+          var raw = (t && (t.textContent || '')) || '';
+          var m = raw.match(/[A-Z]{1,5}|\d{6}/);
+          if (m) sym = m[0];
+        } catch (e) {}
+      }
+      if (!sym) {
+        renderFinancePanel('<div class="detail-finance-placeholder">无法识别标的代码</div>');
+        return;
+      }
+      // 指数 / 基金不拉财务
+      try {
+        if (typeof isIndexLikeSymbol === 'function' && isIndexLikeSymbol(sym)) {
+          renderFinancePanel('<div class="detail-finance-placeholder">指数无财务报表</div>');
+          return;
+        }
+        if (typeof isCnFundOrEtfSymbol === 'function' && isCnFundOrEtfSymbol(sym)) {
+          renderFinancePanel('<div class="detail-finance-placeholder">ETF / 基金无此财务口径<br/><span style="font-size:0.75rem;">可查看净值与持仓（后续）</span></div>');
+          return;
+        }
+      } catch (e) {}
+
+      var tok = ++__financeLoadTok;
+      renderFinancePanel('<div class="detail-loading"><div class="dl-spin"></div><div>加载财务数据…</div></div>');
+
+      try {
+        if (isCN || /^\d{6}$/.test(String(sym))) {
+          var code = String(sym).replace(/\D/g, '').slice(0, 6);
+          var cnData = await fetchCNStockFinance(code);
+          if (tok !== __financeLoadTok) return;
+          renderFinancePanel(buildCNFinanceHtml(code, cnData));
+        } else {
+          var usData = await fetchUSStockFinance(String(sym).toUpperCase());
+          if (tok !== __financeLoadTok) return;
+          renderFinancePanel(buildUSFinanceHtml(String(sym).toUpperCase(), usData));
+        }
+      } catch (err) {
+        if (tok !== __financeLoadTok) return;
+        console.warn('finance', err);
+        renderFinancePanel('<div class="detail-finance-placeholder">财务数据加载失败<br/><span style="font-size:0.75rem;">请稍后重试</span></div>');
+      }
+    }
+
+
     function switchDetailMainTab(tab) {
       // 非个股详情：不展示财务 Tab，强制图表面板（里面是成分股列表等）
       if (typeof detailUIMode !== 'undefined' && detailUIMode && detailUIMode !== 'stock') {
@@ -7552,6 +8443,9 @@ async function refreshAssets(force, opts) {
       if (finP) finP.style.display = tab === 'finance' ? '' : 'none';
       if (btnC) btnC.classList.toggle('active', tab === 'chart');
       if (btnF) btnF.classList.toggle('active', tab === 'finance');
+      if (tab === 'finance') {
+        try { loadDetailFinance(); } catch (eFin) { console.warn(eFin); }
+      }
     }
     function toggleDetailDayHist() {
       window.__detailDayHistExpanded = !window.__detailDayHistExpanded;
@@ -8495,52 +9389,242 @@ function loadFullTVChart(symbol) {
       loadNews(false);
     }
 
-    function renderNewsItems(list) {
+    function buildNewsListHtml(list) {
+      // 防御性重建：先按时间倒序排好，再按「日期」分组去重。
+      // 这样同一天的新闻永远聚在一起显示、右侧日期栏永远和正文顺序完全一致，
+      // 不会因为个别条目时间解析异常（ts=0）而把某天拆成两截、或让日期栏乱序/漏项。
+      const items = (list || []).slice().sort(function (a, b) {
+        return (b.ts || 0) - (a.ts || 0);
+      });
+      const groups = new Map();
+      const order = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const dayKey = item.dayKey || (typeof parseNewsDayKey === 'function' ? parseNewsDayKey(item.time) : '未知日期');
+        if (!groups.has(dayKey)) { groups.set(dayKey, []); order.push(dayKey); }
+        groups.get(dayKey).push(item);
+      }
+      // 再按日期字符串真实大小倒序一次：即便个别条目 ts 解析失败被分到错误分组，
+      // 日期栏本身的顺序也始终正确（未知日期排在最后，不挤占正常日期的位置）
+      order.sort(function (a, b) {
+        if (a === '未知日期') return 1;
+        if (b === '未知日期') return -1;
+        return a < b ? 1 : (a > b ? -1 : 0);
+      });
+
+      let html = '';
+      const dayKeys = [];
+      for (let gi = 0; gi < order.length; gi++) {
+        const dayKey = order[gi];
+        dayKeys.push(dayKey);
+        const label = (typeof formatNewsDayLabel === 'function') ? formatNewsDayLabel(dayKey) : dayKey;
+        const sepId = 'news-day-' + String(dayKey).replace(/[^0-9]/g, '');
+        html += '<div class="news-day-sep" id="' + sepId + '" data-day="' + dayKey + '" style="display:flex;align-items:center;gap:10px;margin:' +
+          (gi === 0 ? '4px' : '18px') + ' 0 10px;color:var(--muted);font-size:0.78rem;font-weight:600;scroll-margin-top:72px;">' +
+          '<span style="white-space:nowrap;">' + label + '</span>' +
+          '<span style="flex:1;height:1px;background:var(--border);"></span></div>';
+        const dayItems = groups.get(dayKey) || [];
+        for (let k = 0; k < dayItems.length; k++) {
+          const item = dayItems[k];
+          const timeShow = item.time || '';
+          html += '<div class="news-item">' +
+            '<a href="' + (item.link || '#') + '" target="_blank" rel="noopener">' +
+            '<div class="news-time">' + timeShow + ' · ' + (item.source || '') + '</div>' +
+            '<div class="news-title">' + (item.title || '') + '</div>' +
+            '<div class="news-summary">' + (item.summary || '') + '</div>' +
+            '</a></div>';
+        }
+      }
+      return { html: html, dayKeys: dayKeys };
+    }
+
+    /** 边加载时：用「当前阅读的日期标题」钉住视口，上面/下面加内容都不会把你拽走 */
+    function pinNewsScrollToDay(dayKey, pinnedTop) {
+      if (!dayKey) return false;
+      try {
+        var el = document.getElementById('news-day-' + String(dayKey).replace(/[^0-9]/g, ''));
+        if (!el) return false;
+        var nowTop = el.getBoundingClientRect().top;
+        var target = (typeof pinnedTop === 'number') ? pinnedTop : 72;
+        var delta = nowTop - target;
+        if (Math.abs(delta) > 1) window.scrollBy(0, delta);
+        return true;
+      } catch (e) { return false; }
+    }
+
+    // 手指正按在屏幕上时（滑动中）不要被后台刷新/边加载边显打断——
+    // 先把最新一次要展示的内容记下来，等手指抬起再一次性补上，避免刷新把正在滑的手势拽停
+    window.__newsTouchActive = false;
+    window.__newsPendingRender = null;
+    if (!window.__newsTouchGuardBound) {
+      window.__newsTouchGuardBound = true;
+      document.addEventListener('touchstart', function () {
+        const hotPage = document.getElementById('page-hot');
+        if (hotPage && hotPage.classList.contains('active')) window.__newsTouchActive = true;
+      }, { passive: true });
+      const releaseTouch = function () {
+        window.__newsTouchActive = false;
+        if (window.__newsPendingRender) {
+          const pending = window.__newsPendingRender;
+          window.__newsPendingRender = null;
+          renderNewsItems(pending.list, pending.opts);
+        }
+      };
+      document.addEventListener('touchend', releaseTouch, { passive: true });
+      document.addEventListener('touchcancel', releaseTouch, { passive: true });
+    }
+
+    function renderNewsItems(list, opts) {
+      opts = opts || {};
       const container = document.getElementById('newsList');
       if (!container) return;
+      // 用户手指还按着（正在滑动）：延后这次刷新，先记下来，抬手后再补
+      if (window.__newsTouchActive && !opts.forceTop && !opts.forceReplace && container.querySelector('.news-item')) {
+        window.__newsPendingRender = { list: list, opts: opts };
+        return;
+      }
       const rail = document.getElementById('newsDayRail');
       if (!list || !list.length) {
+        if (container.querySelector('.news-item') && !opts.allowEmpty) return;
         container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">暂无新闻数据</div>';
         if (rail) { rail.innerHTML = ''; rail.classList.remove('show'); }
         return;
       }
-      // 按日期分组，日与日之间加分界线；右侧日期索引可点击跳转
-      let html = '';
-      let lastDay = null;
-      const dayKeys = [];
-      for (let i = 0; i < list.length; i++) {
-        const item = list[i];
-        const dayKey = item.dayKey || (typeof parseNewsDayKey === 'function' ? parseNewsDayKey(item.time) : '');
-        if (dayKey !== lastDay) {
-          lastDay = dayKey;
-          dayKeys.push(dayKey);
-          const label = (typeof formatNewsDayLabel === 'function') ? formatNewsDayLabel(dayKey) : dayKey;
-          const sepId = 'news-day-' + String(dayKey).replace(/[^0-9]/g, '');
-          html += '<div class="news-day-sep" id="' + sepId + '" data-day="' + dayKey + '" style="display:flex;align-items:center;gap:10px;margin:' +
-            (i === 0 ? '4px' : '18px') + ' 0 10px;color:var(--muted);font-size:0.78rem;font-weight:600;scroll-margin-top:72px;">' +
-            '<span style="white-space:nowrap;">' + label + '</span>' +
-            '<span style="flex:1;height:1px;background:var(--border);"></span></div>';
-        }
-        const timeShow = item.time || '';
-        html += '<div class="news-item">' +
-          '<a href="' + (item.link || '#') + '" target="_blank" rel="noopener">' +
-          '<div class="news-time">' + timeShow + ' · ' + (item.source || '') + '</div>' +
-          '<div class="news-title">' + (item.title || '') + '</div>' +
-          '<div class="news-summary">' + (item.summary || '') + '</div>' +
-          '</a></div>';
+      const hadContent = !!container.querySelector('.news-item');
+      const prevScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      const built = (typeof buildNewsListHtml === 'function') ? buildNewsListHtml(list) : null;
+      if (!built) return;
+      const dayKeys = built.dayKeys || [];
+
+      // 用户点了某日，但本次列表还没这天：不要拆掉当前页（栏目日期先有、新闻后到时常见）
+      var wantDay = window.__newsUserPickedDay || window.__newsPendingScrollDay || '';
+      if (wantDay && hadContent && dayKeys.indexOf(wantDay) < 0 && !opts.forceReplace) {
+        // 仍可扩展右侧已有日期（若有更多天）——没有就保持
+        try {
+          if (dayKeys.length) renderNewsDayRail(
+            (function () {
+              // 合并旧栏日期 + 新日期，避免右侧变短
+              var oldKeys = [];
+              rail && rail.querySelectorAll('.rail-item').forEach(function (x) {
+                var d = x.getAttribute('data-day');
+                if (d) oldKeys.push(d);
+              });
+              var set = {};
+              var all = [];
+              oldKeys.concat(dayKeys).forEach(function (d) {
+                if (d && !set[d]) { set[d] = 1; all.push(d); }
+              });
+              all.sort(function (a, b) { return a < b ? 1 : (a > b ? -1 : 0); });
+              return all.length ? all : dayKeys;
+            })(),
+            { preferDay: wantDay }
+          );
+        } catch (eKeep) {}
+        return;
       }
-      container.innerHTML = html;
-      renderNewsDayRail(dayKeys);
+
+      // 钉点：优先用户选中日在视口中的位置
+      let anchorDay = wantDay || window.__newsFrozenDay || __newsRailActiveDay || '';
+      let pinnedTop = 72;
+      try {
+        if (anchorDay) {
+          var ael0 = document.getElementById('news-day-' + String(anchorDay).replace(/[^0-9]/g, ''));
+          if (ael0) pinnedTop = ael0.getBoundingClientRect().top;
+        }
+        if (!anchorDay || pinnedTop === 72) {
+          const seps = container.querySelectorAll('.news-day-sep');
+          for (let si = 0; si < seps.length; si++) {
+            const r = seps[si].getBoundingClientRect();
+            if (r.top <= 120) {
+              if (!wantDay) anchorDay = seps[si].getAttribute('data-day') || anchorDay;
+              pinnedTop = r.top;
+            }
+          }
+        }
+      } catch (eAnc) {}
+      if (anchorDay) {
+        window.__newsFrozenDay = anchorDay;
+        // 不再设锁定窗口——重绘/回滚之后，直接用真实滚动位置校正一次高亮即可，
+        // 不会出现「锁定期内划走了、锁解除后又没人再检查」导致高亮卡在旧日期的问题
+        setTimeout(function () {
+          if (typeof updateNewsDayRailFromScroll === 'function') updateNewsDayRailFromScroll();
+        }, 60);
+      }
+
+      container.innerHTML = built.html;
+
+      function pin() {
+        if (opts.forceTop || !hadContent) {
+          // 首次填充：若有待跳转日期，直接去
+          var pend = window.__newsPendingScrollDay || window.__newsUserPickedDay || '';
+          if (pend) {
+            var elp = document.getElementById('news-day-' + String(pend).replace(/[^0-9]/g, ''));
+            if (elp) {
+              elp.scrollIntoView({ behavior: 'auto', block: 'start' });
+              window.__newsPendingScrollDay = '';
+              setNewsDayRailActive(pend, { noScroll: true });
+            }
+          }
+          return;
+        }
+        var day = window.__newsPendingScrollDay || window.__newsUserPickedDay || anchorDay;
+        if (day) {
+          var el = document.getElementById('news-day-' + String(day).replace(/[^0-9]/g, ''));
+          if (el) {
+            // 待跳转：强制顶齐；否则钉住原高度
+            if (window.__newsPendingScrollDay === day) {
+              el.scrollIntoView({ behavior: 'auto', block: 'start' });
+              window.__newsPendingScrollDay = '';
+            } else if (typeof pinNewsScrollToDay === 'function') {
+              pinNewsScrollToDay(day, pinnedTop);
+            } else {
+              var nowTop = el.getBoundingClientRect().top;
+              window.scrollBy(0, nowTop - pinnedTop);
+            }
+            setNewsDayRailActive(day, { noScroll: true });
+            return;
+          }
+        }
+        try { window.scrollTo(0, prevScrollY); } catch (e) {}
+      }
+      pin();
+      renderNewsDayRail(dayKeys, { preferDay: window.__newsUserPickedDay || anchorDay });
+      requestAnimationFrame(function () {
+        pin();
+        requestAnimationFrame(function () {
+          pin();
+        });
+      });
     }
 
-    function renderNewsDayRail(dayKeys) {
+function renderNewsDayRail(dayKeys, opts) {
+      opts = opts || {};
       const rail = document.getElementById('newsDayRail');
       if (!rail) return;
       if (!dayKeys || !dayKeys.length) {
         rail.innerHTML = '';
         rail.classList.remove('show');
+        window.__newsRailDaySig = '';
         return;
       }
+      const sig = dayKeys.join('|');
+      const preferDay = opts.preferDay || window.__newsUserPickedDay || __newsRailActiveDay || '';
+      const prevRailScroll = rail.scrollTop;
+
+      // 日期集合没变：不重建右侧栏 DOM（避免下滑时反复刷新卡顿、高亮被拽回今天）
+      if (window.__newsRailDaySig === sig && rail.querySelector('.rail-item')) {
+        var keep = preferDay;
+        if (!keep || dayKeys.indexOf(keep) < 0) keep = __newsRailActiveDay;
+        if (keep && dayKeys.indexOf(keep) >= 0) {
+          setNewsDayRailActive(keep, { noScroll: true });
+        }
+        const page0 = document.getElementById('page-hot');
+        if (page0 && page0.classList.contains('active')) rail.classList.add('show');
+        bindNewsScrollSpy();
+        return;
+      }
+      window.__newsRailDaySig = sig;
+
       let html = '';
       for (let i = 0; i < dayKeys.length; i++) {
         const dk = dayKeys[i];
@@ -8553,8 +9637,9 @@ function loadFullTVChart(symbol) {
           da + '</div>';
       }
       rail.innerHTML = html;
-      __newsRailActiveDay = '';
-      __newsRailTouching = false;
+      // 不重置用户触摸状态 / 不强制清空 active
+      try { rail.scrollTop = prevRailScroll; } catch (eScr) {}
+
       // 仅在热点页显示
       const page = document.getElementById('page-hot');
       if (page && page.classList.contains('active')) rail.classList.add('show');
@@ -8565,22 +9650,92 @@ function loadFullTVChart(symbol) {
           e.preventDefault();
           e.stopPropagation();
           const tid = el.getAttribute('data-target');
+          const day = el.getAttribute('data-day');
+          // 无论内容是否已渲染到该日，都先记下用户选择并高亮
+          window.__newsUserPickedDay = day || '';
+          window.__newsFrozenDay = day || '';
+          window.__newsPendingScrollDay = day || '';
+          window.__newsRailClickLock = Date.now() + 900;
+          setNewsDayRailActive(day, { noScroll: true });
           const target = tid ? document.getElementById(tid) : null;
           if (target) {
-            // 点击跳转时短暂锁定，避免 scroll spy 抢高亮
-            window.__newsRailClickLock = Date.now() + 700;
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            setNewsDayRailActive(el.getAttribute('data-day'));
+            // 主列表平滑滚到对应日期区块
+            try {
+              target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch (err) {
+              try { target.scrollIntoView(true); } catch (err2) {}
+            }
+            window.__newsPendingScrollDay = '';
           }
+          // 若该日分界线还没渲染出来：等下次边加载补齐后再自动跳
         });
       });
-      // 默认高亮第一天，并绑定滚动同步
-      if (dayKeys.length) setNewsDayRailActive(dayKeys[0]);
+      // 优先恢复用户选中/当前阅读日期；没有才默认第一天
+      var pick = preferDay;
+      if (!pick || dayKeys.indexOf(pick) < 0) {
+        pick = (__newsRailActiveDay && dayKeys.indexOf(__newsRailActiveDay) >= 0)
+          ? __newsRailActiveDay
+          : dayKeys[0];
+      }
+      if (pick) setNewsDayRailActive(pick, { noScroll: true });
       bindNewsScrollSpy();
     }
 
     let __newsRailActiveDay = '';
     let __newsRailTouching = false;
+    let __newsRailAutoScrollTimer = null;
+    const NEWS_RAIL_AUTO_SCROLL_DEBOUNCE = 140; // 主列表慢滑时防抖，减少日期栏抖动
+
+    /** 判断高亮项是否已在日期栏可视区内（上下留 4px 容差） */
+    function isRailItemInView(rail, el) {
+      if (!rail || !el) return true;
+      try {
+        const rRect = rail.getBoundingClientRect();
+        const aRect = el.getBoundingClientRect();
+        return aRect.top >= rRect.top + 4 && aRect.bottom <= rRect.bottom - 4;
+      } catch (e) {
+        return true;
+      }
+    }
+
+    /**
+     * 仅在高亮日期不在可视区时，把日期栏平滑滚到居中；
+     * 已在视野内则不动。带防抖，避免主列表慢滑时频繁晃动。
+     */
+    function scheduleRailScrollToActive(rail, activeEl, forceImmediate) {
+      if (!rail || !activeEl || __newsRailTouching) return;
+      if (isRailItemInView(rail, activeEl)) return;
+      if (__newsRailAutoScrollTimer) {
+        clearTimeout(__newsRailAutoScrollTimer);
+        __newsRailAutoScrollTimer = null;
+      }
+      function doScroll() {
+        __newsRailAutoScrollTimer = null;
+        if (__newsRailTouching) return;
+        if (isRailItemInView(rail, activeEl)) return;
+        try {
+          // 优先手动算居中，兼容性更好；失败再退回 scrollIntoView
+          const rH = rail.clientHeight || 0;
+          const aTop = activeEl.offsetTop;
+          const aH = activeEl.offsetHeight || 28;
+          let target = aTop - (rH / 2) + (aH / 2);
+          if (target < 0) target = 0;
+          const maxScroll = Math.max(0, rail.scrollHeight - rH);
+          if (target > maxScroll) target = maxScroll;
+          if (typeof rail.scrollTo === 'function') {
+            rail.scrollTo({ top: target, behavior: 'smooth' });
+          } else {
+            rail.scrollTop = target;
+          }
+        } catch (e) {
+          try {
+            activeEl.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+          } catch (e2) {}
+        }
+      }
+      if (forceImmediate) doScroll();
+      else __newsRailAutoScrollTimer = setTimeout(doScroll, NEWS_RAIL_AUTO_SCROLL_DEBOUNCE);
+    }
 
     function setNewsDayRailActive(dayKey, opts) {
       const rail = document.getElementById('newsDayRail');
@@ -8594,33 +9749,43 @@ function loadFullTVChart(symbol) {
         x.classList.toggle('active', on);
         if (on) activeEl = x;
       });
-      // 仅在「日期刚变了」且用户没在拖右侧轨道时，才把高亮项滚进轨道可视区
-      // 否则每次 spy 都会 scrollIntoView，把用户正在拖的轨道拽回去 → 感觉卡死
-      if (dayChanged && !__newsRailTouching && !opts.noScroll && activeEl && typeof activeEl.scrollIntoView === 'function') {
-        try {
-          const rRect = rail.getBoundingClientRect();
-          const aRect = activeEl.getBoundingClientRect();
-          if (aRect.top < rRect.top + 4 || aRect.bottom > rRect.bottom - 4) {
-            activeEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-          }
-        } catch (e) {}
+      // 日期变化且允许滚动、用户没在拖日期栏 → 若高亮项不在可视区则平滑跟滚
+      // noScroll: 仅更新高亮、不驱动日期栏滚动（点击后由主列表定位时用）
+      if (dayChanged && !__newsRailTouching && !opts.noScroll && activeEl) {
+        scheduleRailScrollToActive(rail, activeEl, !!opts.immediate);
       }
     }
 
-    // 滑动列表时：根据当前可见的日期分界，实时高亮右侧日期
+    // 滑动列表时：根据当前可见的日期分界，实时高亮右侧日期；
+    // 高亮不在日期栏可视区时再平滑跟滚（防抖），已在视野内则不动。
     let __newsSpyBound = false;
     let __newsSpyTicking = false;
     function updateNewsDayRailFromScroll() {
       const page = document.getElementById('page-hot');
       if (!page || !page.classList.contains('active')) return;
-      if (window.__newsRailClickLock && Date.now() < window.__newsRailClickLock) return;
       // 手指正在拖右侧日期条时，不要改高亮、不要抢滚动
       if (__newsRailTouching) return;
+      // 用户刚点了日期、主列表正在滚过去：短暂锁定，避免 spy 抢高亮
+      if (window.__newsRailClickLock && Date.now() < window.__newsRailClickLock) return;
 
       const seps = document.querySelectorAll('#newsList .news-day-sep');
       if (!seps.length) return;
 
-      const marker = 100;
+      // 已经划到页面底部：认定为最后一天（最旧），避免短日块够不到判定线
+      const scroller = document.scrollingElement || document.documentElement;
+      const nearBottom = (window.innerHeight + window.scrollY) >= (scroller.scrollHeight - 4);
+      if (nearBottom) {
+        const lastDay = seps[seps.length - 1].getAttribute('data-day');
+        if (lastDay) {
+          window.__newsUserPickedDay = lastDay;
+          // 允许日期栏跟滚（带防抖），不再强制 noScroll
+          setNewsDayRailActive(lastDay);
+        }
+        return;
+      }
+
+      // 判定线：视口上半区，慢滑也能跟手切换
+      const marker = Math.max(140, window.innerHeight * 0.42);
       let current = seps[0].getAttribute('data-day');
       for (let i = 0; i < seps.length; i++) {
         const rect = seps[i].getBoundingClientRect();
@@ -8630,7 +9795,11 @@ function loadFullTVChart(symbol) {
           break;
         }
       }
-      if (current) setNewsDayRailActive(current);
+      if (current) {
+        window.__newsUserPickedDay = current;
+        // 高亮 + 必要时日期栏平滑跟滚（内部防抖 + 可视区判断）
+        setNewsDayRailActive(current);
+      }
     }
 
     function bindNewsRailTouchGuard(rail) {
@@ -8639,7 +9808,7 @@ function loadFullTVChart(symbol) {
       function markOn() { __newsRailTouching = true; }
       function markOff() {
         // 稍延迟，避免松手瞬间被 scroll spy 立刻拽回
-        setTimeout(function () { __newsRailTouching = false; }, 120);
+        setTimeout(function () { __newsRailTouching = false; }, 160);
       }
       rail.addEventListener('touchstart', markOn, { passive: true });
       rail.addEventListener('touchend', markOff, { passive: true });
@@ -8648,6 +9817,14 @@ function loadFullTVChart(symbol) {
       rail.addEventListener('touchmove', function (e) {
         __newsRailTouching = true;
         e.stopPropagation();
+      }, { passive: true });
+      // 桌面滚轮：只滚日期栏，不带动主列表
+      rail.addEventListener('wheel', function (e) {
+        __newsRailTouching = true;
+        e.stopPropagation();
+        // 不 preventDefault，让日期栏自身仍可滚
+        clearTimeout(rail.__wheelUnlock);
+        rail.__wheelUnlock = setTimeout(function () { __newsRailTouching = false; }, 180);
       }, { passive: true });
     }
 
@@ -8837,6 +10014,26 @@ function loadFullTVChart(symbol) {
         const seen = {};
         const cutoff = Date.now() - 31 * 86400000;
         const colStopped = {}; // 某栏目已翻到头/失败则不再排后续页
+        // 进度：按「已请求页 / 预估总页」估算百分比（栏目提前结束会自然加快）
+        var jobsDone = 0;
+        var jobsTotal = columns.length * maxPages;
+        function reportNewsPct(forcePct) {
+          var pct = forcePct;
+          if (typeof pct !== 'number') {
+            pct = jobsTotal > 0 ? Math.round(jobsDone / jobsTotal * 100) : 0;
+          }
+          if (pct >= 100) pct = 100;
+          else if (pct > 99) pct = 99;
+          if (pct < 1 && jobsDone > 0) pct = 1;
+          window.__newsLoadPctCN = pct;
+          try {
+            if (typeof setNewsLoadingHint === 'function') {
+              // 同步时保留「同步新新闻…」文案，只更新 %
+              setNewsLoadingHint(true, null, pct, 'cn');
+            }
+          } catch (eP) {}
+        }
+        reportNewsPct(2);
 
         function mapAndFilter() {
           const mapped = merged.map(function (item) {
@@ -8908,6 +10105,8 @@ function loadFullTVChart(symbol) {
             colStopped[col] = true;
           }
         }
+        jobsDone = columns.length;
+        reportNewsPct();
         if (merged.length) emit(false);
 
         // 后续页：两两并行。按「页码轮次」推进，每轮最多 2 个在途请求
@@ -8952,10 +10151,20 @@ function loadFullTVChart(symbol) {
                 colStopped[job.col] = true;
               }
             }
+            jobsDone += pair.length;
+            // 已停止的栏目不再计入剩余：动态收紧分母，避免提前停仍卡在低百分比
+            var activeCols = 0;
+            for (var ac = 0; ac < columns.length; ac++) {
+              if (!colStopped[columns[ac]]) activeCols++;
+            }
+            var remainPages = Math.max(0, maxPages - page);
+            jobsTotal = Math.max(jobsDone, jobsDone + activeCols * remainPages);
+            reportNewsPct();
             if (anyAdded) emit(false);
           }
         }
 
+        reportNewsPct(100);
         const finalList = mapAndFilter();
         if (finalList.length) emit(true);
         return finalList.length ? finalList : null;
@@ -8972,9 +10181,12 @@ function loadFullTVChart(symbol) {
 
     async function loadEnglishNews() {
       try {
+        try { if (typeof setNewsLoadingHint === 'function') setNewsLoadingHint(true, null, 12, 'en'); } catch (e0) {}
         const url = `https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_KEY}`;
         const res = await fetch(url);
+        try { if (typeof setNewsLoadingHint === 'function') setNewsLoadingHint(true, null, 70, 'en'); } catch (e1) {}
         const data = await res.json();
+        try { if (typeof setNewsLoadingHint === 'function') setNewsLoadingHint(true, null, 100, 'en'); } catch (e2) {}
         if (!Array.isArray(data) || !data.length) return null;
         return data.slice(0, 40).map(item => {
           const dt = item.datetime ? new Date(item.datetime * 1000) : null;
@@ -9066,15 +10278,33 @@ function loadFullTVChart(symbol) {
       return out;
     }
 
+    // 列表里「最新一条」距离今天差几天：用来判断这份数据是不是新鲜的，
+    // 而不是只看条数/跨度——避免「凑够了天数但全是老新闻」被当成「完整」
+    function newsTopDayAgeDays(list) {
+      if (!list || !list.length) return 999;
+      let maxTs = 0;
+      for (let i = 0; i < list.length; i++) {
+        const ts = list[i] && list[i].ts;
+        if (ts && ts > maxTs) maxTs = ts;
+      }
+      if (!maxTs) return 999;
+      const today0 = new Date();
+      today0.setHours(0, 0, 0, 0);
+      return Math.max(0, Math.round((today0.getTime() - maxTs) / 86400000));
+    }
+
     // 「完整」标准：尽量覆盖近 30 天日期；不按「每天条数上限」卡
     // 达到较多日期覆盖才允许写入后台缓存；未达标只用于当前屏展示
+    // 同时要求「最新一条」足够新鲜（<=1 天），避免右侧日期栏卡在很久以前、
+    // 缺失最近几天（旧完整缓存 + 之后一直没抓到新数据也会被误判为「完整」）
     function isCompleteNewsList(list, completeFlag) {
       if (!list || !list.length) return false;
       const span = newsDaySpan(list);
+      const fresh = newsTopDayAgeDays(list) <= 1;
       // 日期尽量全：优先看跨度；条数只做下限，不设上限
-      if (completeFlag === true) return list.length >= 40 && span >= 12;
+      if (completeFlag === true) return list.length >= 40 && span >= 12 && fresh;
       if (completeFlag === false) return false;
-      return list.length >= 80 && span >= 15;
+      return list.length >= 80 && span >= 15 && fresh;
     }
 
     function readNewsCacheFromDisk() {
@@ -9083,15 +10313,16 @@ function loadFullTVChart(symbol) {
         if (!raw) return;
         const o = JSON.parse(raw);
         if (!o || typeof o !== 'object') return;
-        if (Array.isArray(o.cn) && o.cn.length && isCompleteNewsList(o.cn, o.cnComplete)) {
+        window.__newsCache = window.__newsCache || {};
+        if (Array.isArray(o.cn) && o.cn.length) {
           window.__newsCache.cn = o.cn;
           window.__newsCache.cnAt = o.cnAt || 0;
-          window.__newsCache.cnComplete = true;
+          window.__newsCache.cnComplete = !!(o.cnComplete && isCompleteNewsList(o.cn, true));
         }
-        if (Array.isArray(o.en) && o.en.length && isCompleteNewsList(o.en, o.enComplete)) {
+        if (Array.isArray(o.en) && o.en.length) {
           window.__newsCache.en = o.en;
           window.__newsCache.enAt = o.enAt || 0;
-          window.__newsCache.enComplete = true;
+          window.__newsCache.enComplete = !!(o.enComplete && isCompleteNewsList(o.en, true));
         }
       } catch (e) {}
     }
@@ -9099,10 +10330,10 @@ function loadFullTVChart(symbol) {
     function writeNewsCacheToDisk() {
       try {
         const c = window.__newsCache || {};
-        // 只落盘完整缓存
+        // 有列表就落盘（完整/不完整都存，方便下次切入秒开）
         const payload = {
-          cn: (c.cnComplete && c.cn) ? c.cn.slice(0, 3000) : [],
-          en: (c.enComplete && c.en) ? c.en.slice(0, 200) : [],
+          cn: (c.cn && c.cn.length) ? c.cn.slice(0, 3000) : [],
+          en: (c.en && c.en.length) ? c.en.slice(0, 500) : [],
           cnAt: c.cnAt || 0,
           enAt: c.enAt || 0,
           cnComplete: !!c.cnComplete,
@@ -9114,18 +10345,29 @@ function loadFullTVChart(symbol) {
 
     function saveNewsCache(lang, list, complete) {
       if (!list || !list.length) return;
-      // 规则：只有「完整日期」才进后台缓存；半截进度绝不落盘、不覆盖旧完整缓存
-      if (!complete || !isCompleteNewsList(list, true)) return;
+      // 有内容就落盘（不再要求「必须完整」才保存）
+      var isFull = (complete === true) && (typeof isCompleteNewsList === 'function'
+        ? (lang === 'en' ? (list.length >= 5) : isCompleteNewsList(list, true))
+        : !!complete);
+      // 半截结果不得覆盖「已有更长的完整缓存」
+      try {
+        var old = window.__newsCache || {};
+        var prev = lang === 'cn' ? old.cn : old.en;
+        var prevFull = lang === 'cn' ? !!old.cnComplete : !!old.enComplete;
+        if (prev && prev.length && prevFull && list.length < prev.length * 0.55 && !isFull) {
+          return;
+        }
+      } catch (eKeep) {}
       try { localStorage.setItem(NEWS_CACHE_DAY_KEY, getNewsCacheDayStr()); } catch (e) {}
       window.__newsCache = window.__newsCache || {};
       if (lang === 'cn') {
         window.__newsCache.cn = list;
         window.__newsCache.cnAt = Date.now();
-        window.__newsCache.cnComplete = true;
+        window.__newsCache.cnComplete = isFull;
       } else {
         window.__newsCache.en = list;
         window.__newsCache.enAt = Date.now();
-        window.__newsCache.enComplete = true;
+        window.__newsCache.enComplete = isFull;
       }
       writeNewsCacheToDisk();
     }
@@ -9138,7 +10380,7 @@ function loadFullTVChart(symbol) {
       else window.__newsProgress.en = list;
     }
 
-    function setNewsLoadingHint(show, text) {
+    function setNewsLoadingHint(show, text, pct, langOpt) {
       let el = document.getElementById('newsLoadingHint');
       if (!el) {
         el = document.createElement('div');
@@ -9153,21 +10395,117 @@ function loadFullTVChart(symbol) {
           '<span class="nlh-spin" style="width:14px;height:14px;border-radius:50%;box-sizing:border-box;' +
           'border:2px solid rgba(77,159,255,0.22);border-top-color:#4d9fff;' +
           'display:inline-block;flex-shrink:0;animation:newsHintSpin 0.65s linear infinite;"></span>' +
-          '<span class="nlh-text" style="font-size:0.75rem;font-weight:600;letter-spacing:0.02em;color:#d7e6f7;white-space:nowrap;"></span>';
+          '<span class="nlh-text" style="font-size:0.75rem;font-weight:600;letter-spacing:0.02em;color:#d7e6f7;white-space:nowrap;"></span>' +
+          '<span class="nlh-pct" style="font-family:var(--font-num);font-size:0.72rem;font-weight:700;color:#4d9fff;min-width:2.4em;text-align:right;"></span>';
         document.body.appendChild(el);
       }
+      // 中/英两套进度互不串台
+      var lang = langOpt || (typeof newsLang !== 'undefined' && newsLang === 'en' ? 'en' : 'cn');
+      window.__newsLoadPctCN = window.__newsLoadPctCN || 0;
+      window.__newsLoadPctEN = window.__newsLoadPctEN || 0;
+      window.__newsHintBaseTextCN = window.__newsHintBaseTextCN || '';
+      window.__newsHintBaseTextEN = window.__newsHintBaseTextEN || '';
+
       const page = document.getElementById('page-hot');
       const onHot = page && page.classList.contains('active');
-      if (show && onHot) {
+      // 仅当提示语言 === 当前界面语言时才显示，避免英文进度盖住中文界面
+      var uiLang = (typeof newsLang !== 'undefined' && newsLang === 'en') ? 'en' : 'cn';
+      if (show && onHot && lang === uiLang) {
         el.style.display = 'flex';
+        if (text != null && String(text).length) {
+          if (lang === 'en') window.__newsHintBaseTextEN = String(text);
+          else window.__newsHintBaseTextCN = String(text);
+        }
+        var base = (lang === 'en'
+          ? (window.__newsHintBaseTextEN || 'Loading news…')
+          : (window.__newsHintBaseTextCN || '新闻更新中…'));
         var tx = el.querySelector('.nlh-text');
-        if (tx) tx.textContent = text || '新闻更新中…';
+        if (tx) tx.textContent = base;
+        var pctEl = el.querySelector('.nlh-pct');
+        // pct === false：同步/轻量提示，不显示百分比
+        if (pct === false) {
+          if (lang === 'en') window.__newsHintHidePctEN = true;
+          else window.__newsHintHidePctCN = true;
+          if (pctEl) pctEl.textContent = '';
+        } else {
+          if (lang === 'en') window.__newsHintHidePctEN = false;
+          else window.__newsHintHidePctCN = false;
+          var p = pct;
+          if (typeof p !== 'number' || isNaN(p)) {
+            p = lang === 'en' ? window.__newsLoadPctEN : window.__newsLoadPctCN;
+          }
+          var hide = lang === 'en' ? window.__newsHintHidePctEN : window.__newsHintHidePctCN;
+          if (!hide && typeof p === 'number' && !isNaN(p)) {
+            p = Math.max(0, Math.min(100, Math.round(p)));
+            if (lang === 'en') window.__newsLoadPctEN = p;
+            else window.__newsLoadPctCN = p;
+            if (pctEl) pctEl.textContent = p + '%';
+          } else if (pctEl) {
+            pctEl.textContent = '';
+          }
+        }
+      } else if (!show) {
+        // 只清当前语言的显示；另一语言进度数值保留在内存
+        if (lang === uiLang) {
+          el.style.display = 'none';
+          var pctEl2 = el.querySelector('.nlh-pct');
+          if (pctEl2) pctEl2.textContent = '';
+        }
+        if (lang === 'en') window.__newsLoadPctEN = 0;
+        else window.__newsLoadPctCN = 0;
       } else {
-        el.style.display = 'none';
+        // show 但语言不匹配当前 UI：不改 DOM，只更新该语言内存进度
+        if (typeof pct === 'number' && !isNaN(pct)) {
+          var pp = Math.max(0, Math.min(100, Math.round(pct)));
+          if (lang === 'en') window.__newsLoadPctEN = pp;
+          else window.__newsLoadPctCN = pp;
+        }
+        if (text != null && String(text).length) {
+          if (lang === 'en') window.__newsHintBaseTextEN = String(text);
+          else window.__newsHintBaseTextCN = String(text);
+        }
       }
     }
 
     readNewsCacheFromDisk();
+
+    
+    /** 切入热点：先画缓存/骨架，再请求（体感更快） */
+    function paintHotShellImmediate() {
+      try {
+        if (typeof readNewsCacheFromDisk === 'function') {
+          // 若内存还没有，尝试读盘（幂等）
+          if (!(window.__newsCache && window.__newsCache.cn && window.__newsCache.cn.length)) {
+            readNewsCacheFromDisk();
+          }
+        }
+      } catch (e) {}
+      const container = document.getElementById('newsList');
+      if (!container) return;
+      if (container.querySelector('.news-item')) return; // 已有内容不打扰
+      const lang = (typeof newsLang !== 'undefined' && newsLang === 'en') ? 'en' : 'cn';
+      const cache = window.__newsCache || {};
+      const list = lang === 'cn' ? cache.cn : cache.en;
+      const progress = (window.__newsProgress && (lang === 'cn' ? window.__newsProgress.cn : window.__newsProgress.en)) || null;
+      if (list && list.length && typeof renderNewsItems === 'function') {
+        renderNewsItems(list);
+        return;
+      }
+      if (progress && progress.length && typeof renderNewsItems === 'function') {
+        renderNewsItems(progress);
+        return;
+      }
+      // 骨架占位：先露出界面结构，避免干等空白
+      container.innerHTML =
+        '<div class="news-skel" style="opacity:0.55;">' +
+        [0,1,2,3,4].map(function () {
+          return '<div class="news-item" style="pointer-events:none;">' +
+            '<div class="news-time" style="height:12px;width:42%;background:var(--border);border-radius:4px;margin-bottom:8px;"></div>' +
+            '<div class="news-title" style="height:16px;width:88%;background:var(--border);border-radius:4px;margin-bottom:8px;"></div>' +
+            '<div class="news-summary" style="height:12px;width:70%;background:var(--border);border-radius:4px;"></div>' +
+            '</div>';
+        }).join('') + '</div>';
+    }
 
     async function loadNews(force) {
       // ========== 打开页面逻辑（边加载边展示）==========
@@ -9203,11 +10541,15 @@ function loadFullTVChart(symbol) {
         const cacheFresh = hasCompleteCache && (Date.now() - (cachedAt || 0) < NEWS_CACHE_MS);
         if (hasCompleteCache) window.__newsFillRetry = 0;
 
-        // —— 先展示：完整缓存优先，否则用会话进度 ——
+        // —— 先展示：完整缓存优先，否则用会话进度，否则用「虽不新鲜但好过空白」的旧缓存 ——
+        // 旧缓存即使因为不够新鲜（newsTopDayAgeDays 检查）不被当作「完整」，
+        // 先垫上展示总比空白/转圈强；下面仍会照常发起一次真实拉取来补最新日期
         if (hasCompleteCache) {
           if (loadId === newsLoadId) renderNewsItems(cachedList);
         } else if (progress && progress.length) {
           if (loadId === newsLoadId) renderNewsItems(progress);
+        } else if (cachedList && cachedList.length) {
+          if (loadId === newsLoadId) renderNewsItems(cachedList);
         } else {
           container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">加载新闻中...</div>';
           if (typeof setNewsDayRailVisible === 'function') setNewsDayRailVisible(false);
@@ -9215,7 +10557,7 @@ function loadFullTVChart(symbol) {
 
         // —— 刷新：专门更新「新新闻」，有新内容才写回完整缓存 ——
         if (force) {
-          setNewsLoadingHint(true, '刷新新闻中…');
+          setNewsLoadingHint(true, lang === 'en' ? 'Refreshing…' : '刷新新闻中…', 0, lang);
           const oldCache = hasCompleteCache ? cachedList : null;
           let list = null;
           if (lang === 'cn') {
@@ -9224,11 +10566,12 @@ function loadFullTVChart(symbol) {
               if (!batch || !batch.length) return;
               // 刷新：新数据与旧缓存合并后再展示，避免日期条突然变短
               const merged = mergeNewsLists(oldCache, batch);
-              renderNewsItems(merged);
               setNewsProgress('cn', merged);
-              if (done && isCompleteNewsList(merged, true)) {
-                saveNewsCache('cn', merged, true);
+              if (done) {
+                saveNewsCache('cn', merged, isCompleteNewsList(merged, true));
               }
+              // 边加载边展示：每次合并都更新，靠 pin 钉住当前阅读日不跳页
+              renderNewsItems(merged);
             });
           } else {
             list = await loadEnglishNews();
@@ -9236,6 +10579,9 @@ function loadFullTVChart(symbol) {
               const merged = mergeNewsLists(oldCache, list);
               renderNewsItems(merged);
               saveNewsCache('en', merged, true);
+              setNewsLoadingHint(false, null, null, 'en');
+            } else if (loadId === newsLoadId) {
+              setNewsLoadingHint(false, null, null, 'en');
             }
           }
           if (loadId !== newsLoadId) return false;
@@ -9247,7 +10593,10 @@ function loadFullTVChart(symbol) {
                 if (newsDaySpan(merged) < newsDaySpan(oldCache) && merged.length < oldCache.length) preferF = oldCache;
               }
               if (isCompleteNewsList(preferF, true)) saveNewsCache('cn', preferF, true);
-              else setNewsProgress('cn', preferF);
+              else {
+                setNewsProgress('cn', preferF);
+                saveNewsCache('cn', preferF, false);
+              }
               renderNewsItems(preferF);
             }
           } else if (oldCache && oldCache.length && loadId === newsLoadId) {
@@ -9266,27 +10615,33 @@ function loadFullTVChart(symbol) {
           return true;
         }
 
-        // —— 无完整缓存：边加载边展示，直到完整才停并写入缓存 ——
-        setNewsLoadingHint(true, '新闻加载中…');
+        // —— 无完整缓存（含「有旧缓存但已不新鲜」的情况）：边加载边展示，直到完整才停并写入缓存 ——
+        // 用可能存在的旧缓存（哪怕不够新鲜）当底子合并，这样最新日期边到边补，
+        // 已经在屏幕上的历史日期不会因为一次抓取没覆盖到就凭空消失
+        setNewsLoadingHint(true, lang === 'en' ? 'Loading news…' : '新闻加载中…', 0, lang);
+        const staleBase = (lang === 'cn' && cachedList && cachedList.length) ? cachedList : null;
 
         let list = null;
         if (lang === 'cn') {
           list = await loadChineseNews(function (batch, done) {
             if (loadId !== newsLoadId) return;
             if (!batch || !batch.length) return;
-            // 边下边显（不写后台缓存）
-            renderNewsItems(batch);
-            setNewsProgress('cn', batch);
-            // 只有完整才写缓存
-            if (done && isCompleteNewsList(batch, true)) {
+            const merged = staleBase ? mergeNewsLists(staleBase, batch) : batch;
+            setNewsProgress('cn', merged);
+            if (done && isCompleteNewsList(merged, true)) {
+              saveNewsCache('cn', merged, true);
+            } else if (done && isCompleteNewsList(batch, true)) {
               saveNewsCache('cn', batch, true);
             }
+            // 边加载边展示；已有内容时 pin 钉住视口
+            renderNewsItems(merged);
           });
           if ((!list || !list.length) && !hasCompleteCache && !(progress && progress.length)) {
             list = await loadEnglishNews();
             if (list && list.length) {
               renderNewsItems(list);
               saveNewsCache('en', list, true);
+              setNewsLoadingHint(false, null, null, 'en');
             }
           }
         } else {
@@ -9294,29 +10649,36 @@ function loadFullTVChart(symbol) {
           if (list && list.length && loadId === newsLoadId) {
             renderNewsItems(list);
             saveNewsCache('en', list, true);
+            setNewsLoadingHint(false, null, null, 'en');
+          } else if (loadId === newsLoadId) {
+            setNewsLoadingHint(false, null, null, 'en');
           }
         }
 
         if (loadId !== newsLoadId) return false;
+
+        if (lang === 'cn' && list && list.length && staleBase) {
+          list = mergeNewsLists(staleBase, list);
+        }
 
         if (list && list.length) {
           renderNewsItems(list);
           if (lang === 'cn') {
             if (isCompleteNewsList(list, true)) {
               saveNewsCache('cn', list, true);
-              setNewsLoadingHint(false);
+              setNewsLoadingHint(false, null, null, 'cn');
             } else {
               // 未完整：有限次自动补拉（最多 3 次），直到完整或放弃
               setNewsProgress('cn', list);
               window.__newsFillRetry = (window.__newsFillRetry || 0) + 1;
               if (window.__newsFillRetry <= 3) {
-                setNewsLoadingHint(true, '继续加载全部日期…');
+                setNewsLoadingHint(true, '继续加载全部日期…', null, lang);
                 setTimeout(function () {
                   if (newsLoadId === loadId) loadNews(false);
                 }, 2000);
               } else {
                 window.__newsFillRetry = 0;
-                setNewsLoadingHint(true, '部分日期未加载完，可点刷新重试');
+                setNewsLoadingHint(true, '部分日期未加载完，可点刷新重试', null, lang);
                 setTimeout(function () { setNewsLoadingHint(false); }, 4000);
               }
             }
@@ -9324,7 +10686,7 @@ function loadFullTVChart(symbol) {
           return true;
         }
 
-        if (!hasCompleteCache && !(progress && progress.length)) {
+        if (!hasCompleteCache && !(progress && progress.length) && !(staleBase && staleBase.length)) {
           container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 0;">新闻加载失败，请点刷新重试</div>';
           if (typeof setNewsDayRailVisible === 'function') setNewsDayRailVisible(false);
           return false;
@@ -9340,13 +10702,17 @@ function loadFullTVChart(symbol) {
         }
         return false;
       } finally {
-        // 若仍在「继续加载全部日期」流程中，不要在这里强行关掉提示
-        const c = window.__newsCache || {};
-        const doneOk = (newsLang === 'cn')
-          ? (c.cnComplete && c.cn && isCompleteNewsList(c.cn, true))
-          : (c.enComplete && c.en && c.en.length);
-        if (loadId === newsLoadId && doneOk) setNewsLoadingHint(false);
-        else if (loadId === newsLoadId && force) setNewsLoadingHint(false);
+        // 英文：一次请求结束即关提示（进度 100% 后不应继续挂着）
+        // 中文：完整或强制刷新结束时关；「继续补日期」流程另管
+        if (loadId === newsLoadId) {
+          if (lang === 'en') {
+            setNewsLoadingHint(false, null, null, 'en');
+          } else {
+            const c = window.__newsCache || {};
+            const doneOk = !!(c.cnComplete && c.cn && isCompleteNewsList(c.cn, true));
+            if (doneOk || force) setNewsLoadingHint(false, null, null, 'cn');
+          }
+        }
       }
     }
 
@@ -9359,7 +10725,8 @@ function loadFullTVChart(symbol) {
         const onHot = page && page.classList.contains('active');
         // 有完整缓存时提示更轻，避免打扰阅读
         const hasCn = window.__newsCache && window.__newsCache.cnComplete && window.__newsCache.cn;
-        if (onHot) setNewsLoadingHint(true, hasCn ? '同步新新闻…' : '检查新新闻…');
+        window.__newsQuietRefresh = true;
+        if (onHot) setNewsLoadingHint(true, hasCn ? '同步新新闻…' : '检查新新闻…', 0, (lang === 'en' || newsLang === 'en') ? 'en' : 'cn');
 
         if (lang === 'cn' || !lang) {
           const old = (window.__newsCache && window.__newsCache.cn) || null;
@@ -9379,10 +10746,10 @@ function loadFullTVChart(symbol) {
             if (old && old.length) {
               if (newsDaySpan(merged) < newsDaySpan(old) && merged.length < old.length) prefer = old;
             }
-            if (isCompleteNewsList(prefer, true)) {
-              saveNewsCache('cn', prefer, true);
-            } else if (isCompleteNewsList(merged, true)) {
-              saveNewsCache('cn', merged, true);
+            if (prefer && prefer.length) {
+              saveNewsCache('cn', prefer, isCompleteNewsList(prefer, true));
+            } else if (merged && merged.length) {
+              saveNewsCache('cn', merged, isCompleteNewsList(merged, true));
             }
 
             if (onHot && newsLang === 'cn' && changed) {
@@ -9404,7 +10771,8 @@ function loadFullTVChart(symbol) {
         }
       } catch (e) {
       } finally {
-        setNewsLoadingHint(false);
+        window.__newsQuietRefresh = false;
+        setNewsLoadingHint(false, null, null, (lang === 'en' || (typeof newsLang !== 'undefined' && newsLang === 'en')) ? 'en' : 'cn');
       }
     }
 
@@ -9437,8 +10805,8 @@ function loadFullTVChart(symbol) {
         loadChineseNews(function (batch, done) {
           if (!batch || !batch.length) return;
           if (typeof setNewsProgress === 'function') setNewsProgress('cn', batch);
-          if (done && isCompleteNewsList(batch, true)) {
-            saveNewsCache('cn', batch, true);
+          if (done || (batch && batch.length >= 40)) {
+            saveNewsCache('cn', batch, !!(done && isCompleteNewsList(batch, true)));
           }
         }).then(function (list) {
           if (list && list.length) {
@@ -15436,7 +16804,7 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
     // ==================== 页面切换 ====================
     const titles = {
       watch:  { title: '观察列表', sub: '实时股票自选' },
-      val:    { title: '估值', sub: '功能建设中 · 更多模块陆续上线' },
+      val:    { title: '数析', sub: '功能建设中 · 更多模块陆续上线' },
       asset:  { title: '全球大类资产', sub: '黄金 · 美元 · 原油 · 美债实时' },
       macro:  { title: '宏观快照', sub: '美国 / 中国 · 国债与利率' },
       hot:    { title: '本周热点', sub: '政策 · 财报 · 通胀三大主线' },
@@ -15454,7 +16822,7 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
         document.getElementById('pageTitle').textContent = titles[target].title;
         document.getElementById('pageSub').textContent = titles[target].sub;
         // 权重模型按钮只跟「观察列表」相关（它决定的是这个页面里预↑/预↓的算法），
-        // 切到其它页面（估值/资产/宏观/热点/日历/板块）就把它隐藏，避免占位置、
+        // 切到其它页面（数析/资产/宏观/热点/日历/板块）就把它隐藏，避免占位置、
         // 也避免用户误以为别的页面也受它影响。
         const wmBtn = document.getElementById('weightModelBtn');
         if (wmBtn) wmBtn.style.display = (target === 'watch') ? '' : 'none';
@@ -15478,13 +16846,16 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
         if (target === 'watch') refreshQuotes();
         else if (target === 'asset') {
           try { if (typeof refreshAssets === 'function') refreshAssets(false); } catch (e) {}
+        } else if (target === 'hot') {
+          try { if (typeof paintHotShellImmediate === 'function') paintHotShellImmediate(); } catch (eH) {}
+          ensurePageLoaded(target);
         } else ensurePageLoaded(target);
       });
     });
 
     // ==================== 后台预加载 ====================
     // 观察列表（首屏）加载完之后，不用等用户点开其它分栏才去请求数据，
-    // 而是在后台按顺序把「估值/资产/宏观/热点/日历/板块」都提前加载好、
+    // 而是在后台按顺序把「数析/资产/宏观/热点/日历/板块」都提前加载好、
     // 写进各自的隐藏页面容器里。之后用户切到哪个分栏，只要预加载已经
     // 跑到过它，就直接显示已经渲染好的内容，不用再等一次网络请求；
     // 如果预加载还没轮到（比如切得比预加载快）或者预加载失败了，
@@ -15803,7 +17174,7 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
       }
     });
 
-    // 估值模块：系统返回 / 手势返回 → 从二级模块回到模块列表
+    // 数析模块：系统返回 / 手势返回 → 从二级模块回到模块列表
     window.addEventListener('popstate', function (e) {
       try {
         var page = document.getElementById('page-val') || document.getElementById('page-valuation');
