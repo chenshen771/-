@@ -9373,7 +9373,7 @@ async function openDetail(symbol, isRestore) {
       const chartWrap = document.querySelector('.chart-wrap');
       if (chartWrap) chartWrap.style.display = '';
 
-      // 有缓存先出价格+基础 OHLC，体感更快（近3日日线仍后台拉）
+      // 有缓存先出价格+OHLC；近3日若已预热则直接画，不再转圈
       try {
         const cq = quoteCache[symbol];
         if (cq && cq.c > 0) {
@@ -9383,18 +9383,30 @@ async function openDetail(symbol, isRestore) {
           const el0 = document.getElementById('detailChg');
           el0.innerHTML = chgAmtPctHtml(d0, dp0);
           el0.className = 'detail-chg ' + (dp0 > 0 ? 'up' : dp0 < 0 ? 'down' : 'flat');
-          // 全量刷新预热过的票：立刻画出最高/最低/今开/昨收，避免一直停在「加载个股详情」
           var hi = (cq.h > 0) ? Number(cq.h).toFixed(2) : '--';
           var lo = (cq.l > 0) ? Number(cq.l).toFixed(2) : '--';
           var op = (cq.o > 0) ? Number(cq.o).toFixed(2) : '--';
           var pc = (cq.pc > 0) ? Number(cq.pc).toFixed(2) : '--';
           if (hi !== '--' || lo !== '--' || op !== '--' || pc !== '--') {
-            document.getElementById('detailGrid').innerHTML =
+            var head4 =
               '<div class="detail-stat"><div class="label">最高</div><div class="val" style="color:var(--green);">' + hi + '</div></div>' +
               '<div class="detail-stat"><div class="label">最低</div><div class="val" style="color:var(--red);">' + lo + '</div></div>' +
               '<div class="detail-stat"><div class="label">今开</div><div class="val">' + op + '</div></div>' +
-              '<div class="detail-stat"><div class="label">昨收</div><div class="val">' + pc + '</div></div>' +
-              '<div style="grid-column:1/-1;"><div class="detail-loading inline"><div class="dl-spin"></div><div>近3日对比加载中…</div></div></div>';
+              '<div class="detail-stat"><div class="label">昨收</div><div class="val">' + pc + '</div></div>';
+            var dayPart = '';
+            try {
+              window.__usDayHistCache = window.__usDayHistCache || {};
+              var mem0 = window.__usDayHistCache[String(symbol).toUpperCase()];
+              if (mem0 && mem0.pairs && mem0.pairs.length && typeof buildDayHistSectionHtml === 'function') {
+                window.__detailHistCtx = { pairs: mem0.pairs, market: 'us' };
+                window.__detailDayHistExpanded = false;
+                dayPart = buildDayHistSectionHtml(mem0.pairs, 'us', false);
+              }
+            } catch (eMem) {}
+            if (!dayPart) {
+              dayPart = '<div style="grid-column:1/-1;"><div class="detail-loading inline"><div class="dl-spin"></div><div>近3日对比加载中…</div></div></div>';
+            }
+            document.getElementById('detailGrid').innerHTML = head4 + dayPart;
           }
         }
       } catch (e) {}
