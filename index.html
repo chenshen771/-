@@ -75,7 +75,7 @@
       top: 50%;
       transform: translateY(-50%);
       right: 14px;
-      z-index: 50;
+      z-index: 90;
       display: flex;
       flex-direction: column;
       align-items: flex-end;
@@ -1568,10 +1568,10 @@
     .net-status .net-text { white-space: nowrap; }
     .net-panel {
       display: none;
-      position: absolute;
-      top: calc(100% + 6px);
-      right: 0;
-      z-index: 80;
+      position: fixed;
+      top: 56px;
+      right: 10px;
+      z-index: 120;
       width: min(300px, 86vw);
       background: rgba(15, 22, 32, 0.98);
       border: 1px solid var(--border);
@@ -1582,6 +1582,17 @@
       pointer-events: auto;
     }
     .net-panel.show { display: block; }
+    /* 仅挡住下层页面；层级低于面板，避免挡住「刷新」 */
+    .net-panel-mask {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 110;
+      background: transparent;
+      pointer-events: auto;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .net-panel-mask.show { display: block; }
     .net-panel .np-hd {
       display: flex; justify-content: space-between; align-items: center;
       margin-bottom: 10px; padding: 0 2px;
@@ -1754,6 +1765,7 @@
       </div>
     </div>
   </header>
+  <div class="net-panel-mask" id="netPanelMask" aria-hidden="true"></div>
 
   <!-- ========== 观察列表（新增，默认打开） ========== -->
   <div class="page active" id="page-watch">
@@ -18142,14 +18154,18 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
 
     function toggleNetPanel(show) {
       const panel = document.getElementById('netPanel');
+      const mask = document.getElementById('netPanelMask');
       if (!panel) return;
       var on = (show === true) || (show !== false && !panel.classList.contains('show'));
       if (show === false) on = false;
       panel.classList.toggle('show', on);
       panel.setAttribute('aria-hidden', on ? 'false' : 'true');
+      if (mask) {
+        mask.classList.toggle('show', on);
+        mask.setAttribute('aria-hidden', on ? 'false' : 'true');
+      }
       if (on) {
         renderNetPanelBody();
-        // 打开时若超过 8s 未测过，立刻再测一轮
         if (!lastNetProbeAt || Date.now() - lastNetProbeAt > 8000) {
           probeNetworkLatency(true);
         }
@@ -18159,23 +18175,45 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
     function startNetMonitor() {
       const el = document.getElementById('netStatus');
       const panel = document.getElementById('netPanel');
+      const mask = document.getElementById('netPanelMask');
       const btn = document.getElementById('netPanelRefresh');
       if (el) {
         el.addEventListener('click', function (e) {
+          e.preventDefault();
           e.stopPropagation();
           toggleNetPanel();
         });
       }
-      if (btn) {
-        btn.addEventListener('click', function (e) {
-          e.stopPropagation();
-          probeNetworkLatency(true);
-        });
-      }
+      // 刷新：只测速，绝不关面板（用 document 级委托，避免 innerHTML 重绘后丢监听）
+      document.addEventListener('click', function (e) {
+        var t = e.target;
+        if (!t) return;
+        var hit = (t.id === 'netPanelRefresh') || (t.closest && t.closest('#netPanelRefresh'));
+        if (!hit) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        probeNetworkLatency(true);
+      }, true);
       if (panel) {
-        panel.addEventListener('click', function (e) { e.stopPropagation(); });
+        panel.addEventListener('click', function (e) {
+          e.stopPropagation();
+        });
+        panel.addEventListener('touchend', function (e) {
+          e.stopPropagation();
+        }, { passive: true });
       }
-      document.addEventListener('click', function () { toggleNetPanel(false); });
+      // 只有点遮罩（面板外的页面区域）才关闭；点面板内任意处（含刷新）不关
+      if (mask) {
+        function closeFromMask(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+          toggleNetPanel(false);
+        }
+        mask.addEventListener('click', closeFromMask);
+        mask.addEventListener('touchend', closeFromMask, { passive: false });
+      }
       probeNetworkLatency();
       setInterval(function () { probeNetworkLatency(false); }, 15000);
     }
