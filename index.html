@@ -3842,7 +3842,7 @@
         return { news: 0, earnings: 0, market: 0, tag: '' };
       }
       const cache = window.__refSignalCache[sym];
-      if (cache && Date.now() - cache.at < 5 * 60 * 1000) return cache;
+      if (cache && Date.now() - cache.at < 45 * 60 * 1000) return cache;
       const key = (typeof FINNHUB_KEY !== 'undefined') ? FINNHUB_KEY : '';
       let newsScore = 0, earnScore = 0, tag = '';
       try {
@@ -3898,6 +3898,12 @@
     }
 
     async function enrichWatchlistRefSignals() {
+
+      // 减 Finnhub：仅观察页可见时跑；后台不刷公司新闻/财报日历
+      try {
+        var wp = document.getElementById('page-watch');
+        if (!wp || !wp.classList.contains('active')) return;
+      } catch (eSkip) { return; }
       if (!watchlist || !watchlist.length) return;
       const us = watchlist.filter(function (s) {
         return !(typeof isAShareSymbol === 'function' && isAShareSymbol(s));
@@ -9016,34 +9022,111 @@ async function refreshAssets(force, opts) {
         try { await ensureFinFxRates(false); } catch (eFx) {}
         if (isCN || /^\d{6}$/.test(String(sym))) {
           var code = String(sym).replace(/\D/g, '').slice(0, 6);
-          var cnData = await fetchCNStockFinance(code);
-          if (tok !== __financeLoadTok) return;
-          __finLastCtx = {
-            kind: 'cn',
-            code: code,
-            data: cnData,
-            rebuild: function () {
-              return ensureFinFxRates(false).then(function () {
-                renderFinancePanel(buildCNFinanceHtml(code, cnData));
-              });
+          var cnData = null;
+          var cnFromCloud = false;
+          // 数据库缓存：先展示，再后台拉新并回写（有新数据就更新库）
+          try {
+            if (typeof cloudCacheGet === 'function') {
+              var wrapCn = await cloudCacheGet('finance:cn:' + code);
+              if (wrapCn && wrapCn.data && wrapCn.data.payload) {
+                cnData = wrapCn.data.payload;
+                cnFromCloud = true;
+              }
             }
-          };
-          renderFinancePanel(buildCNFinanceHtml(code, cnData));
+          } catch (eC0) {}
+          if (cnData) {
+            if (tok !== __financeLoadTok) return;
+            __finLastCtx = {
+              kind: 'cn', code: code, data: cnData,
+              rebuild: function () {
+                return ensureFinFxRates(false).then(function () {
+                  renderFinancePanel(buildCNFinanceHtml(code, cnData));
+                });
+              }
+            };
+            renderFinancePanel(buildCNFinanceHtml(code, cnData));
+          }
+          // 无论是否命中缓存，打开财务后都拉一次最新；成功则写回 D1
+          (function (codeKeep, tokKeep, hadCloud) {
+            fetchCNStockFinance(codeKeep).then(function (fresh) {
+              if (tokKeep !== __financeLoadTok) return;
+              if (!fresh) return;
+              cnData = fresh;
+              try {
+                if (typeof cloudCacheSetBg === 'function') {
+                  cloudCacheSetBg('finance:cn:' + codeKeep, { payload: fresh, at: Date.now() }, 2);
+                }
+              } catch (eW) {}
+              __finLastCtx = {
+                kind: 'cn', code: codeKeep, data: fresh,
+                rebuild: function () {
+                  return ensureFinFxRates(false).then(function () {
+                    renderFinancePanel(buildCNFinanceHtml(codeKeep, fresh));
+                  });
+                }
+              };
+              renderFinancePanel(buildCNFinanceHtml(codeKeep, fresh));
+            }).catch(function () {
+              if (tokKeep !== __financeLoadTok) return;
+              if (!hadCloud) {
+                renderFinancePanel('<div class="detail-finance-placeholder">财务数据加载失败<br/><span style="font-size:0.75rem;">请稍后重试</span></div>');
+              }
+            });
+          })(code, tok, cnFromCloud);
+          if (!cnData) {
+            // 无缓存时保持 loading，等上面网络返回
+          }
         } else {
           var usSym = String(sym).toUpperCase();
-          var usData = await fetchUSStockFinance(usSym);
-          if (tok !== __financeLoadTok) return;
-          __finLastCtx = {
-            kind: 'us',
-            symbol: usSym,
-            data: usData,
-            rebuild: function () {
-              return ensureFinFxRates(false).then(function () {
-                renderFinancePanel(buildUSFinanceHtml(usSym, usData));
-              });
+          var usData = null;
+          var usFromCloud = false;
+          try {
+            if (typeof cloudCacheGet === 'function') {
+              var wrapUs = await cloudCacheGet('finance:us:' + usSym);
+              if (wrapUs && wrapUs.data && wrapUs.data.payload) {
+                usData = wrapUs.data.payload;
+                usFromCloud = true;
+              }
             }
-          };
-          renderFinancePanel(buildUSFinanceHtml(usSym, usData));
+          } catch (eU0) {}
+          if (usData) {
+            if (tok !== __financeLoadTok) return;
+            __finLastCtx = {
+              kind: 'us', symbol: usSym, data: usData,
+              rebuild: function () {
+                return ensureFinFxRates(false).then(function () {
+                  renderFinancePanel(buildUSFinanceHtml(usSym, usData));
+                });
+              }
+            };
+            renderFinancePanel(buildUSFinanceHtml(usSym, usData));
+          }
+          (function (symKeep, tokKeep, hadCloud) {
+            fetchUSStockFinance(symKeep).then(function (fresh) {
+              if (tokKeep !== __financeLoadTok) return;
+              if (!fresh) return;
+              usData = fresh;
+              try {
+                if (typeof cloudCacheSetBg === 'function') {
+                  cloudCacheSetBg('finance:us:' + symKeep, { payload: fresh, at: Date.now() }, 2);
+                }
+              } catch (eW2) {}
+              __finLastCtx = {
+                kind: 'us', symbol: symKeep, data: fresh,
+                rebuild: function () {
+                  return ensureFinFxRates(false).then(function () {
+                    renderFinancePanel(buildUSFinanceHtml(symKeep, fresh));
+                  });
+                }
+              };
+              renderFinancePanel(buildUSFinanceHtml(symKeep, fresh));
+            }).catch(function () {
+              if (tokKeep !== __financeLoadTok) return;
+              if (!hadCloud) {
+                renderFinancePanel('<div class="detail-finance-placeholder">财务数据加载失败<br/><span style="font-size:0.75rem;">请稍后重试</span></div>');
+              }
+            });
+          })(usSym, tok, usFromCloud);
         }
       } catch (err) {
         if (tok !== __financeLoadTok) return;
@@ -9134,7 +9217,7 @@ async function openDetail(symbol, isRestore) {
       document.getElementById('detailPrice').textContent = '加载中...';
       document.getElementById('detailChg').textContent = '';
       document.getElementById('detailChg').className = 'detail-chg flat';
-      // 云端详情快照：有则先显示，减少干等
+      // 数据库详情快照：有则先显示；下方仍会拉最新价并回写 D1
       try {
         cloudCacheGet('detail:us:' + String(symbol).toUpperCase()).then(function (wrap) {
           try {
@@ -12261,6 +12344,13 @@ const FALLBACK_SECTORS = {
     }
 
     async function fullRefreshSectors() {
+      try {
+        // 手动刷新 / 新一天：才全量热美股板块报价（Finnhub），平时不后台扫
+        if (typeof sectorMarket !== 'undefined' && sectorMarket === 'us' && typeof warmUSSectorQuoteCache === 'function') {
+          setTimeout(function () { warmUSSectorQuoteCache(true); }, 400);
+        }
+      } catch (eWarm) {}
+
       const mkt = currentSectorMkt();
       if (window.__sectorRefreshBusy[mkt]) {
         try { setSectorToast(true, (mkt === 'cn' ? 'A股' : '美股') + '正在完整刷新…', 1500); } catch (e) {}
@@ -17744,10 +17834,11 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
       try { saveQuoteCacheToDisk(); } catch (e) {}
     }
     function startUSSectorQuoteBackground() {
+      // 为避免 Finnhub 限流：不再定时后台扫全板块股票。
+      // 仅在「新一天」或用户点板块「刷新」时通过 fullRefreshSectors / warmUSSectorQuoteCache(true) 拉行情并缓存。
       if (window.__usQuoteBgStarted) return;
       window.__usQuoteBgStarted = true;
-      setTimeout(function () { warmUSSectorQuoteCache(false); }, 2500);
-      setInterval(function () { warmUSSectorQuoteCache(false); }, 12 * 60 * 1000);
+      // 启动时若本地已有报价缓存则不主动打 Finnhub
     }
 
     // ==================== 初始化 ====================
@@ -17762,13 +17853,28 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
     setTimeout(function () { if (typeof fhWsConnect === 'function') fhWsConnect(); }, 500);
     // 观察列表首屏出来之后，再在后台把其余分栏悄悄预加载好
     setTimeout(function () {
-      // 尽早后台预拉中文新闻，进热点可秒开/边下边显
-      if (typeof preloadNewsInBackground === 'function') preloadNewsInBackground();
+      // 新闻：仅当本地无「当日完整缓存」时才后台预拉，避免重复打源导致限流
+      try {
+        if (typeof preloadNewsInBackground === 'function') {
+          var nc = window.__newsCache || {};
+          var hasCn = nc.cn && nc.cn.length && nc.cnComplete;
+          var hasEn = nc.en && nc.en.length && nc.enComplete;
+          var sameDay = false;
+          try {
+            var at = nc.cnAt || nc.enAt || 0;
+            if (at) {
+              var d0 = new Date(at), d1 = new Date();
+              sameDay = d0.getFullYear() === d1.getFullYear() && d0.getMonth() === d1.getMonth() && d0.getDate() === d1.getDate();
+            }
+          } catch (eDay) {}
+          if (!(sameDay && (hasCn || hasEn))) preloadNewsInBackground();
+        }
+      } catch (ePre) {
+        try { if (typeof preloadNewsInBackground === 'function') preloadNewsInBackground(); } catch (e2) {}
+      }
       runBackgroundPreload().then(function () {
-        // 几个主要分栏都预加载完之后，再顺手把「板块」页往下钻会用到的
-        // 共享数据缓存也热一遍（细节见上面的注释）
+        // 板块美股：不再启动定时 Finnhub 热缓存；A股榜单仍可预热（不走 Finnhub）
         if (typeof startUSSectorQuoteBackground === 'function') startUSSectorQuoteBackground();
-        else if (typeof warmUSSectorQuoteCache === 'function') warmUSSectorQuoteCache();
         if (typeof loadCNBoardUniverse === 'function') loadCNBoardUniverse().catch(function () {});
       });
     }, 1200);
@@ -17873,12 +17979,22 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
         url: 'https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_F10_FINANCE_MAINFINADATA&columns=SECUCODE&pageNumber=1&pageSize=1&filter=(SECUCODE%3D%22000001.SZ%22)&_=' + Date.now()
       });
       var fhToken = (typeof FINNHUB_KEY !== 'undefined' && FINNHUB_KEY) ? FINNHUB_KEY : 'demo';
-      list.push({
-        id: 'finnhub',
-        name: 'Finnhub',
-        desc: '美股行情 · EPS',
-        url: 'https://finnhub.io/api/v1/quote?symbol=AAPL&token=' + encodeURIComponent(fhToken) + '&_=' + Date.now()
-      });
+      // 探测优先走 Worker /api/quote，减少浏览器直连 Finnhub 占免费额度
+      if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
+        list.push({
+          id: 'finnhub',
+          name: 'Finnhub',
+          desc: '美股行情 · 经代理',
+          url: WORKER_BASE.replace(/\?.*$/, '') + '/api/quote?symbol=AAPL&_=' + Date.now()
+        });
+      } else {
+        list.push({
+          id: 'finnhub',
+          name: 'Finnhub',
+          desc: '美股行情 · EPS',
+          url: 'https://finnhub.io/api/v1/quote?symbol=AAPL&token=' + encodeURIComponent(fhToken) + '&_=' + Date.now()
+        });
+      }
       // Yahoo：真实拉数经 Worker 转发，探测也走代理，避免直连 CORS/Crumb 误报失败
       var yRaw = 'https://query1.finance.yahoo.com/v8/finance/chart/AAPL?interval=1d&range=1d&_=' + Date.now();
       if (typeof WORKER_BASE !== 'undefined' && WORKER_BASE) {
