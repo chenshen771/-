@@ -2084,6 +2084,67 @@
     // 你的 Finnhub API Key（已填入）
     const FINNHUB_KEY = 'd9os0vhr01qou11on900d9os0vhr01qou11on90g';
     const WORKER_BASE = 'https://gushi.chenshen.workers.dev';
+    // 与 Worker Secret APP_SECRET 一致，仅用于写云端缓存（个人站）
+    const APP_CLOUD_KEY = 'gushi-wangye';
+
+    /** 读 D1 云端缓存（打开网页时用；关网页不更新） */
+    async function cloudCacheGet(key) {
+      try {
+        if (!WORKER_BASE || !key) return null;
+        const url = WORKER_BASE.replace(/\?.*$/, '') + '/api/cache?key=' + encodeURIComponent(key);
+        const r = await fetch(url, { cache: 'no-store' });
+        if (!r.ok) return null;
+        const j = await r.json();
+        if (!j || !j.found) return null;
+        return j;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    /** 写 D1 云端缓存；ttlDays 过期后自动视为无效并可被清理 */
+    async function cloudCacheSet(key, data, ttlDays) {
+      try {
+        if (!WORKER_BASE || !key) return false;
+        const url = WORKER_BASE.replace(/\?.*$/, '') + '/api/cache';
+        const body = { key: key, data: data };
+        if (ttlDays != null && ttlDays > 0) body.ttlDays = ttlDays;
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-App-Key': APP_CLOUD_KEY
+          },
+          body: JSON.stringify(body)
+        });
+        return r.ok;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function cloudCacheSetBg(key, data, ttlDays) {
+      try {
+        cloudCacheSet(key, data, ttlDays).catch(function () {});
+      } catch (e) {}
+    }
+
+    /** 清理某前缀下过旧缓存（例如 news: 超过 30 天） */
+    async function cloudCachePurge(prefix, maxAgeDays) {
+      try {
+        if (!WORKER_BASE) return;
+        const url = WORKER_BASE.replace(/\?.*$/, '') + '/api/cache/purge';
+        await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-App-Key': APP_CLOUD_KEY
+          },
+          body: JSON.stringify({ prefix: prefix || '', maxAgeDays: maxAgeDays || 30 })
+        });
+      } catch (e) {}
+    }
+
 
     // 默认观察列表
     const DEFAULT_WATCH = ['AAPL', 'NVDA', 'TSLA', 'MSFT', 'GOOGL', 'META', 'AMZN'];
@@ -9073,6 +9134,32 @@ async function openDetail(symbol, isRestore) {
       document.getElementById('detailPrice').textContent = '加载中...';
       document.getElementById('detailChg').textContent = '';
       document.getElementById('detailChg').className = 'detail-chg flat';
+      // 云端详情快照：有则先显示，减少干等
+      try {
+        cloudCacheGet('detail:us:' + String(symbol).toUpperCase()).then(function (wrap) {
+          try {
+            if (!wrap || !wrap.data) return;
+            var d = wrap.data;
+            var priceEl = document.getElementById('detailPrice');
+            if (!priceEl || priceEl.textContent !== '加载中...') return;
+            if (d.c != null && d.c > 0) {
+              priceEl.textContent = Number(d.c).toFixed(2);
+              var chgEl = document.getElementById('detailChg');
+              if (chgEl && d.dp != null) {
+                chgEl.innerHTML = (typeof chgAmtPctHtml === 'function')
+                  ? chgAmtPctHtml(d.d, d.dp)
+                  : ((d.dp >= 0 ? '+' : '') + Number(d.dp).toFixed(2) + '%');
+                chgEl.className = 'detail-chg ' + (typeof chgClass === 'function' ? chgClass(d.dp) : (d.dp >= 0 ? 'up' : 'down'));
+              }
+              if (typeof quoteCache !== 'undefined') {
+                quoteCache[symbol] = Object.assign({}, quoteCache[symbol] || {}, {
+                  c: d.c, d: d.d, dp: d.dp, h: d.h, l: d.l, o: d.o, pc: d.pc, _fromCloud: true
+                });
+              }
+            }
+          } catch (ePaint) {}
+        });
+      } catch (eCloudGet) {}
       try { switchDetailMainTab('chart'); } catch (eTab) {}
       window.__detailDayHistExpanded = false;
       document.getElementById('detailGrid').innerHTML =
@@ -9196,6 +9283,22 @@ async function openDetail(symbol, isRestore) {
         const dStr = (d != null && !isNaN(d)) ? ((d >= 0 ? '+' : '') + Number(d).toFixed(2)) : '';
         chgEl.innerHTML = chgAmtPctHtml(d, dp);
         chgEl.className = 'detail-chg ' + chgClass(dp);
+        // 详情行情写入云端（约 5 天；更旧由 purge 删）
+        try {
+          if (typeof cloudCacheSetBg === 'function' && symbol) {
+            cloudCacheSetBg(
+              'detail:us:' + String(symbol).toUpperCase(),
+              { c: q.c, d: d, dp: dp, h: q.h, l: q.l, o: q.o, pc: q.pc, at: Date.now() },
+              5
+            );
+            if (!window.__detailCloudPurged) {
+              window.__detailCloudPurged = true;
+              setTimeout(function () {
+                if (typeof cloudCachePurge === 'function') cloudCachePurge('detail:', 5);
+              }, 10000);
+            }
+          }
+        } catch (eSaveCloud) {}
       } else {
         document.getElementById('detailPrice').textContent = '--';
         document.getElementById('detailChg').textContent = '暂无有效报价';
@@ -10964,6 +11067,18 @@ function renderNewsDayRail(dayKeys, opts) {
         window.__newsCache.enComplete = isFull;
       }
       writeNewsCacheToDisk();
+      // 同步一份到 D1（与网页一致约 30 天；过期再清）
+      try {
+        cloudCacheSetBg(
+          'news:' + lang,
+          { list: list, complete: isFull, at: Date.now(), lang: lang },
+          30
+        );
+        if (!window.__newsCloudPurged) {
+          window.__newsCloudPurged = true;
+          setTimeout(function () { cloudCachePurge('news:', 30); }, 8000);
+        }
+      } catch (eCloud) {}
     }
 
     // 仅当前会话展示用的进度（不进 localStorage）
@@ -11127,9 +11242,30 @@ function renderNewsDayRail(dayKeys, opts) {
         }
 
         const cache = window.__newsCache || {};
-        const cachedList = lang === 'cn' ? cache.cn : cache.en;
-        const cachedAt = lang === 'cn' ? cache.cnAt : cache.enAt;
-        const cachedComplete = lang === 'cn' ? !!cache.cnComplete : !!cache.enComplete;
+        let cachedList = lang === 'cn' ? cache.cn : cache.en;
+        let cachedAt = lang === 'cn' ? cache.cnAt : cache.enAt;
+        let cachedComplete = lang === 'cn' ? !!cache.cnComplete : !!cache.enComplete;
+        // 本地无缓存时尝试 D1 云端（换设备也能先出一版）
+        if ((!cachedList || !cachedList.length) && typeof cloudCacheGet === 'function') {
+          try {
+            const wrap = await cloudCacheGet('news:' + lang);
+            if (wrap && wrap.data && wrap.data.list && wrap.data.list.length) {
+              cachedList = wrap.data.list;
+              cachedAt = wrap.data.at || Date.now();
+              cachedComplete = !!wrap.data.complete;
+              window.__newsCache = window.__newsCache || {};
+              if (lang === 'cn') {
+                window.__newsCache.cn = cachedList;
+                window.__newsCache.cnAt = cachedAt;
+                window.__newsCache.cnComplete = cachedComplete;
+              } else {
+                window.__newsCache.en = cachedList;
+                window.__newsCache.enAt = cachedAt;
+                window.__newsCache.enComplete = cachedComplete;
+              }
+            }
+          } catch (eCloudNews) {}
+        }
         const hasCompleteCache = !!(cachedList && cachedList.length && cachedComplete && isCompleteNewsList(cachedList, true));
         const progress = (window.__newsProgress && (lang === 'cn' ? window.__newsProgress.cn : window.__newsProgress.en)) || null;
         const cacheFresh = hasCompleteCache && (Date.now() - (cachedAt || 0) < NEWS_CACHE_MS);
