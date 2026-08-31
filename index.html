@@ -1582,17 +1582,6 @@
       pointer-events: auto;
     }
     .net-panel.show { display: block; }
-    /* 仅挡住下层页面；层级低于面板，避免挡住「刷新」 */
-    .net-panel-mask {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 110;
-      background: transparent;
-      pointer-events: auto;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .net-panel-mask.show { display: block; }
     .net-panel .np-hd {
       display: flex; justify-content: space-between; align-items: center;
       margin-bottom: 10px; padding: 0 2px;
@@ -1765,7 +1754,6 @@
       </div>
     </div>
   </header>
-  <div class="net-panel-mask" id="netPanelMask" aria-hidden="true"></div>
 
   <!-- ========== 观察列表（新增，默认打开） ========== -->
   <div class="page active" id="page-watch">
@@ -10781,11 +10769,18 @@ function renderNewsDayRail(dayKeys, opts) {
       return mo + '月' + da + '日 周' + weeks[dt.getDay()] + tag;
     }
 
-    // 单飞：避免预加载与打开热点同时打两套东方财富请求互相拖死
+    // 单飞 + 可打断：手动刷新 forceRestart 抬世代号，旧任务尽快退出，新任务优先
     let __cnNewsInflight = null;
     let __cnNewsListeners = [];
+    let __cnNewsGen = 0;
 
-    async function loadChineseNews(onBatch) {
+    async function loadChineseNews(onBatch, opts) {
+      opts = opts || {};
+      if (opts.forceRestart) {
+        __cnNewsGen++;
+        __cnNewsInflight = null;
+        __cnNewsListeners = [];
+      }
       if (typeof onBatch === 'function') __cnNewsListeners.push(onBatch);
       if (__cnNewsInflight) {
         try { return await __cnNewsInflight; } finally {
@@ -10793,7 +10788,9 @@ function renderNewsDayRail(dayKeys, opts) {
         }
       }
 
+      const myGen = __cnNewsGen;
       const run = (async function () {
+        function aborted() { return myGen !== __cnNewsGen; }
         // 策略：
         // - 当天/全量：每个日期不限条数，能拿多少拿多少
         // - 近约 30 天：尽量覆盖全部日期，不人为砍条数
@@ -10900,10 +10897,18 @@ function renderNewsDayRail(dayKeys, opts) {
         jobsDone = columns.length;
         reportNewsPct();
         if (merged.length) emit(false);
+        if (aborted()) {
+          var early = mapAndFilter();
+          return early.length ? early : null;
+        }
 
         // 后续页：两两并行。按「页码轮次」推进，每轮最多 2 个在途请求
         // 某栏目空页 / 全重复 / 已早于 30 天窗口 → 标记停止，不再为它排更后页
         for (let page = 2; page <= maxPages; page++) {
+          if (aborted()) {
+            var early2 = mapAndFilter();
+            return early2.length ? early2 : null;
+          }
           const jobs = [];
           for (let c = 0; c < columns.length; c++) {
             const col = columns[c];
@@ -10914,6 +10919,10 @@ function renderNewsDayRail(dayKeys, opts) {
 
           // 每次并行 2 个
           for (let j = 0; j < jobs.length; j += 2) {
+            if (aborted()) {
+              var early3 = mapAndFilter();
+              return early3.length ? early3 : null;
+            }
             const pair = jobs.slice(j, j + 2);
             const results = await Promise.all(pair.map(function (job) {
               return fetchEastMoneyNewsPage(job.col, job.page, pageSize)
@@ -11380,10 +11389,11 @@ function renderNewsDayRail(dayKeys, opts) {
           if (typeof setNewsDayRailVisible === 'function') setNewsDayRailVisible(false);
         }
 
-        // —— 刷新：专门更新「新新闻」，有新内容才写回完整缓存 ——
+        // —— 刷新：打断正在跑的加载/静默同步，优先执行本次刷新 ——
         if (force) {
+          window.__newsManualRefresh = true;
           setNewsLoadingHint(true, lang === 'en' ? 'Refreshing…' : '刷新新闻中…', 0, lang);
-          const oldCache = hasCompleteCache ? cachedList : null;
+          const oldCache = hasCompleteCache ? cachedList : (cachedList && cachedList.length ? cachedList : null);
           let list = null;
           if (lang === 'cn') {
             list = await loadChineseNews(function (batch, done) {
@@ -11397,7 +11407,7 @@ function renderNewsDayRail(dayKeys, opts) {
               }
               // 边加载边展示：每次合并都更新，靠 pin 钉住当前阅读日不跳页
               renderNewsItems(merged);
-            });
+            }, { forceRestart: true });
           } else {
             list = await loadEnglishNews();
             if (list && list.length && loadId === newsLoadId) {
@@ -11538,6 +11548,10 @@ function renderNewsDayRail(dayKeys, opts) {
             if (doneOk || force) setNewsLoadingHint(false, null, null, 'cn');
           }
         }
+        // 本轮是手动刷新：释放优先级，允许后台静默同步再跑
+        if (force && loadId === newsLoadId) {
+          try { window.__newsManualRefresh = false; } catch (eM) {}
+        }
       }
     }
 
@@ -11545,6 +11559,8 @@ function renderNewsDayRail(dayKeys, opts) {
     // 有旧完整缓存时：先秒开缓存，后台拉新 → 与旧列表合并 → 有变化再写回缓存并刷新 UI
     async function quietRefreshNews(lang) {
       try {
+        // 手动刷新优先：正在点「刷新」时不抢同一条拉取通道
+        if (window.__newsManualRefresh) return;
         if (typeof invalidateNewsCacheIfNewDay === 'function') invalidateNewsCacheIfNewDay();
         const page = document.getElementById('page-hot');
         const onHot = page && page.classList.contains('active');
@@ -11554,6 +11570,7 @@ function renderNewsDayRail(dayKeys, opts) {
         if (onHot) setNewsLoadingHint(true, hasCn ? '同步新新闻…' : '检查新新闻…', 0, (lang === 'en' || newsLang === 'en') ? 'en' : 'cn');
 
         if (lang === 'cn' || !lang) {
+          if (window.__newsManualRefresh) return;
           const old = (window.__newsCache && window.__newsCache.cn) || null;
           const oldTop = old && old[0] ? (old[0].title + '|' + old[0].time) : '';
           const oldLen = old ? old.length : 0;
@@ -18154,16 +18171,11 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
 
     function toggleNetPanel(show) {
       const panel = document.getElementById('netPanel');
-      const mask = document.getElementById('netPanelMask');
       if (!panel) return;
       var on = (show === true) || (show !== false && !panel.classList.contains('show'));
       if (show === false) on = false;
       panel.classList.toggle('show', on);
       panel.setAttribute('aria-hidden', on ? 'false' : 'true');
-      if (mask) {
-        mask.classList.toggle('show', on);
-        mask.setAttribute('aria-hidden', on ? 'false' : 'true');
-      }
       if (on) {
         renderNetPanelBody();
         if (!lastNetProbeAt || Date.now() - lastNetProbeAt > 8000) {
@@ -18173,47 +18185,47 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
     }
 
     function startNetMonitor() {
-      const el = document.getElementById('netStatus');
-      const panel = document.getElementById('netPanel');
-      const mask = document.getElementById('netPanelMask');
-      const btn = document.getElementById('netPanelRefresh');
-      if (el) {
-        el.addEventListener('click', function (e) {
-          e.preventDefault();
-          e.stopPropagation();
-          toggleNetPanel();
-        });
-      }
-      // 刷新：只测速，绝不关面板（用 document 级委托，避免 innerHTML 重绘后丢监听）
+      if (window.__netMonitorBound) return;
+      window.__netMonitorBound = true;
+      // 捕获阶段统一处理：面板内点刷新只测速；面板外点才关闭且不穿透到股票
       document.addEventListener('click', function (e) {
+        var panel = document.getElementById('netPanel');
+        var status = document.getElementById('netStatus');
         var t = e.target;
         if (!t) return;
-        var hit = (t.id === 'netPanelRefresh') || (t.closest && t.closest('#netPanelRefresh'));
-        if (!hit) return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-        probeNetworkLatency(true);
-      }, true);
-      if (panel) {
-        panel.addEventListener('click', function (e) {
-          e.stopPropagation();
-        });
-        panel.addEventListener('touchend', function (e) {
-          e.stopPropagation();
-        }, { passive: true });
-      }
-      // 只有点遮罩（面板外的页面区域）才关闭；点面板内任意处（含刷新）不关
-      if (mask) {
-        function closeFromMask(e) {
+
+        // 1) 点状态灯：开/关
+        if (status && status.contains(t)) {
           e.preventDefault();
           e.stopPropagation();
           if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-          toggleNetPanel(false);
+          toggleNetPanel();
+          return;
         }
-        mask.addEventListener('click', closeFromMask);
-        mask.addEventListener('touchend', closeFromMask, { passive: false });
-      }
+
+        if (!panel || !panel.classList.contains('show')) return;
+
+        // 2) 点在面板内部
+        if (panel.contains(t)) {
+          e.stopPropagation();
+          // 只有点到「刷新」才测速，绝不关面板
+          var isRefresh = (t.id === 'netPanelRefresh') ||
+            (t.closest && t.closest('#netPanelRefresh'));
+          if (isRefresh) {
+            e.preventDefault();
+            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+            probeNetworkLatency(true);
+          }
+          return;
+        }
+
+        // 3) 点在面板外：只关闭，并拦住下层股票点击
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        toggleNetPanel(false);
+      }, true);
+
       probeNetworkLatency();
       setInterval(function () { probeNetworkLatency(false); }, 15000);
     }
