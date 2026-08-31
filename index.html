@@ -5621,6 +5621,12 @@
       Object.assign(quoteCache, data);
       renderWatchlist();
       if (typeof paintWatchStatus === 'function') paintWatchStatus();
+      // 报价刷新后，后台预热自选近3日日线（打开详情更快）
+      try {
+        if (typeof warmWatchlistDetailCache === 'function') {
+          setTimeout(function () { warmWatchlistDetailCache(); }, 800);
+        }
+      } catch (eW) {}
     }
 
     function formatWatchClock(d) {
@@ -9186,6 +9192,106 @@ async function refreshAssets(force, opts) {
 
 
 
+
+    // ========== 自选详情预热：近3日日线（Yahoo）→ 内存 + D1，打开秒出 ==========
+    window.__usDayHistCache = window.__usDayHistCache || {};
+    var DAY_HIST_TTL_MS = 12 * 60 * 1000; // 约 12 分钟内视为新鲜
+
+    function resolveYahooChartSymbol(symbol) {
+      var ySym = symbol;
+      if (!/^\^/.test(symbol) && /^(SPX|DJI|IXIC|NDX|RUT|VIX)$/i.test(String(symbol))) {
+        var YM = { SPX: '^GSPC', DJI: '^DJI', IXIC: '^IXIC', NDX: '^NDX', RUT: '^RUT', VIX: '^VIX' };
+        ySym = YM[String(symbol).toUpperCase()] || ('^' + symbol);
+      }
+      return ySym;
+    }
+
+    function parseYahooChartToPairs(data) {
+      var result = data && data.chart && data.chart.result && data.chart.result[0];
+      if (!result || !result.timestamp || !result.indicators || !result.indicators.quote) return [];
+      var ts = result.timestamp;
+      var q0 = result.indicators.quote[0] || {};
+      var closes = q0.close || [];
+      var highs = q0.high || [];
+      var lows = q0.low || [];
+      var opens = q0.open || [];
+      var pairs = [];
+      for (var i = 0; i < ts.length; i++) {
+        if (closes[i] != null && !isNaN(closes[i])) {
+          pairs.push({
+            t: ts[i],
+            c: closes[i],
+            h: highs[i] != null ? highs[i] : null,
+            l: lows[i] != null ? lows[i] : null,
+            o: opens[i] != null ? opens[i] : null
+          });
+        }
+      }
+      return pairs;
+    }
+
+    async function fetchUSDayHistPairs(symbol, opts) {
+      opts = opts || {};
+      var key = String(symbol || '').toUpperCase();
+      if (!key) return [];
+      window.__usDayHistCache = window.__usDayHistCache || {};
+      var mem = window.__usDayHistCache[key];
+      if (!opts.force && mem && mem.pairs && mem.pairs.length && (Date.now() - (mem.at || 0) < DAY_HIST_TTL_MS)) {
+        return mem.pairs;
+      }
+      // 内存没有时先试 D1
+      if (!opts.force && (!mem || !mem.pairs || !mem.pairs.length) && typeof cloudCacheGet === 'function') {
+        try {
+          var wrap = await cloudCacheGet('detail:hist:us:' + key);
+          if (wrap && wrap.data && wrap.data.pairs && wrap.data.pairs.length) {
+            window.__usDayHistCache[key] = { pairs: wrap.data.pairs, at: wrap.data.at || Date.now() };
+            if (Date.now() - (wrap.data.at || 0) < DAY_HIST_TTL_MS) return wrap.data.pairs;
+            // 过期：仍可先返回，下面 force 刷新
+            if (!opts.preferNetwork) return wrap.data.pairs;
+          }
+        } catch (eC) {}
+      }
+      try {
+        var ySym = resolveYahooChartSymbol(symbol);
+        var yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(ySym) + '?interval=1d&range=20d';
+        var data = await fetchViaProxies(yUrl);
+        var pairs = parseYahooChartToPairs(data);
+        if (pairs && pairs.length) {
+          window.__usDayHistCache[key] = { pairs: pairs, at: Date.now() };
+          try {
+            if (typeof cloudCacheSetBg === 'function') {
+              cloudCacheSetBg('detail:hist:us:' + key, { pairs: pairs, at: Date.now() }, 2);
+            }
+          } catch (eS) {}
+        }
+        return pairs || [];
+      } catch (e) {
+        console.warn('fetchUSDayHistPairs', key, e);
+        return (mem && mem.pairs) || [];
+      }
+    }
+
+    /** 观察列表美股：后台预热近3日日线，打开详情可秒出 */
+    async function warmWatchlistDetailCache() {
+      try {
+        if (window.__warmDetailBusy) return;
+        window.__warmDetailBusy = true;
+        var list = (typeof watchlist !== 'undefined' && watchlist) ? watchlist.slice() : [];
+        var us = list.filter(function (s) {
+          return s && !(typeof isAShareSymbol === 'function' && isAShareSymbol(s));
+        }).slice(0, 20);
+        for (var i = 0; i < us.length; i++) {
+          try {
+            await fetchUSDayHistPairs(us[i], { preferNetwork: false });
+          } catch (e1) {}
+          await new Promise(function (r) { setTimeout(r, 280); });
+        }
+      } catch (e) {
+      } finally {
+        window.__warmDetailBusy = false;
+      }
+    }
+
 async function openDetail(symbol, isRestore) {
       // 日历等入口点到 A 股代码时，走 A 股详情（观察列表同逻辑）
       try {
@@ -9391,44 +9497,55 @@ async function openDetail(symbol, isRestore) {
           '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:16px;">该代码暂无公开行情或已退市/并购，请换其它标的</div>';
       }
 
-      // 近三日对比：收盘 + 最高/最低（Yahoo 日线，经 Worker）
+      // 近三日对比：优先内存/D1 预热缓存秒出，再后台拉新回写
       let dayRows = '';
       let histPairs = [];
       try {
-        let ySym = symbol;
-        if (!/^\^/.test(symbol) && /^(SPX|DJI|IXIC|NDX|RUT|VIX)$/i.test(String(symbol))) {
-          const YM = { SPX: '^GSPC', DJI: '^DJI', IXIC: '^IXIC', NDX: '^NDX', RUT: '^RUT', VIX: '^VIX' };
-          ySym = YM[String(symbol).toUpperCase()] || ('^' + symbol);
-        }
-        const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySym)}?interval=1d&range=20d`;
-        const data = await fetchViaProxies(yUrl);
-        const result = data && data.chart && data.chart.result && data.chart.result[0];
-        if (result && result.timestamp && result.indicators && result.indicators.quote) {
-          const ts = result.timestamp;
-          const q0 = result.indicators.quote[0] || {};
-          const closes = q0.close || [];
-          const highs = q0.high || [];
-          const lows = q0.low || [];
-          const opens = q0.open || [];
-          const pairs = [];
-          for (let i = 0; i < ts.length; i++) {
-            if (closes[i] != null && !isNaN(closes[i])) {
-              pairs.push({
-                t: ts[i],
-                c: closes[i],
-                h: highs[i] != null ? highs[i] : null,
-                l: lows[i] != null ? lows[i] : null,
-                o: opens[i] != null ? opens[i] : null
-              });
-            }
-          }
-          histPairs = pairs;
+        const cacheKey = String(symbol).toUpperCase();
+        window.__usDayHistCache = window.__usDayHistCache || {};
+        var memH = window.__usDayHistCache[cacheKey];
+        if (memH && memH.pairs && memH.pairs.length) {
+          histPairs = memH.pairs;
           try {
-            window.__detailHistCtx = { pairs: pairs, market: 'us' };
+            window.__detailHistCtx = { pairs: histPairs, market: 'us' };
             window.__detailDayHistExpanded = false;
-            dayRows = buildDayHistSectionHtml(pairs, 'us', false);
-          } catch (eHist) { console.warn('day hist', eHist); }
+            dayRows = buildDayHistSectionHtml(histPairs, 'us', false);
+          } catch (e0) {}
+        } else if (typeof fetchUSDayHistPairs === 'function') {
+          // 同步等一轮（可能已有 D1）；仍慢则下面 force 刷新
+          histPairs = await fetchUSDayHistPairs(symbol, { preferNetwork: false });
+          if (histPairs && histPairs.length) {
+            try {
+              window.__detailHistCtx = { pairs: histPairs, market: 'us' };
+              window.__detailDayHistExpanded = false;
+              dayRows = buildDayHistSectionHtml(histPairs, 'us', false);
+            } catch (e1) {}
+          }
         }
+        // 后台强制刷新最新日线，有变化再改 UI / 缓存
+        (function (symKeep, uiTokKeep) {
+          if (typeof fetchUSDayHistPairs !== 'function') return;
+          fetchUSDayHistPairs(symKeep, { force: true }).then(function (fresh) {
+            try {
+              if (!fresh || !fresh.length) return;
+              if (typeof isDetailUI === 'function' && !isDetailUI('stock', uiTokKeep)) return;
+              if (liveDetailSymbol && String(liveDetailSymbol).toUpperCase() !== String(symKeep).toUpperCase()) return;
+              histPairs = fresh;
+              window.__detailHistCtx = { pairs: fresh, market: 'us' };
+              var rows = buildDayHistSectionHtml(fresh, 'us', !!window.__detailDayHistExpanded);
+              var grid = document.getElementById('detailGrid');
+              if (!grid || !rows) return;
+              // 保留前 4 个 detail-stat（高低开收），后面换成近3日
+              var stats = grid.querySelectorAll(':scope > .detail-stat');
+              var head = '';
+              var keep = Math.min(4, stats.length);
+              for (var ii = 0; ii < keep; ii++) head += stats[ii].outerHTML;
+              var rest = '';
+              // 若已有展开按钮等非 stat 节点，直接整段替换后半
+              grid.innerHTML = head + rows;
+            } catch (eUp) {}
+          }).catch(function () {});
+        })(symbol, uiTok);
       } catch (e) {
         console.warn('3day compare fail', e);
       }
@@ -17875,6 +17992,9 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
     renderWatchlist();
     try { updateWatchCountBadge(); } catch (e) {}
     refreshQuotes();
+    setTimeout(function () {
+      try { if (typeof warmWatchlistDetailCache === 'function') warmWatchlistDetailCache(); } catch (e) {}
+    }, 2500);
     renderValL1(); // 纯静态占位卡片，不用等预加载，直接先画出来
     setTimeout(function () { if (typeof enrichWatchlistRefSignals === 'function') enrichWatchlistRefSignals(); }, 1500);
     setInterval(function () { if (typeof enrichWatchlistRefSignals === 'function') enrichWatchlistRefSignals(); }, 5 * 60 * 1000);
