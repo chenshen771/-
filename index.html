@@ -2146,6 +2146,151 @@
     }
 
 
+
+    /** 从 D1 拉板块云端缓存 → 写入本地 quoteCache / cnBoard，打开即可见 */
+    async function hydrateSectorFromCloud() {
+      try {
+        if (typeof cloudCacheGet !== 'function') return { ok: false };
+        var out = { us: 0, cn: 0, meta: null };
+        // 美股全市场精简行情
+        try {
+          var usWrap = await cloudCacheGet('sector:us:quotes');
+          var usData = usWrap && usWrap.data;
+          if (usData && usData.map && typeof usData.map === 'object') {
+            var at = usData.at || Date.now();
+            Object.keys(usData.map).forEach(function (sym) {
+              var raw = usData.map[sym];
+              if (!raw) return;
+              var q = {
+                c: Number(raw.c),
+                dp: Number(raw.dp),
+                d: Number(raw.d),
+                h: Number(raw.h) || Number(raw.c),
+                l: Number(raw.l) || Number(raw.c),
+                o: Number(raw.o) || Number(raw.c),
+                pc: Number(raw.pc) || Number(raw.c),
+                name: raw.name || '',
+                _cachedAt: at,
+                _src: 'cloud'
+              };
+              if (!(q.c > 0)) return;
+              try {
+                if (typeof putQuoteCache === 'function') putQuoteCache(sym, q);
+                else quoteCache[sym] = q;
+              } catch (e1) {
+                quoteCache[sym] = q;
+              }
+              out.us++;
+            });
+            try { if (typeof saveQuoteCacheToDisk === 'function') saveQuoteCacheToDisk(); } catch (e2) {}
+          }
+        } catch (eUs) {}
+        // A股行业榜
+        try {
+          var cnWrap = await cloudCacheGet('sector:cn:boards');
+          var cnData = cnWrap && cnWrap.data;
+          if (cnData && Array.isArray(cnData.boards) && cnData.boards.length) {
+            cnBoardCache = cnData.boards.map(function (b) {
+              return {
+                name: b.name || '--',
+                chg: b.chg != null ? Number(b.chg) : 0,
+                hasChg: b.chg != null,
+                board: b.board || '',
+                count: Number(b.count) || 0
+              };
+            });
+            window.__cnBoardCacheAt = cnData.at || Date.now();
+            window.__cnBoardMeta = window.__cnBoardMeta || {};
+            cnBoardCache.forEach(function (row) {
+              if (!row.board) return;
+              window.__cnBoardMeta[row.board] = {
+                count: row.count || 0,
+                chg: row.chg || 0,
+                name: row.name || '',
+                at: window.__cnBoardCacheAt
+              };
+            });
+            out.cn = cnBoardCache.length;
+          }
+        } catch (eCn) {}
+        try {
+          var metaWrap = await cloudCacheGet('sector:daily:meta');
+          out.meta = metaWrap && metaWrap.data;
+        } catch (eM) {}
+        window.__sectorCloudHydratedAt = Date.now();
+        window.__sectorCloudHydrated = out;
+        return out;
+      } catch (e) {
+        return { ok: false, error: String(e) };
+      }
+    }
+
+    /** 手动刷新成功后：把当前本地板块行情推到 D1，供下次打开 / 跨设备 */
+    async function pushSectorCloudCache() {
+      try {
+        if (typeof cloudCacheSet !== 'function') return false;
+        var day = (typeof getLocalCacheDayStr === 'function')
+          ? getLocalCacheDayStr()
+          : new Date().toISOString().slice(0, 10);
+        // 美股：优先树内成分 + 已有缓存，控制体积
+        var map = {};
+        var syms = [];
+        try {
+          if (typeof collectUSSectorAllSymbols === 'function') {
+            syms = collectUSSectorAllSymbols() || [];
+          }
+        } catch (e0) {}
+        var allKeys = Object.keys(quoteCache || {});
+        // 树内优先，其余最多再补一些
+        var prefer = {};
+        syms.forEach(function (s) { prefer[s] = 1; });
+        allKeys.forEach(function (sym) {
+          var q = quoteCache[sym];
+          if (!q || !(q.c > 0)) return;
+          if (!prefer[sym] && Object.keys(map).length > 2500) return;
+          map[sym] = {
+            c: q.c,
+            dp: q.dp,
+            d: q.d,
+            h: q.h,
+            l: q.l,
+            o: q.o,
+            pc: q.pc,
+            name: q.name || ''
+          };
+        });
+        await cloudCacheSet('sector:us:quotes', {
+          day: day,
+          at: Date.now(),
+          total: Object.keys(map).length,
+          map: map,
+          source: 'client_refresh'
+        }, 2);
+        // A股行业榜
+        if (cnBoardCache && cnBoardCache.length) {
+          await cloudCacheSet('sector:cn:boards', {
+            day: day,
+            at: Date.now(),
+            boards: cnBoardCache.map(function (b) {
+              return { board: b.board, name: b.name, chg: b.chg, count: b.count };
+            }),
+            source: 'client_refresh'
+          }, 2);
+        }
+        await cloudCacheSet('sector:daily:meta', {
+          day: day,
+          at: Date.now(),
+          usCount: Object.keys(map).length,
+          cnBoards: (cnBoardCache && cnBoardCache.length) || 0,
+          source: 'client_refresh'
+        }, 3);
+        return true;
+      } catch (e) {
+        console.warn('pushSectorCloudCache', e);
+        return false;
+      }
+    }
+
     // 默认观察列表
     const DEFAULT_WATCH = ['AAPL', 'NVDA', 'TSLA', 'MSFT', 'GOOGL', 'META', 'AMZN'];
 
@@ -2705,6 +2850,24 @@
       return q;
     }
     loadQuoteCacheFromDisk();
+    // 启动：从 D1 预热板块行情（关网页时由 Worker 定时写入）
+    setTimeout(function () {
+      try {
+        if (typeof hydrateSectorFromCloud === 'function') {
+          hydrateSectorFromCloud().then(function (info) {
+            try {
+              if (!info) return;
+              if (typeof isSectorPageActive === 'function' && isSectorPageActive()) {
+                if (typeof sectorMarket !== 'undefined' && sectorMarket === 'us' &&
+                    typeof repaintCurrentUSSectorFromCache === 'function') {
+                  repaintCurrentUSSectorFromCache();
+                }
+              }
+            } catch (eR) {}
+          }).catch(function () {});
+        }
+      } catch (eH) {}
+    }, 600);
 
     // 全局半透明加载/更新提示（一级/二级/三级通用）
     let sectorToastHideTimer = null;
@@ -12547,6 +12710,7 @@ const FALLBACK_SECTORS = {
             hideSectorProgress('us', isNewDay ? '最新数据已更新' : '美股板块已更新');
           }
           try { window.__sectorNewDayRefresh = false; } catch (eNd) {}
+          try { if (typeof pushSectorCloudCache === 'function') pushSectorCloudCache(); } catch (ePush) {}
         } else {
           try {
             window.__cnBoardCacheAt = 0;
@@ -12848,9 +13012,9 @@ const FALLBACK_SECTORS = {
           showCnUnified(100, isNewDayCn ? '最新数据已更新' : 'A股完整刷新完成');
           if (myTok === window.__sectorRefreshTok.cn) {
             hideSectorProgress('cn', isNewDayCn ? '最新数据已更新' : 'A股板块已完整刷新');
-
-          try { window.__sectorNewDayRefresh = false; } catch (eNd2) {}
           }
+          try { window.__sectorNewDayRefresh = false; } catch (eNd2) {}
+          try { if (typeof pushSectorCloudCache === 'function') pushSectorCloudCache(); } catch (ePushCn) {}
         }
       } catch (e) {
         console.warn('fullRefreshSectors', mkt, e);
@@ -13017,6 +13181,16 @@ const FALLBACK_SECTORS = {
       try {
         if (invalidateCachesIfNewDay(false)) force = true;
       } catch (e) {}
+      // 打开板块：优先用云端日更缓存（秒开），无 force 时不挡界面
+      try {
+        if (!force && typeof hydrateSectorFromCloud === 'function') {
+          var needHydra = !window.__sectorCloudHydratedAt ||
+            (Date.now() - window.__sectorCloudHydratedAt > 10 * 60 * 1000);
+          if (needHydra) {
+            await hydrateSectorFromCloud();
+          }
+        }
+      } catch (eHyd) {}
       const container = document.getElementById('sectorContent');
       // 已有内容时不整页清空，避免闪「加载中」和 0.00
       const hasContent = container && container.querySelector('.sector-cards, .l1-card, .sector-card');
