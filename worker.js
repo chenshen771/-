@@ -1,4 +1,11 @@
 export default {
+  async scheduled(event, env, ctx) {
+    // Cloudflare Cron：关网页也会跑。Dashboard → Triggers → Cron 例如 0 1 * * * (UTC≈北京时间09:00)
+    ctx.waitUntil(runSectorDailyJob(env).catch(function (e) {
+      console.log('sector daily job fail', String(e));
+    }));
+  },
+
   async fetch(request, env, ctx) {
     if (request.method === 'OPTIONS') {
       return new Response(null, {
@@ -88,6 +95,7 @@ export default {
             browse: 'POST /api/browse',
             cache: 'GET/POST /api/cache · POST /api/cache/purge',
             webhook: 'POST /webhook/finnhub',
+            cronSector: 'GET/POST /api/cron/sector-daily (需 X-App-Key)',
           },
         });
       }
@@ -692,5 +700,168 @@ async function handleApi(request, env, url) {
     }
   }
 
+
+  // ---- 板块每日后台任务：关网页也能跑（Cron 或手动触发）----
+  if (url.pathname === '/api/cron/sector-daily') {
+    if (!checkAuth(request, env)) return json({ error: 'forbidden' }, 403);
+    try {
+      const result = await runSectorDailyJob(env);
+      return json({ ok: true, ...result });
+    } catch (e) {
+      return json({ ok: false, error: String(e) }, 500);
+    }
+  }
+
   return null;
+}
+
+
+/** 东财美股全表 + A股行业榜 → 写入 D1，供网页打开时秒开板块 */
+async function runSectorDailyJob(env) {
+  if (!env.DB) throw new Error('DB not bound');
+  const started = Date.now();
+  const day = new Date().toISOString().slice(0, 10);
+  const headers = {
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    Accept: 'application/json,text/plain,*/*',
+  };
+
+  async function putCache(key, data, ttlDays) {
+    const now = new Date().toISOString();
+    const expires = new Date(Date.now() + (ttlDays || 2) * 86400000).toISOString();
+    const value = JSON.stringify(data);
+    if (value.length > 900000) throw new Error('payload too large: ' + key + ' ' + value.length);
+    await env.DB.prepare(
+      'INSERT INTO cache_kv (key, value, updated_at, expires_at) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at, expires_at=excluded.expires_at'
+    )
+      .bind(key, value, now, expires)
+      .run();
+  }
+
+  // ---- 美股：东财 clist 分页（精简字段，约全市场）----
+  const usMap = {};
+  let usTotal = 0;
+  const pageSize = 100;
+  const maxPages = 150; // 上限防超时，约 1.5 万只
+  for (let pn = 1; pn <= maxPages; pn++) {
+    const api =
+      'https://push2delay.eastmoney.com/api/qt/clist/get?pn=' +
+      pn +
+      '&pz=' +
+      pageSize +
+      '&po=1&np=1&fltt=2&invt=2&fid=f12&fs=m:105,m:106,m:107&fields=f12,f14,f2,f3,f4,f15,f16,f17,f18&_=' +
+      Date.now();
+    let data = null;
+    try {
+      const r = await fetch(api, { headers });
+      if (r.ok) data = await r.json();
+    } catch (e) {}
+    if (!data || !data.data) break;
+    if (pn === 1) usTotal = Number(data.data.total) || 0;
+    const diff = data.data.diff;
+    const rows = Array.isArray(diff)
+      ? diff
+      : diff
+        ? Object.keys(diff).map(function (k) {
+            return diff[k];
+          })
+        : [];
+    if (!rows.length) break;
+    for (let i = 0; i < rows.length; i++) {
+      const it = rows[i] || {};
+      const code = String(it.f12 || '')
+        .trim()
+        .toUpperCase();
+      if (!code || !/^[A-Z0-9.\-]+$/.test(code)) continue;
+      const c = Number(it.f2);
+      if (!(c > 0)) continue;
+      const dp = Number(it.f3);
+      const d = Number(it.f4);
+      const pc =
+        !isNaN(dp) && dp !== -100 ? c / (1 + dp / 100) : Number(it.f18) > 0 ? Number(it.f18) : c;
+      usMap[code] = {
+        c: c,
+        dp: isNaN(dp) ? 0 : dp,
+        d: isNaN(d) ? 0 : d,
+        h: Number(it.f15) > 0 ? Number(it.f15) : c,
+        l: Number(it.f16) > 0 ? Number(it.f16) : c,
+        o: Number(it.f17) > 0 ? Number(it.f17) : c,
+        pc: pc > 0 ? pc : c,
+        name: String(it.f14 || ''),
+      };
+    }
+    // 已收齐
+    if (usTotal && Object.keys(usMap).length >= usTotal) break;
+    if (rows.length < pageSize) break;
+  }
+  const usCount = Object.keys(usMap).length;
+  await putCache(
+    'sector:us:quotes',
+    { day: day, at: Date.now(), total: usTotal || usCount, map: usMap },
+    2
+  );
+
+  // ---- A股：行业涨跌榜（上+下）----
+  async function fetchCnBoardList(up) {
+    const api =
+      'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=100&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:90+t:2&fields=f12,f14,f2,f3,f104,f105&_=' +
+      Date.now();
+    // up: fid=f3 desc is default; for down use fid=f3&po=0
+    const url =
+      'https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=120&po=' +
+      (up ? 1 : 0) +
+      '&np=1&fltt=2&invt=2&fid=f3&fs=m:90+t:2&fields=f12,f14,f2,f3,f104,f105&_=' +
+      Date.now();
+    try {
+      const r = await fetch(url, { headers });
+      if (!r.ok) return [];
+      const data = await r.json();
+      const diff = data && data.data && data.data.diff;
+      const rows = Array.isArray(diff) ? diff : [];
+      return rows.map(function (it) {
+        return {
+          board: String(it.f12 || ''),
+          name: String(it.f14 || ''),
+          chg: it.f3 != null ? Number(it.f3) : 0,
+          count: (Number(it.f104) || 0) + (Number(it.f105) || 0),
+        };
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+  const upBoards = await fetchCnBoardList(true);
+  const downBoards = await fetchCnBoardList(false);
+  const boardMap = {};
+  upBoards.concat(downBoards).forEach(function (b) {
+    if (!b.board) return;
+    if (!boardMap[b.board]) boardMap[b.board] = b;
+  });
+  const boards = Object.keys(boardMap).map(function (k) {
+    return boardMap[k];
+  });
+  await putCache('sector:cn:boards', { day: day, at: Date.now(), boards: boards }, 2);
+
+  // 状态标记：网页可用来判断「今天是否已后台刷过」
+  await putCache(
+    'sector:daily:meta',
+    {
+      day: day,
+      at: Date.now(),
+      usCount: usCount,
+      usTotal: usTotal || usCount,
+      cnBoards: boards.length,
+      ms: Date.now() - started,
+    },
+    3
+  );
+
+  return {
+    day: day,
+    usCount: usCount,
+    usTotal: usTotal || usCount,
+    cnBoards: boards.length,
+    ms: Date.now() - started,
+  };
 }
