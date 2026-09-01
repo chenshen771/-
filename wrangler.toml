@@ -1,3 +1,17 @@
+# Cloudflare Worker「gushi」配置
+# 放到和 worker.js 同一仓库的根目录后部署
+
 name = "gushi"
 main = "worker.js"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-09-01"
+
+# 若入口文件是 gushi-worker.js，改为：
+# main = "gushi-worker.js"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gushi-db"
+database_id = "aef25a14-fa9f-447a-adf7-9e76ae60c0ad"
+
+[triggers]
+crons = ["0 1 * * *"]
