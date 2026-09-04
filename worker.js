@@ -121,7 +121,11 @@ export default {
       'query2.finance.yahoo.com',
       'push2delay.eastmoney.com',
       'push2.eastmoney.com',
+      'push2his.eastmoney.com',
       'np-listapi.eastmoney.com',
+      'datacenter-web.eastmoney.com',
+      'datacenter.eastmoney.com',
+      'finance.eastmoney.com',
       'finnhub.io',
     ];
     if (
