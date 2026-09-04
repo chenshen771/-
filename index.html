@@ -1566,6 +1566,17 @@
     .net-status.mid .dot { background: #fbbf24; box-shadow: 0 0 6px #fbbf2488; }
     .net-status.bad .dot { background: #ef5350; box-shadow: 0 0 6px #ef535088; }
     .net-status .net-text { white-space: nowrap; }
+
+    .net-panel-mask {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 118;
+      background: transparent;
+      /* 与权重模型 overlay 一样挂在 body：可盖住回测 iframe，点空白关闭 */
+      pointer-events: auto;
+    }
+    .net-panel-mask.show { display: block; }
     .net-panel {
       display: none;
       position: fixed;
@@ -1744,14 +1755,6 @@
         <span class="dot"></span>
         <span class="net-text" id="netStatusText">检测中...</span>
       </div>
-      <div class="net-panel" id="netPanel" aria-hidden="true">
-        <div class="np-hd">
-          <span class="np-title">接口延迟</span>
-          <button type="button" class="np-refresh" id="netPanelRefresh">刷新</button>
-        </div>
-        <div id="netPanelBody"></div>
-        <div class="np-foot">取各接口最近一次探测；摘要取可用中的最低延迟。点空白处关闭。</div>
-      </div>
     </div>
   </header>
 
@@ -1927,6 +1930,17 @@
       <div style="text-align:center;color:var(--muted);padding:30px 0;">加载板块数据中...</div>
     </div>
     <div class="page-note" id="sectorNote">美股用行业ETF实时涨跌 · A股来自东方财富</div>
+  </div>
+
+  <!-- 接口延迟面板遮罩：与权重模型同级挂在 body，避免被 header backdrop-filter 裁切；可盖住回测 iframe -->
+  <div class="net-panel-mask" id="netPanelMask" aria-hidden="true" onclick="toggleNetPanel(false)"></div>
+  <div class="net-panel" id="netPanel" aria-hidden="true">
+    <div class="np-hd">
+      <span class="np-title">接口延迟</span>
+      <button type="button" class="np-refresh" id="netPanelRefresh">刷新</button>
+    </div>
+    <div id="netPanelBody"></div>
+    <div class="np-foot">取各接口最近一次探测；摘要取可用中的最低延迟。点空白处关闭。</div>
   </div>
 
   <!-- 权重模型切换（二级小窗口） -->
@@ -16104,7 +16118,7 @@ function normalizeAShareCode(sym) {
       for (let i = 0; i < proxies.length; i++) {
         try {
           const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-          const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 6000) : null;
+          const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 12000) : null;
           const res = await fetch(proxies[i], { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
           if (timer) clearTimeout(timer);
           if (!res.ok) continue;
@@ -16129,8 +16143,9 @@ function normalizeAShareCode(sym) {
           return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         }
         const todayS = ymd(now);
-        const pastFrom = ymd(new Date(now.getTime() - 25 * 86400000));
-        const futureTo = ymd(new Date(now.getTime() + 50 * 86400000));
+        // 窗口放宽：季报/年报预约常集中在少数几天，过窄会看起来「几乎没数据」
+        const pastFrom = ymd(new Date(now.getTime() - 45 * 86400000));
+        const futureTo = ymd(new Date(now.getTime() + 120 * 86400000));
         const cols = 'SECURITY_CODE,SECURITY_NAME_ABBR,FIRST_APPOINT_DATE,REPORT_DATE,REPORT_TYPE_NAME,IS_PUBLISH';
         const out = [];
         const seen = {};
@@ -16157,22 +16172,27 @@ function normalizeAShareCode(sym) {
         async function pullAppointPages(filter, sortTypes, maxPages, pageSize) {
           for (let page = 1; page <= maxPages; page++) {
             if (stale()) return; // 已经切走这个市场，别再接着翻下一页了
-            const url = 'https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_PUBLIC_BS_APPOIN'
+            var url = 'https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_PUBLIC_BS_APPOIN'
               + '&columns=' + cols
               + '&pageNumber=' + page + '&pageSize=' + pageSize
               + '&sortColumns=FIRST_APPOINT_DATE&sortTypes=' + sortTypes
-              + '&filter=' + encodeURIComponent(filter)
               + '&source=WEB&client=WEB';
+            if (filter) url += '&filter=' + encodeURIComponent(filter);
             const data = await fetchEastMoneyJson(url);
+            // success:false + 空数据（无预约）不中断，继续翻页/换条件
             const rows = (data && data.result && data.result.data) || [];
             pushRows(rows);
-            if (!rows.length || rows.length < pageSize || out.length > 200) break;
+            if (!rows.length || rows.length < pageSize || out.length > 500) break;
           }
         }
 
-        await pullAppointPages("(FIRST_APPOINT_DATE>='" + todayS + "')(FIRST_APPOINT_DATE<='" + futureTo + "')", 1, 3, 100);
+        // 一次拉「近45天～未来120天」再拆分展示，避免只查「今天以后」在淡季几乎为空
+        await pullAppointPages("(FIRST_APPOINT_DATE>='" + pastFrom + "')(FIRST_APPOINT_DATE<='" + futureTo + "')", 1, 8, 100);
         if (stale()) return out;
-        await pullAppointPages("(FIRST_APPOINT_DATE>='" + pastFrom + "')(FIRST_APPOINT_DATE<'" + todayS + "')", -1, 2, 100);
+        // 兜底：按最新预约倒序再补几页（不带日期条件时东财仍会返回最近一批）
+        if (out.length < 30) {
+          await pullAppointPages('', -1, 5, 100);
+        }
         if (stale()) return out;
 
         try {
@@ -18762,6 +18782,11 @@ const MACRO_CACHE_PREFIX = 'macro_page_v2_';
       if (show === false) on = false;
       panel.classList.toggle('show', on);
       panel.setAttribute('aria-hidden', on ? 'false' : 'true');
+      var mask = document.getElementById('netPanelMask');
+      if (mask) {
+        mask.classList.toggle('show', on);
+        mask.setAttribute('aria-hidden', on ? 'false' : 'true');
+      }
       if (on) {
         renderNetPanelBody();
         if (!lastNetProbeAt || Date.now() - lastNetProbeAt > 8000) {
